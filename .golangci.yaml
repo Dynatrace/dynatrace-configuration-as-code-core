@@ -1,0 +1,24 @@
+linters:
+  enable:
+    - gocognit
+    - godox
+    - dupl
+    - tenv
+    - noctx
+  presets:
+    - bugs
+    - unused
+  disable:
+    - varcheck # deprecated
+    - deadcode # deprecated
+    - scopelint # deprecated
+    - structcheck # deprecated
+
+linters-settings:
+  gocognit:
+    min-complexity: 25
+  dupl:
+    threshold: 75
+run:
+  skip-files:
+    - '.*_test\.go$'
