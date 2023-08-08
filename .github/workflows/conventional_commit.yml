@@ -1,0 +1,19 @@
+name: Commit Compliance
+
+# This workflow runs on pull requests
+# to make sure your commits are compliant with conventional commits.
+# https://www.conventionalcommits.org/en/v1.0.0/
+
+on: [ pull_request ]
+jobs:
+  validate-commits:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 #v3.5.3
+        with:
+          fetch-depth: 0
+      - name: Commitsar check
+        uses: aevea/commitsar@916c7b483225a30d3a17f407fa25f5b25888ea69 #v0.20.2

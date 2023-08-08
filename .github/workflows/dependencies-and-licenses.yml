@@ -1,0 +1,39 @@
+name: Dependencies and Licenses
+on:
+  release:
+    types:
+      - published
+defaults:
+  run:
+    shell: bash
+jobs:
+  generate-dependencies:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Core Repo
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 #v3.5.3
+      - name: Set up Go
+        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 #v4.0.1
+        with:
+          go-version: '~1.20'
+      - name: Install go-licence-detector
+        run: |
+          go install go.elastic.co/go-licence-detector@v0.6.0
+      - name: Clean Go mod
+        run: go mod tidy
+      - name: Generate SBOM in CycloneDX format
+        uses: CycloneDX/gh-gomod-generate-sbom@efc74245d6802c8cefd925620515442756c70d8f #v2.0.0
+        with:
+            version: v1
+            args: mod -licenses -output sbom.xml
+      - name: Upload SBOM artifact
+        run: |
+            curl --request POST "https://uploads.github.com/repos/Dynatrace/dynatrace-configuration-as-code-core/releases/${{ github.event.release.id }}/assets?name=sbom.xml" \
+                 --header "Accept: application/vnd.github+json" \
+                 --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                 --header "X-GitHub-Api-Version: 2022-11-28" \
+                 --header "Content-Type: application/octet-stream" \
+                 --fail \
+                 --data-binary @sbom.xml

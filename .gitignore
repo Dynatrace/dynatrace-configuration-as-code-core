@@ -1,0 +1,17 @@
+# IDEs
+.idea/*
+.vscode/
+*.iml
+.run/
+!.idea/copyright
+
+# Mock files
+**/*_mock.go
+
+# Generated files
+sbom.xml
+
+# Misc
+.DS_Store
+*.env
+config.json
