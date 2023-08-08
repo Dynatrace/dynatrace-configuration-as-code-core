@@ -5,6 +5,7 @@ module github.com/dynatrace/dynatrace-configuration-as-code-core/v1
 require (
 	github.com/go-logr/logr v1.2.4
 	github.com/stretchr/testify v1.8.4
+	golang.org/x/time v0.3.0
 )
 
 require (

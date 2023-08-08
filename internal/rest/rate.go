@@ -15,30 +15,131 @@
 package rest
 
 import (
+	"context"
+	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
+
+	"golang.org/x/time/rate"
+)
+
+const (
+	limitHeader = "X-RateLimit-Limit"
+	resetHeader = "X-RateLimit-Reset"
+
+	defaultTimeout = time.Second
 )
 
 type RateLimiter struct {
-	Lock         sync.Mutex
-	Limit        int
-	ResetAt      time.Time
-	ResetTimeout time.Duration
+	Lock  sync.RWMutex
+	Clock Clock
+
+	limiter      *rate.Limiter
+	resetAt      *time.Time
+	resetTimeout *time.Duration
 }
 
-// TODO: implement simple rate limiter based on the X-RateLimit-Reset header
+type Clock interface {
+	Now() time.Time
+	After(d time.Duration) <-chan time.Time
+}
+
+type realtimeClock struct{}
+
+func (realtimeClock) Now() time.Time {
+	return time.Now()
+}
+
+func (realtimeClock) After(d time.Duration) <-chan time.Time {
+	return time.After(d)
+}
+
 func NewRateLimiter() *RateLimiter {
-	return &RateLimiter{}
+	return &RateLimiter{
+		Clock: realtimeClock{},
+	}
 }
 
-func (rl *RateLimiter) Update(headers http.Header) {
+func (rl *RateLimiter) Update(status int, headers http.Header) {
 	rl.Lock.Lock()
 	defer rl.Lock.Unlock()
-	// TODO: implement
+
+	limit, err := extractLimit(headers)
+	if err == nil && limit > 0 {
+		// TODO log that a rate limit has been set based on HTTP headers
+		if rl.limiter == nil {
+			rl.limiter = rate.NewLimiter(limit, 1)
+		} else if limit != rl.limiter.Limit() {
+			rl.limiter.SetLimit(limit)
+		}
+	}
+
+	if status != http.StatusTooManyRequests {
+		// no hard limit reached at the moment, carry on
+		rl.resetAt = nil
+		rl.resetTimeout = nil
+		return
+	}
+
+	reset, err := extractTimeout(headers)
+	if err != nil {
+		// TODO log that default values are being used
+
+		rt := defaultTimeout
+		rl.resetTimeout = &rt
+		ra := rl.Clock.Now().Add(defaultTimeout)
+		rl.resetAt = &ra
+
+		return
+	}
+
+	rl.resetAt = &reset
+	rt := reset.Sub(rl.Clock.Now())
+	rl.resetTimeout = &rt
 }
 
-func (rl *RateLimiter) Allow() bool {
-	//TODO: implement
-	return true
+// extractLimit tries to parse the limitHeader into a rate.Limit for use with the soft-limit rate.Limiter.
+func extractLimit(header http.Header) (rate.Limit, error) {
+	lstr := header.Get(limitHeader)
+	limit, err := strconv.Atoi(lstr)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse header %q with value %q: %w", limitHeader, lstr, err)
+	}
+	return rate.Limit(limit), nil
+}
+
+// extractTimeout tries to parse the resetHeader into time.Time used for the 429 API response hard limit.
+// As Dynatrace APIs don't return a time delta, but a Unix timestamp this will return a reset timestamp in server time.
+func extractTimeout(header http.Header) (time.Time, error) {
+	rstr := header.Get(resetHeader)
+	resetMicros, err := strconv.ParseInt(rstr, 10, 64)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to parse header %q with value %q: %w", resetHeader, rstr, err)
+	}
+
+	reset := time.UnixMicro(resetMicros)
+	return reset, nil
+}
+
+// Wait blocks in case a hard API limit was reached, or the request/second limit was exceeded.
+// In case of a hard limit, the method will block until after its reset time is reached.
+// In case of the soft request/second limit it will block until requests are available again.
+// See rate.Limiter for details on how soft-limits works.
+func (rl *RateLimiter) Wait(ctx context.Context) {
+	rl.Lock.RLock()
+	defer rl.Lock.RUnlock()
+
+	if rl.resetAt != nil && rl.resetTimeout != nil && rl.resetAt.After(rl.Clock.Now()) {
+		// hard limit triggered via 429 API response, wait until its timeout is reached
+		<-rl.Clock.After(*rl.resetTimeout)
+	}
+
+	if rl.limiter != nil {
+		err := rl.limiter.Wait(ctx)
+		if err != nil {
+			// TODO log limiter error and carry on
+		}
+	}
 }

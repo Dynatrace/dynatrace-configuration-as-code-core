@@ -62,6 +62,18 @@ func WithRequestResponseRecorder(recorder *RequestResponseRecorder) Option {
 	}
 }
 
+// WithRateLimiter activates a RateLimiter for the Client.
+// The RateLimiter will block subsequent Client calls after a 429 status code is received until the mandated reset time is
+// reached. If the server should not reply with an X-RateLimit-Reset header, a default delay is enforced.
+// Note that a Client with RateLimiter will not automatically retry an API call after a limit was hit, but return the
+// Too Many Requests 429 HTTPError to you.
+// If wish for the Client to retry on errors configure a RequestRetrier as well.
+func WithRateLimiter() Option {
+	return func(c *Client) {
+		c.RateLimiter = NewRateLimiter()
+	}
+}
+
 // Client represents a general HTTP client
 type Client struct {
 	BaseURL                  string                    // base URL of the server
@@ -118,9 +130,7 @@ func (c *Client) SetHeader(key, value string) {
 func (c *Client) sendRequestWithRetries(ctx context.Context, method, endpoint string, body io.Reader, retryCount int) (*http.Response, error) {
 
 	if c.RateLimiter != nil {
-		if !c.RateLimiter.Allow() {
-			c.RateLimiter.Allow() // This should block until the reset time is reached
-		}
+		c.RateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
 	}
 
 	// Apply concurrent request limiting if ConcurrentRequestLimiter is set
@@ -168,7 +178,7 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method, endpoint st
 
 	// Update the rate limiter with the response headers
 	if c.RateLimiter != nil {
-		c.RateLimiter.Update(response.Header)
+		c.RateLimiter.Update(response.StatusCode, response.Header)
 	}
 
 	if c.RequestRetrier != nil && retryCount < c.RequestRetrier.MaxRetries {

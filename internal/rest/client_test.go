@@ -17,10 +17,13 @@ package rest_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/v1/internal/rest"
 	"github.com/stretchr/testify/assert"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -208,6 +211,7 @@ func TestClient_CRUD_TransportErrors(t *testing.T) {
 		})
 	}
 }
+
 func TestClient_WithRetries(t *testing.T) {
 	apiHits := 0
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
@@ -295,4 +299,276 @@ func TestClient_WithRequestResponseRecorder(t *testing.T) {
 			}
 		})
 	}
+}
+
+type testClock struct {
+	currentTime   time.Time
+	requestedWait *time.Duration
+}
+
+func (t *testClock) Now() time.Time {
+	return t.currentTime
+}
+
+func (t *testClock) After(d time.Duration) <-chan time.Time {
+	t.requestedWait = &d
+
+	c := make(chan time.Time, 1)
+	defer func() {
+		c <- t.currentTime.Add(d)
+	}()
+	return c
+}
+
+func TestClient_WithRateLimiting(t *testing.T) {
+
+	now := time.Now()
+
+	tests := []struct {
+		name             string
+		givenHeaders     map[string]string
+		wantBlockingTime time.Duration
+	}{
+		{
+			name: "simple rate limit",
+			givenHeaders: map[string]string{
+				"X-RateLimit-Limit": "42",
+				"X-RateLimit-Reset": fmt.Sprintf("%v", now.Add(100*time.Millisecond).UnixMicro()), // 100 ms after current time
+			},
+			wantBlockingTime: 100 * time.Millisecond,
+		},
+		{
+			name: "long rate limit",
+			givenHeaders: map[string]string{
+				"X-RateLimit-Limit": "42",
+				"X-RateLimit-Reset": fmt.Sprintf("%v", now.Add(5*time.Second).UnixMicro()), // 5 sec after current time
+			},
+			wantBlockingTime: 5 * time.Second,
+		},
+		{
+			name: "missing limit header is ok",
+			givenHeaders: map[string]string{
+				"X-RateLimit-Reset": fmt.Sprintf("%v", now.Add(100*time.Millisecond).UnixMicro()), // 100 ms after current time
+			},
+			wantBlockingTime: 100 * time.Millisecond,
+		},
+		{
+			name:             "missing reset time header results in default timeout",
+			givenHeaders:     map[string]string{},
+			wantBlockingTime: 1 * time.Second,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			apiHits := 0
+			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+				if apiHits == 0 {
+
+					for k, v := range tt.givenHeaders {
+						rw.Header().Set(k, v)
+					}
+					rw.WriteHeader(http.StatusTooManyRequests)
+
+				} else {
+					rw.WriteHeader(http.StatusOK)
+				}
+				apiHits++
+			}))
+			defer server.Close()
+
+			clock := testClock{currentTime: now}
+
+			limiter := rest.RateLimiter{
+				Clock: &clock,
+			}
+
+			client := rest.NewClient(server.URL)
+			client.RateLimiter = &limiter
+
+			_, err := client.GET(context.Background(), "")
+
+			assert.Error(t, err)
+
+			var httpErr rest.HTTPError
+			assert.ErrorAs(t, err, &httpErr)
+			errors.As(err, &httpErr)
+
+			assert.Equal(t, http.StatusTooManyRequests, httpErr.Code)
+			assert.Nil(t, clock.requestedWait)
+			resp, err := client.GET(context.Background(), "")
+			if err != nil {
+				t.Fatalf("failed to send GET request: %v", err)
+			}
+			defer resp.Body.Close()
+
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.NotNil(t, clock.requestedWait)
+			assert.InDelta(t, tt.wantBlockingTime.Milliseconds(), clock.requestedWait.Milliseconds(), 5, "expected limiter to clock to have blocked for time from from HTTP headers")
+		})
+	}
+}
+
+func TestClient_WithRateLimiting_HardLimitActuallyBlocks(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("skipping real time (0.5sec) rate limiting test in short test mode")
+	}
+
+	expectedWaitTime := 500 * time.Millisecond
+
+	apiHits := 0
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		if apiHits == 0 {
+			rw.Header().Set("X-RateLimit-Reset", fmt.Sprintf("%v", time.Now().Add(expectedWaitTime).UnixMicro()))
+			rw.WriteHeader(http.StatusTooManyRequests)
+
+		} else {
+			rw.WriteHeader(http.StatusOK)
+		}
+		apiHits++
+	}))
+	defer server.Close()
+
+	client := rest.NewClient(server.URL,
+		rest.WithRateLimiter(), // default rate limiter with real clock
+	)
+
+	_, err := client.GET(context.Background(), "")
+	assert.Error(t, err)
+
+	before := time.Now()
+	resp, err := client.GET(context.Background(), "")
+	after := time.Now()
+
+	if err != nil {
+		t.Fatalf("failed to send GET request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	diff := after.Sub(before)
+
+	assert.GreaterOrEqual(t, diff, expectedWaitTime, "expected to rate limited rest call to take at least as long as the rate limit timeout")
+}
+
+func TestClient_WithRateLimiting_SoftLimitActuallyBlocks(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("skipping real time (1sec) rate limiting test in short test mode")
+	}
+
+	rps := 2
+
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rw.Header().Set("X-RateLimit-Limit", strconv.Itoa(rps))
+		rw.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := rest.NewClient(server.URL,
+		rest.WithRateLimiter(), // default rate limiter with real clock
+	)
+
+	_, _ = client.GET(context.Background(), "") // first call initializes rate limiter
+
+	before := time.Now()
+	for i := 0; i < rps+1; i++ {
+		_, _ = client.GET(context.Background(), "")
+	}
+
+	after := time.Now()
+	diff := after.Sub(before)
+
+	assert.Greater(t, diff, time.Second, "expected client to be rate limited to %d calls per second and need more than 1sec for %d calls", rps, rps+1)
+}
+
+func TestClient_WithRateLimiting_SoftLimitCanBeUpdated(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("skipping real time (1-2sec) rate limiting test in short test mode")
+	}
+
+	apiCalls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		if apiCalls > 2 {
+			rw.Header().Set("X-RateLimit-Limit", "500")
+		} else {
+			rw.Header().Set("X-RateLimit-Limit", "2")
+		}
+
+		rw.WriteHeader(http.StatusOK)
+		apiCalls++
+	}))
+	defer server.Close()
+
+	client := rest.NewClient(server.URL, testr.New(t),
+		rest.WithRateLimiter(), // default rate limiter with real clock
+	)
+
+	_, _ = client.GET(context.Background(), "") // first call initializes rate limiter
+
+	before := time.Now()
+	for i := 0; i < 100; i++ {
+		_, _ = client.GET(context.Background(), "")
+	}
+
+	after := time.Now()
+	diff := after.Sub(before)
+
+	assert.Greater(t, diff, time.Second, "expected client to be limited to 2 calls per second for the first two calls, thus take at least 1 sec to complete 100 calls")
+	assert.Less(t, diff, 2*time.Second, "expected only the first 2 calls to be limited to 2 call per second, and the other 98 to complete in less than 1 sec under a new limit of 500rps")
+}
+
+func TestClient_WithRetriesAndRateLimit(t *testing.T) {
+
+	now := time.Now()
+
+	responses := []struct {
+		code    int
+		headers map[string]string
+		body    string
+	}{
+		{400, map[string]string{}, "{}"},
+		{503, map[string]string{}, "{}"},
+		{429, map[string]string{
+			"X-RateLimit-Limit": "42",
+			"X-RateLimit-Reset": fmt.Sprintf("%v", now.Add(5*time.Millisecond).UnixMicro()), // 5 ms after current time
+		}, "{}"},
+		{200, map[string]string{}, `{ "hello": "there" }`},
+	}
+	apiCalls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		if apiCalls > len(responses) {
+			t.Fatal("test server received more calls than expected")
+		}
+
+		resp := responses[apiCalls]
+		apiCalls++
+
+		rw.WriteHeader(resp.code)
+		for k, v := range resp.headers {
+			rw.Header().Set(k, v)
+		}
+		_, _ = rw.Write([]byte(resp.body))
+	}))
+	defer server.Close()
+
+	client := rest.NewClient(server.URL, testr.New(t),
+		rest.WithRequestRetrier(&rest.RequestRetrier{
+			MaxRetries:      5,
+			ShouldRetryFunc: rest.RetryIfNotSuccess,
+		}),
+		rest.WithRateLimiter(), // default rate limiter with real clock
+	)
+
+	resp, err := client.GET(context.Background(), "/sample/endpoint?random=query")
+	defer resp.Body.Close()
+
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	b, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	assert.Equal(t, `{ "hello": "there" }`, string(b))
 }
