@@ -95,7 +95,7 @@ func TestClient_CRUD(t *testing.T) {
 	})
 }
 
-func TestClient_CRUD_Errors(t *testing.T) {
+func TestClient_CRUD_HTTPErrors(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}))
@@ -150,9 +150,15 @@ func TestClient_CRUD_Errors(t *testing.T) {
 	}
 }
 
-func TestClient_CRUD_Errors_2(t *testing.T) {
+type errorTransport struct{}
+
+func (t *errorTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
+	return nil, errors.New("simulated network error")
+}
+
+func TestClient_CRUD_TransportErrors(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		w.WriteHeader(200) // a network error should be forced before the server can ever reply success
 	}))
 	defer server.Close()
 	client := rest.NewClient(server.URL, rest.WithHTTPClient(&http.Client{Transport: &errorTransport{}}))
@@ -289,10 +295,4 @@ func TestClient_WithRequestResponseRecorder(t *testing.T) {
 			}
 		})
 	}
-}
-
-type errorTransport struct{}
-
-func (t *errorTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
-	return nil, errors.New("simulated network error")
 }
