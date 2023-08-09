@@ -10,7 +10,6 @@
     - [Writing Tests](#writing-tests)
   - [Checking in go mod and sum files](#checking-in-go-mod-and-sum-files)
   - [General information on code](#general-information-on-code)
-    - [Test Mocks](#test-mocks)
     - [Formatting](#formatting)
   - [Pre-Commit Hook](#pre-commit-hook)
 
@@ -25,7 +24,7 @@ It provides Go libraries for things like API clients, which are shared between s
 
 The easiest way to start contributing or helping with the Configuration as Code Core project is to pick an existing [issue/bug](https://github.com/dynatrace/dynatrace-configuration-as-code-core/issues) and [get to work](#building-the-dynatrace-configuration-as-code-core-libraries).
 
-For proposing a change, we seek to discuss potential changes in GitHub issues in advance before implementation. 
+For proposing a change, we'd like to discuss potential changes in GitHub issues before implementation. 
 That will allow us to give design feedback up front and set expectations about the scope of the change and, for more significant changes, 
 how best to approach the work such that the Configuration as Code team can review it and merge it with other concurrent work. 
 This allows being respectful of the time of community contributors.
@@ -76,11 +75,11 @@ Before contributing, please read and approve [our Code Of Conduct](https://githu
 
 ## Building the Dynatrace Configuration as Code Core libraries
 
-The libraries are written in [Go](https://golang.org/), so you will need to have [installed Go](https://golang.org/dl/) to build it.
+The libraries are written in [Go](https://golang.org/), so you'll need to have [installed Go](https://golang.org/dl/) to build it.
 
-As the libraries themselves provide no exectuable you may compile them using `make compile`, but there are no executables to be built and used.
+As the libraries provide no executables, you may compile them using `make compile`, but there are no executables to be built and used.
 
-Generally make sure to take a look at the [Makefile](./Makefile) to see available build targets.
+Generally, make sure to take a look at the [Makefile](./Makefile) to see available build targets.
 
 ## Testing the Dynatrace Configuration as Code Core libraries
 
@@ -92,22 +91,16 @@ Take a look at [Go Testing](https://golang.org/pkg/testing/) for more info on te
 
 We use [github.com/stretchr/testify](github.com/stretchr/testify) as a testing/assert library.
 
-In general, we aim for test coverage above 80% but do not enfore hard limits, please make sure your code is reasonably well covered by tests.
+Generally, we aim for test coverage above 80% but don't enforce hard limits. Please make sure your code is reasonably well covered by tests.
 
 ## Checking in go mod and sum files
 
-Go module files `go.mod` and `go.sum` are checked-in in the root folder of the repo, so generally run `go` from there.
+Go module files `go.mod` and `go.sum` are checked-in in the root folder of the repo, so generally, run `go` from there.
 
-`mod` and `sum` may change while building the project.
-To keep those files clean off unnecessary changes, please always run `go mod tidy` before committing changes to these files!
+`go.mod` and `go.sum` may change while building the project.
+To keep those files clean of unnecessary changes, please always run `go mod tidy` before committing changes to these files!
 
 ## General information on code
-
-### Test Mocks
-
-Go Mockgen is used for some generated mock files.
-You will have to generate them.
-To explicitly generate the mocked files, run `make mocks` in the root folder.
 
 ### Formatting
 
