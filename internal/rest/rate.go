@@ -17,6 +17,7 @@ package rest
 import (
 	"context"
 	"fmt"
+	"github.com/go-logr/logr"
 	"net/http"
 	"strconv"
 	"sync"
@@ -33,8 +34,9 @@ const (
 )
 
 type RateLimiter struct {
-	Lock  sync.RWMutex
-	Clock Clock
+	Lock   sync.RWMutex
+	Clock  Clock
+	Logger logr.Logger
 
 	limiter      *rate.Limiter
 	resetAt      *time.Time
@@ -56,9 +58,10 @@ func (realtimeClock) After(d time.Duration) <-chan time.Time {
 	return time.After(d)
 }
 
-func NewRateLimiter() *RateLimiter {
+func NewRateLimiter(logger logr.Logger) *RateLimiter {
 	return &RateLimiter{
-		Clock: realtimeClock{},
+		Clock:  realtimeClock{},
+		Logger: logger,
 	}
 }
 
@@ -68,10 +71,11 @@ func (rl *RateLimiter) Update(status int, headers http.Header) {
 
 	limit, err := extractLimit(headers)
 	if err == nil && limit > 0 {
-		// TODO log that a rate limit has been set based on HTTP headers
 		if rl.limiter == nil {
+			rl.Logger.Info(fmt.Sprintf("Rate limit set based on HTTP response. Client limited to %v requests per second", limit), "limit", limit)
 			rl.limiter = rate.NewLimiter(limit, 1)
 		} else if limit != rl.limiter.Limit() {
+			rl.Logger.V(1).Info(fmt.Sprintf("Rate limit updated based on HTTP response. Client limited to %v requests per second", limit), "limit", limit)
 			rl.limiter.SetLimit(limit)
 		}
 	}
@@ -85,7 +89,7 @@ func (rl *RateLimiter) Update(status int, headers http.Header) {
 
 	reset, err := extractTimeout(headers)
 	if err != nil {
-		// TODO log that default values are being used
+		rl.Logger.V(1).Info(fmt.Sprintf("Received 429 TooManyRequests HTTP response but no rate limit header. Using default timeout of %s", defaultTimeout), "timeout", defaultTimeout)
 
 		rt := defaultTimeout
 		rl.resetTimeout = &rt
@@ -98,6 +102,9 @@ func (rl *RateLimiter) Update(status int, headers http.Header) {
 	rl.resetAt = &reset
 	rt := reset.Sub(rl.Clock.Now())
 	rl.resetTimeout = &rt
+
+	rl.Logger.V(1).Info(fmt.Sprintf("Received 429 TooManyRequests HTTP. Timeout: %s", rl.resetTimeout), "timeout", rl.resetTimeout)
+
 }
 
 // extractLimit tries to parse the limitHeader into a rate.Limit for use with the soft-limit rate.Limiter.
@@ -139,7 +146,7 @@ func (rl *RateLimiter) Wait(ctx context.Context) {
 	if rl.limiter != nil {
 		err := rl.limiter.Wait(ctx)
 		if err != nil {
-			// TODO log limiter error and carry on
+			rl.Logger.Error(err, "Client-side rate limiting failed")
 		}
 	}
 }

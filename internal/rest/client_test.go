@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/v1/internal/rest"
+	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
@@ -31,21 +32,21 @@ import (
 
 func TestNewClient(t *testing.T) {
 	// Test WithConcurrentRequestLimit
-	client := rest.NewClient("https://example.com", rest.WithConcurrentRequestLimit(10))
+	client := rest.NewClient("https://example.com", testr.New(t), rest.WithConcurrentRequestLimit(10))
 	assert.NotNil(t, client.ConcurrentRequestLimiter, "Expected ConcurrentRequestLimiter to be set")
 
 	// Test WithTimeout
-	client = rest.NewClient("https://example.com", rest.WithTimeout(5*time.Second))
+	client = rest.NewClient("https://example.com", testr.New(t), rest.WithTimeout(5*time.Second))
 	assert.Equal(t, 5*time.Second, client.Timeout, "Expected timeout to be set to 5 seconds")
 
 	// Test WithHTTPClient
 	customHTTPClient := &http.Client{}
-	client = rest.NewClient("https://example.com", rest.WithHTTPClient(customHTTPClient))
+	client = rest.NewClient("https://example.com", testr.New(t), rest.WithHTTPClient(customHTTPClient))
 	assert.Equal(t, customHTTPClient, client.HTTPClient, "Expected custom HTTP client to be set")
 
 	// Test WithRequestRetrier
 	retrier := &rest.RequestRetrier{}
-	client = rest.NewClient("https://example.com", rest.WithRequestRetrier(retrier))
+	client = rest.NewClient("https://example.com", testr.New(t), rest.WithRequestRetrier(retrier))
 	assert.Equal(t, retrier, client.RequestRetrier, "Expected RequestRetrier to be set")
 }
 
@@ -63,7 +64,7 @@ func TestClient_CRUD(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := rest.NewClient(server.URL)
+	client := rest.NewClient(server.URL, testr.New(t))
 
 	t.Run("GET", func(t *testing.T) {
 		resp, err := client.GET(context.Background(), "/test")
@@ -103,7 +104,7 @@ func TestClient_CRUD_HTTPErrors(t *testing.T) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}))
 	defer server.Close()
-	client := rest.NewClient(server.URL)
+	client := rest.NewClient(server.URL, testr.New(t))
 
 	testCases := []struct {
 		method    string
@@ -164,7 +165,7 @@ func TestClient_CRUD_TransportErrors(t *testing.T) {
 		w.WriteHeader(200) // a network error should be forced before the server can ever reply success
 	}))
 	defer server.Close()
-	client := rest.NewClient(server.URL, rest.WithHTTPClient(&http.Client{Transport: &errorTransport{}}))
+	client := rest.NewClient(server.URL, testr.New(t), rest.WithHTTPClient(&http.Client{Transport: &errorTransport{}}))
 
 	testCases := []struct {
 		method    string
@@ -224,7 +225,7 @@ func TestClient_WithRetries(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := rest.NewClient(server.URL, rest.WithRequestRetrier(&rest.RequestRetrier{
+	client := rest.NewClient(server.URL, testr.New(t), rest.WithRequestRetrier(&rest.RequestRetrier{
 		MaxRetries: 1,
 		ShouldRetryFunc: func(resp *http.Response) bool {
 			return resp.StatusCode != http.StatusOK
@@ -290,7 +291,7 @@ func TestClient_WithRequestResponseRecorder(t *testing.T) {
 					wg.Done()
 				}
 			}()
-			err := test.restClientCalls(rest.NewClient(server.URL, rest.WithHTTPClient(test.httpClient), rest.WithRequestResponseRecorder(recorder)))
+			err := test.restClientCalls(rest.NewClient(server.URL, testr.New(t), rest.WithHTTPClient(test.httpClient), rest.WithRequestResponseRecorder(recorder)))
 			wg.Wait()
 			if test.expectError {
 				assert.Error(t, err)
@@ -384,7 +385,7 @@ func TestClient_WithRateLimiting(t *testing.T) {
 				Clock: &clock,
 			}
 
-			client := rest.NewClient(server.URL)
+			client := rest.NewClient(server.URL, testr.New(t))
 			client.RateLimiter = &limiter
 
 			_, err := client.GET(context.Background(), "")
@@ -431,7 +432,7 @@ func TestClient_WithRateLimiting_HardLimitActuallyBlocks(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := rest.NewClient(server.URL,
+	client := rest.NewClient(server.URL, testr.New(t),
 		rest.WithRateLimiter(), // default rate limiter with real clock
 	)
 
@@ -466,7 +467,7 @@ func TestClient_WithRateLimiting_SoftLimitActuallyBlocks(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := rest.NewClient(server.URL,
+	client := rest.NewClient(server.URL, testr.New(t),
 		rest.WithRateLimiter(), // default rate limiter with real clock
 	)
 

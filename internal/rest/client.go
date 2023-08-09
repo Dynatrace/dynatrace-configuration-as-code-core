@@ -16,6 +16,7 @@ package rest
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-logr/logr"
 	"io"
 	"net/http"
@@ -70,7 +71,7 @@ func WithRequestResponseRecorder(recorder *RequestResponseRecorder) Option {
 // If wish for the Client to retry on errors configure a RequestRetrier as well.
 func WithRateLimiter() Option {
 	return func(c *Client) {
-		c.RateLimiter = NewRateLimiter()
+		c.RateLimiter = NewRateLimiter(c.Logger)
 	}
 }
 
@@ -88,10 +89,11 @@ type Client struct {
 }
 
 // NewClient creates a new instance of the Client with specified options.
-func NewClient(baseURL string, opts ...Option) *Client {
+func NewClient(baseURL string, logger logr.Logger, opts ...Option) *Client {
 	client := &Client{
 		BaseURL: baseURL,
 		Headers: make(map[string]string),
+		Logger:  logger,
 	}
 
 	for _, opt := range opts {
@@ -128,7 +130,6 @@ func (c *Client) SetHeader(key, value string) {
 
 // sendRequestWithRetries sends an HTTP request with custom headers and modified request body, with retries if configured.
 func (c *Client) sendRequestWithRetries(ctx context.Context, method, endpoint string, body io.Reader, retryCount int) (*http.Response, error) {
-
 	if c.RateLimiter != nil {
 		c.RateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
 	}
@@ -183,6 +184,7 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method, endpoint st
 
 	if c.RequestRetrier != nil && retryCount < c.RequestRetrier.MaxRetries {
 		if c.RequestRetrier.ShouldRetryFunc != nil && c.RequestRetrier.ShouldRetryFunc(response) {
+			c.Logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", url, response.Status, 100, retryCount+1, c.RequestRetrier.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", c.RequestRetrier.MaxRetries)
 			time.Sleep(100 * time.Millisecond)
 			return c.sendRequestWithRetries(ctx, method, endpoint, body, retryCount+1)
 		}
@@ -190,8 +192,14 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method, endpoint st
 
 	if !isSuccess(response) {
 		// If the response code is not in the success range, read the response payload for the error details
-		payload, _ := io.ReadAll(response.Body)
-		response.Body.Close()
+		payload, err := io.ReadAll(response.Body)
+		if err != nil {
+			c.Logger.Error(err, fmt.Sprintf("Failed to read response body of failed request %q (HTTP %s)", url, response.Status))
+		}
+		err = response.Body.Close()
+		if err != nil {
+			c.Logger.V(1).Error(err, "Failed to close response body of failed request")
+		}
 		return nil, HTTPError{Code: response.StatusCode, Payload: payload}
 	}
 
