@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/v1/internal/rest"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/rest"
 	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
 	"io"
