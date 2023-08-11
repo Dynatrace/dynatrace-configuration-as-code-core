@@ -1,4 +1,4 @@
-.PHONY: default setup lint format add-license-headers vet check compile test test-fast update-dependencies
+.PHONY: default setup lint format add-license-headers vet check compile install test test-fast update-dependencies
 
 default: test
 
@@ -42,6 +42,9 @@ compile:
 	@go build ./...
 	@echo "Compiling tests..."
 	@go test -run "NON_EXISTENT_TEST_TO_ENSURE_NOTHING_RUNS_BUT_ALL_COMPILE" ./...
+
+install:
+	@go install ./...
 
 test: setup
 	@echo "Testing $(BINARY_NAME)..."
