@@ -16,6 +16,7 @@ package rest
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 )
 
@@ -50,11 +51,16 @@ func ReusableReader(r io.ReadCloser) (io.ReadCloser, error) {
 func (r reusableReader) Read(p []byte) (int, error) {
 	n, err := r.Reader.Read(p)
 	if err == io.EOF {
-		r.reset()
+		if err := r.reset(); err != nil {
+			return n, fmt.Errorf("failed to reset reader after reaching EOF: %w", err)
+		}
 	}
 	return n, err
 }
 
-func (r reusableReader) reset() {
-	_, _ = io.Copy(r.readBuf, r.backBuf) // nolint: errcheck
+func (r reusableReader) reset() error {
+	if _, err := io.Copy(r.readBuf, r.backBuf); err != nil {
+		return err
+	}
+	return nil
 }
