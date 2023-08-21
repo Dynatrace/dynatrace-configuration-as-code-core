@@ -49,13 +49,6 @@ func WithTimeout(timeout time.Duration) Option {
 	}
 }
 
-// WithHTTPClient sets the HTTP client for the Client.
-func WithHTTPClient(client *http.Client) Option {
-	return func(c *Client) {
-		c.HTTPClient = client
-	}
-}
-
 // WithRequestRetrier sets the RequestRetrier for the Client.
 func WithRequestRetrier(retrier *RequestRetrier) Option {
 	return func(c *Client) {
@@ -98,11 +91,12 @@ type Client struct {
 }
 
 // NewClient creates a new instance of the Client with specified options.
-func NewClient(baseURL string, logger logr.Logger, opts ...Option) *Client {
+func NewClient(baseURL string, httpClient *http.Client, logger logr.Logger, opts ...Option) *Client {
 	client := &Client{
-		BaseURL: baseURL,
-		Headers: make(map[string]string),
-		Logger:  logger,
+		BaseURL:    baseURL,
+		Headers:    make(map[string]string),
+		HTTPClient: httpClient,
+		Logger:     logger,
 	}
 
 	for _, opt := range opts {
