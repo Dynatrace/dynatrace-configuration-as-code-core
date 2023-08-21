@@ -72,7 +72,7 @@ func (rl *RateLimiter) Update(status int, headers http.Header) {
 	limit, err := extractLimit(headers)
 	if err == nil && limit > 0 {
 		if rl.limiter == nil {
-			rl.Logger.Info(fmt.Sprintf("Rate limit set based on HTTP response. Client limited to %v requests per second", limit), "limit", limit)
+			rl.Logger.V(1).Info(fmt.Sprintf("Rate limit set based on HTTP response. Client limited to %v requests per second", limit), "limit", limit)
 			rl.limiter = rate.NewLimiter(limit, 1)
 		} else if limit != rl.limiter.Limit() {
 			rl.Logger.V(1).Info(fmt.Sprintf("Rate limit updated based on HTTP response. Client limited to %v requests per second", limit), "limit", limit)

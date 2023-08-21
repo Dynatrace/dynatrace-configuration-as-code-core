@@ -192,12 +192,11 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		c.RateLimiter.Update(response.StatusCode, response.Header)
 	}
 
-	if c.RequestRetrier != nil && retryCount < c.RequestRetrier.MaxRetries {
-		if c.RequestRetrier.ShouldRetryFunc != nil && c.RequestRetrier.ShouldRetryFunc(response) {
-			c.Logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", fullURL, response.Status, 100, retryCount+1, c.RequestRetrier.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", c.RequestRetrier.MaxRetries)
-			time.Sleep(100 * time.Millisecond)
-			return c.sendRequestWithRetries(ctx, method, endpoint, body, retryCount+1, options)
-		}
+	if c.RequestRetrier != nil && retryCount < c.RequestRetrier.MaxRetries &&
+		c.RequestRetrier.ShouldRetryFunc != nil && c.RequestRetrier.ShouldRetryFunc(response) {
+		c.Logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", fullURL, response.Status, 100, retryCount+1, c.RequestRetrier.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", c.RequestRetrier.MaxRetries)
+		time.Sleep(100 * time.Millisecond)
+		return c.sendRequestWithRetries(ctx, method, endpoint, body, retryCount+1, options)
 	}
 
 	if !isSuccess(response) {

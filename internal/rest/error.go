@@ -23,5 +23,5 @@ type HTTPError struct {
 }
 
 func (e HTTPError) Error() string {
-	return fmt.Sprintf("HTTP request failed with status code %d", e.Code)
+	return fmt.Sprintf("HTTP request failed with status code %d: %v", e.Code, string(e.Payload))
 }
