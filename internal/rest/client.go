@@ -169,7 +169,9 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 
 	if c.RequestResponseRecorder != nil {
 		// wrap the body so that it could be read again
-		req.Body = ReusableReader(req.Body)
+		if req.Body, err = ReusableReader(req.Body); err != nil {
+			return nil, err
+		}
 		c.RequestResponseRecorder.RecordRequest(ctx, req)
 	}
 
@@ -183,7 +185,9 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 
 	if c.RequestResponseRecorder != nil {
 		// wrap the body so that it could be read again
-		response.Body = ReusableReader(response.Body)
+		if response.Body, err = ReusableReader(response.Body); err != nil {
+			return nil, err
+		}
 		c.RequestResponseRecorder.RecordResponse(ctx, response, nil)
 	}
 

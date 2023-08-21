@@ -30,19 +30,20 @@ func (r reusableReader) Close() error {
 	return nil
 }
 
-func ReusableReader(r io.ReadCloser) io.ReadCloser {
+func ReusableReader(r io.ReadCloser) (io.ReadCloser, error) {
 	if r == nil {
-		return r
+		return r, nil
 	}
 	readBuf := bytes.Buffer{}
-	_, _ = readBuf.ReadFrom(r) // nolint: errcheck
+	if _, err := readBuf.ReadFrom(r); err != nil {
+		return nil, err
+	}
 	backBuf := bytes.Buffer{}
-
 	return reusableReader{
 		io.TeeReader(&readBuf, &backBuf),
 		&readBuf,
 		&backBuf,
-	}
+	}, nil
 
 }
 
