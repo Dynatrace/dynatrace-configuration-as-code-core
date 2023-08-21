@@ -38,21 +38,21 @@ type Option func(*Client)
 // WithConcurrentRequestLimit sets the maximum number of concurrent requests allowed.
 func WithConcurrentRequestLimit(maxConcurrent int) Option {
 	return func(c *Client) {
-		c.ConcurrentRequestLimiter = NewConcurrentRequestLimiter(maxConcurrent)
+		c.concurrentRequestLimiter = NewConcurrentRequestLimiter(maxConcurrent)
 	}
 }
 
 // WithTimeout sets the request timeout for the Client.
 func WithTimeout(timeout time.Duration) Option {
 	return func(c *Client) {
-		c.Timeout = timeout
+		c.timeout = timeout
 	}
 }
 
 // WithRequestRetrier sets the RequestRetrier for the Client.
 func WithRequestRetrier(retrier *RequestRetrier) Option {
 	return func(c *Client) {
-		c.RequestRetrier = retrier
+		c.requestRetrier = retrier
 	}
 }
 
@@ -61,7 +61,7 @@ func WithRequestRetrier(retrier *RequestRetrier) Option {
 // recorded messages, to not block the client
 func WithRequestResponseRecorder(recorder *RequestResponseRecorder) Option {
 	return func(c *Client) {
-		c.RequestResponseRecorder = recorder
+		c.requestResponseRecorder = recorder
 	}
 }
 
@@ -73,31 +73,31 @@ func WithRequestResponseRecorder(recorder *RequestResponseRecorder) Option {
 // If wish for the Client to retry on errors configure a RequestRetrier as well.
 func WithRateLimiter() Option {
 	return func(c *Client) {
-		c.RateLimiter = NewRateLimiter(c.Logger)
+		c.rateLimiter = NewRateLimiter(c.logger)
 	}
 }
 
 // Client represents a general HTTP client
 type Client struct {
-	BaseURL    *url.URL          // base URL of the server
-	HTTPClient *http.Client      // Custom HTTP client support
-	Headers    map[string]string // Custom headers to be set
-	Logger     logr.Logger       // Logger interface to be used
+	baseURL    *url.URL          // Base URL of the server
+	httpClient *http.Client      // Custom HTTP client support
+	headers    map[string]string // Custom headers to be set
+	logger     logr.Logger       // Logger interface to be used
 
-	ConcurrentRequestLimiter *ConcurrentRequestLimiter // Concurrent request limiter component (optional)
-	Timeout                  time.Duration             // Request timeout (optional)
-	RequestRetrier           *RequestRetrier           // HTTP request retrier component (optional)
-	RequestResponseRecorder  *RequestResponseRecorder  // Request-response recorder component (optional)
-	RateLimiter              *RateLimiter              // Rate limiter component (optional)
+	concurrentRequestLimiter *ConcurrentRequestLimiter // Concurrent request limiter component (optional)
+	timeout                  time.Duration             // Request timeout (optional)
+	requestRetrier           *RequestRetrier           // HTTP request retrier component (optional)
+	requestResponseRecorder  *RequestResponseRecorder  // Request-response recorder component (optional)
+	rateLimiter              *RateLimiter              // Rate limiter component (optional)
 }
 
 // NewClient creates a new instance of the Client with specified options.
 func NewClient(baseURL *url.URL, httpClient *http.Client, logger logr.Logger, opts ...Option) *Client {
 	client := &Client{
-		BaseURL:    baseURL,
-		Headers:    make(map[string]string),
-		HTTPClient: httpClient,
-		Logger:     logger,
+		baseURL:    baseURL,
+		headers:    make(map[string]string),
+		httpClient: httpClient,
+		logger:     logger,
 	}
 
 	for _, opt := range opts {
@@ -129,22 +129,22 @@ func (c *Client) DELETE(ctx context.Context, endpoint string, options RequestOpt
 
 // SetHeader sets a custom header for the HTTP client.
 func (c *Client) SetHeader(key, value string) {
-	c.Headers[key] = value
+	c.headers[key] = value
 }
 
 // sendRequestWithRetries sends an HTTP request with custom headers and modified request body, with retries if configured.
 func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endpoint string, body io.Reader, retryCount int, options RequestOptions) (*http.Response, error) {
-	if c.RateLimiter != nil {
-		c.RateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
+	if c.rateLimiter != nil {
+		c.rateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
 	}
 
-	// Apply concurrent request limiting if ConcurrentRequestLimiter is set
-	if c.ConcurrentRequestLimiter != nil {
-		c.ConcurrentRequestLimiter.Acquire()
-		defer c.ConcurrentRequestLimiter.Release()
+	// Apply concurrent request limiting if concurrentRequestLimiter is set
+	if c.concurrentRequestLimiter != nil {
+		c.concurrentRequestLimiter.Acquire()
+		defer c.concurrentRequestLimiter.Release()
 	}
 
-	fullURL := c.BaseURL.ResolveReference(&url.URL{Path: endpoint})
+	fullURL := c.baseURL.ResolveReference(&url.URL{Path: endpoint})
 	if options.QueryParams != nil {
 		fullURL.RawQuery = options.QueryParams.Encode()
 	}
@@ -154,48 +154,48 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		return nil, err
 	}
 
-	for key, value := range c.Headers {
+	for key, value := range c.headers {
 		req.Header.Set(key, value)
 	}
 
-	if c.HTTPClient == nil {
-		c.HTTPClient = &http.Client{
-			Timeout: c.Timeout,
+	if c.httpClient == nil {
+		c.httpClient = &http.Client{
+			Timeout: c.timeout,
 		}
 	}
 
-	if c.RequestResponseRecorder != nil {
+	if c.requestResponseRecorder != nil {
 		// wrap the body so that it could be read again
 		if req.Body, err = ReusableReader(req.Body); err != nil {
 			return nil, err
 		}
-		c.RequestResponseRecorder.RecordRequest(ctx, req)
+		c.requestResponseRecorder.RecordRequest(ctx, req)
 	}
 
-	response, err := c.HTTPClient.Do(req)
+	response, err := c.httpClient.Do(req)
 	if err != nil {
-		if c.RequestResponseRecorder != nil {
-			c.RequestResponseRecorder.RecordResponse(ctx, nil, err)
+		if c.requestResponseRecorder != nil {
+			c.requestResponseRecorder.RecordResponse(ctx, nil, err)
 		}
 		return nil, err
 	}
 
-	if c.RequestResponseRecorder != nil {
+	if c.requestResponseRecorder != nil {
 		// wrap the body so that it could be read again
 		if response.Body, err = ReusableReader(response.Body); err != nil {
 			return nil, err
 		}
-		c.RequestResponseRecorder.RecordResponse(ctx, response, nil)
+		c.requestResponseRecorder.RecordResponse(ctx, response, nil)
 	}
 
 	// Update the rate limiter with the response headers
-	if c.RateLimiter != nil {
-		c.RateLimiter.Update(response.StatusCode, response.Header)
+	if c.rateLimiter != nil {
+		c.rateLimiter.Update(response.StatusCode, response.Header)
 	}
 
-	if c.RequestRetrier != nil && retryCount < c.RequestRetrier.MaxRetries &&
-		c.RequestRetrier.ShouldRetryFunc != nil && c.RequestRetrier.ShouldRetryFunc(response) {
-		c.Logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", fullURL, response.Status, 100, retryCount+1, c.RequestRetrier.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", c.RequestRetrier.MaxRetries)
+	if c.requestRetrier != nil && retryCount < c.requestRetrier.MaxRetries &&
+		c.requestRetrier.ShouldRetryFunc != nil && c.requestRetrier.ShouldRetryFunc(response) {
+		c.logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", fullURL, response.Status, 100, retryCount+1, c.requestRetrier.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", c.requestRetrier.MaxRetries)
 		time.Sleep(100 * time.Millisecond)
 		return c.sendRequestWithRetries(ctx, method, endpoint, body, retryCount+1, options)
 	}
@@ -204,11 +204,11 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		// If the response code is not in the success range, read the response payload for the error details
 		payload, err := io.ReadAll(response.Body)
 		if err != nil {
-			c.Logger.Error(err, fmt.Sprintf("Failed to read response body of failed request %q (HTTP %s)", fullURL, response.Status))
+			c.logger.Error(err, fmt.Sprintf("Failed to read response body of failed request %q (HTTP %s)", fullURL, response.Status))
 		}
 		err = response.Body.Close()
 		if err != nil {
-			c.Logger.V(1).Error(err, "Failed to close response body of failed request")
+			c.logger.V(1).Error(err, "Failed to close response body of failed request")
 		}
 		return nil, HTTPError{Code: response.StatusCode, Payload: payload}
 	}

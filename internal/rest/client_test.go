@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rest_test
+package rest
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/rest"
 	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
 	"io"
@@ -34,22 +33,22 @@ import (
 func TestNewClient(t *testing.T) {
 	baseURL, _ := url.Parse("https://example.com")
 	// Test WithConcurrentRequestLimit
-	client := rest.NewClient(baseURL, nil, testr.New(t), rest.WithConcurrentRequestLimit(10))
-	assert.NotNil(t, client.ConcurrentRequestLimiter, "Expected ConcurrentRequestLimiter to be set")
+	client := NewClient(baseURL, nil, testr.New(t), WithConcurrentRequestLimit(10))
+	assert.NotNil(t, client.concurrentRequestLimiter, "Expected concurrentRequestLimiter to be set")
 
 	// Test WithTimeout
-	client = rest.NewClient(baseURL, nil, testr.New(t), rest.WithTimeout(5*time.Second))
-	assert.Equal(t, 5*time.Second, client.Timeout, "Expected timeout to be set to 5 seconds")
+	client = NewClient(baseURL, nil, testr.New(t), WithTimeout(5*time.Second))
+	assert.Equal(t, 5*time.Second, client.timeout, "Expected timeout to be set to 5 seconds")
 
 	// Test WithHTTPClient
 	customHTTPClient := &http.Client{}
-	client = rest.NewClient(baseURL, customHTTPClient, testr.New(t))
-	assert.Equal(t, customHTTPClient, client.HTTPClient, "Expected custom HTTP client to be set")
+	client = NewClient(baseURL, customHTTPClient, testr.New(t))
+	assert.Equal(t, customHTTPClient, client.httpClient, "Expected custom HTTP client to be set")
 
 	// Test WithRequestRetrier
-	retrier := &rest.RequestRetrier{}
-	client = rest.NewClient(baseURL, nil, testr.New(t), rest.WithRequestRetrier(retrier))
-	assert.Equal(t, retrier, client.RequestRetrier, "Expected RequestRetrier to be set")
+	retrier := &RequestRetrier{}
+	client = NewClient(baseURL, nil, testr.New(t), WithRequestRetrier(retrier))
+	assert.Equal(t, retrier, client.requestRetrier, "Expected RequestRetrier to be set")
 }
 
 func TestClient_CRUD(t *testing.T) {
@@ -67,10 +66,10 @@ func TestClient_CRUD(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := rest.NewClient(baseURL, nil, testr.New(t))
+	client := NewClient(baseURL, nil, testr.New(t))
 
 	t.Run("GET", func(t *testing.T) {
-		resp, err := client.GET(context.Background(), "/test", rest.RequestOptions{})
+		resp, err := client.GET(context.Background(), "/test", RequestOptions{})
 		defer resp.Body.Close()
 
 		assert.NoError(t, err, "Unexpected error")
@@ -78,7 +77,7 @@ func TestClient_CRUD(t *testing.T) {
 	})
 
 	t.Run("POST", func(t *testing.T) {
-		resp, err := client.POST(context.Background(), "/test", nil, rest.RequestOptions{})
+		resp, err := client.POST(context.Background(), "/test", nil, RequestOptions{})
 		defer resp.Body.Close()
 
 		assert.NoError(t, err, "Unexpected error")
@@ -86,7 +85,7 @@ func TestClient_CRUD(t *testing.T) {
 	})
 
 	t.Run("PUT", func(t *testing.T) {
-		resp, err := client.PUT(context.Background(), "/test", nil, rest.RequestOptions{})
+		resp, err := client.PUT(context.Background(), "/test", nil, RequestOptions{})
 		defer resp.Body.Close()
 
 		assert.NoError(t, err, "Unexpected error")
@@ -94,7 +93,7 @@ func TestClient_CRUD(t *testing.T) {
 	})
 
 	t.Run("DELETE", func(t *testing.T) {
-		resp, err := client.DELETE(context.Background(), "/test", rest.RequestOptions{})
+		resp, err := client.DELETE(context.Background(), "/test", RequestOptions{})
 		defer resp.Body.Close()
 
 		assert.NoError(t, err, "Unexpected error")
@@ -109,7 +108,7 @@ func TestClient_CRUD_HTTPErrors(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := rest.NewClient(baseURL, nil, testr.New(t))
+	client := NewClient(baseURL, nil, testr.New(t))
 
 	testCases := []struct {
 		method    string
@@ -118,31 +117,31 @@ func TestClient_CRUD_HTTPErrors(t *testing.T) {
 		{
 			method: "GET",
 			requestFn: func() (*http.Response, error) {
-				return client.GET(context.Background(), "/test", rest.RequestOptions{})
+				return client.GET(context.Background(), "/test", RequestOptions{})
 			},
 		},
 		{
 			method: "POST",
 			requestFn: func() (*http.Response, error) {
-				return client.POST(context.Background(), "/test", nil, rest.RequestOptions{})
+				return client.POST(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "POST_WithCustomHeaders",
 			requestFn: func() (*http.Response, error) {
-				return client.POST(context.Background(), "/test", nil, rest.RequestOptions{})
+				return client.POST(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "PUT",
 			requestFn: func() (*http.Response, error) {
-				return client.PUT(context.Background(), "/test", nil, rest.RequestOptions{})
+				return client.PUT(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "DELETE",
 			requestFn: func() (*http.Response, error) {
-				return client.DELETE(context.Background(), "/test", rest.RequestOptions{})
+				return client.DELETE(context.Background(), "/test", RequestOptions{})
 			},
 		},
 	}
@@ -153,8 +152,8 @@ func TestClient_CRUD_HTTPErrors(t *testing.T) {
 
 			assert.Error(t, err, "Expected error")
 			assert.Nil(t, resp, "Expected response to be nil")
-			assert.IsType(t, rest.HTTPError{}, err)
-			assert.Equal(t, err.(rest.HTTPError).Payload, []byte("Internal Server Error\n"))
+			assert.IsType(t, HTTPError{}, err)
+			assert.Equal(t, err.(HTTPError).Payload, []byte("Internal Server Error\n"))
 		})
 	}
 }
@@ -172,7 +171,7 @@ func TestClient_CRUD_TransportErrors(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := rest.NewClient(baseURL, &http.Client{Transport: &errorTransport{}}, testr.New(t))
+	client := NewClient(baseURL, &http.Client{Transport: &errorTransport{}}, testr.New(t))
 
 	testCases := []struct {
 		method    string
@@ -181,31 +180,31 @@ func TestClient_CRUD_TransportErrors(t *testing.T) {
 		{
 			method: "GET",
 			requestFn: func() (*http.Response, error) {
-				return client.GET(context.Background(), "/test", rest.RequestOptions{})
+				return client.GET(context.Background(), "/test", RequestOptions{})
 			},
 		},
 		{
 			method: "POST",
 			requestFn: func() (*http.Response, error) {
-				return client.POST(context.Background(), "/test", nil, rest.RequestOptions{})
+				return client.POST(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "POST_WithCustomHeaders",
 			requestFn: func() (*http.Response, error) {
-				return client.POST(context.Background(), "/test", nil, rest.RequestOptions{})
+				return client.POST(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "PUT",
 			requestFn: func() (*http.Response, error) {
-				return client.PUT(context.Background(), "/test", nil, rest.RequestOptions{})
+				return client.PUT(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "DELETE",
 			requestFn: func() (*http.Response, error) {
-				return client.DELETE(context.Background(), "/test", rest.RequestOptions{})
+				return client.DELETE(context.Background(), "/test", RequestOptions{})
 			},
 		},
 	}
@@ -233,14 +232,14 @@ func TestClient_WithRetries(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := rest.NewClient(baseURL, nil, testr.New(t), rest.WithRequestRetrier(&rest.RequestRetrier{
+	client := NewClient(baseURL, nil, testr.New(t), WithRequestRetrier(&RequestRetrier{
 		MaxRetries: 1,
 		ShouldRetryFunc: func(resp *http.Response) bool {
 			return resp.StatusCode != http.StatusOK
 		},
 	}))
 
-	resp, err := client.GET(context.Background(), "", rest.RequestOptions{})
+	resp, err := client.GET(context.Background(), "", RequestOptions{})
 	if err != nil {
 		t.Fatalf("failed to send GET request: %v", err)
 	}
@@ -254,7 +253,7 @@ func TestClient_WithRequestResponseRecorder(t *testing.T) {
 		name                    string
 		httpClient              *http.Client
 		handler                 http.HandlerFunc
-		restClientCalls         func(client *rest.Client) error
+		restClientCalls         func(client *Client) error
 		expectedRecordsRecorded int
 		expectError             bool
 	}{
@@ -265,8 +264,8 @@ func TestClient_WithRequestResponseRecorder(t *testing.T) {
 				rw.WriteHeader(http.StatusOK)
 				rw.Write([]byte("{}"))
 			},
-			restClientCalls: func(client *rest.Client) error {
-				_, err := client.GET(context.TODO(), "", rest.RequestOptions{})
+			restClientCalls: func(client *Client) error {
+				_, err := client.GET(context.TODO(), "", RequestOptions{})
 				return err
 			},
 			expectedRecordsRecorded: 2,
@@ -278,9 +277,9 @@ func TestClient_WithRequestResponseRecorder(t *testing.T) {
 				rw.WriteHeader(http.StatusOK)
 				rw.Write([]byte("{}"))
 			},
-			restClientCalls: func(client *rest.Client) error {
-				_, err := client.GET(context.TODO(), "", rest.RequestOptions{})
-				_, err2 := client.POST(context.TODO(), "", nil, rest.RequestOptions{})
+			restClientCalls: func(client *Client) error {
+				_, err := client.GET(context.TODO(), "", RequestOptions{})
+				_, err2 := client.POST(context.TODO(), "", nil, RequestOptions{})
 				return errors.Join(err, err2)
 			},
 			expectedRecordsRecorded: 4,
@@ -289,7 +288,7 @@ func TestClient_WithRequestResponseRecorder(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			recorder := rest.NewRequestResponseRecorder()
+			recorder := NewRequestResponseRecorder()
 			server := httptest.NewServer(test.handler)
 			defer server.Close()
 			wg := sync.WaitGroup{}
@@ -301,7 +300,7 @@ func TestClient_WithRequestResponseRecorder(t *testing.T) {
 			}()
 
 			baseURL, _ := url.Parse(server.URL)
-			err := test.restClientCalls(rest.NewClient(baseURL, test.httpClient, testr.New(t), rest.WithRequestResponseRecorder(recorder)))
+			err := test.restClientCalls(NewClient(baseURL, test.httpClient, testr.New(t), WithRequestResponseRecorder(recorder)))
 			wg.Wait()
 			if test.expectError {
 				assert.Error(t, err)
@@ -391,25 +390,25 @@ func TestClient_WithRateLimiting(t *testing.T) {
 
 			clock := testClock{currentTime: now}
 
-			limiter := rest.RateLimiter{
+			limiter := RateLimiter{
 				Clock: &clock,
 			}
 
 			baseURL, _ := url.Parse(server.URL)
-			client := rest.NewClient(baseURL, nil, testr.New(t))
-			client.RateLimiter = &limiter
+			client := NewClient(baseURL, nil, testr.New(t))
+			client.rateLimiter = &limiter
 
-			_, err := client.GET(context.Background(), "", rest.RequestOptions{})
+			_, err := client.GET(context.Background(), "", RequestOptions{})
 
 			assert.Error(t, err)
 
-			var httpErr rest.HTTPError
+			var httpErr HTTPError
 			assert.ErrorAs(t, err, &httpErr)
 			errors.As(err, &httpErr)
 
 			assert.Equal(t, http.StatusTooManyRequests, httpErr.Code)
 			assert.Nil(t, clock.requestedWait)
-			resp, err := client.GET(context.Background(), "", rest.RequestOptions{})
+			resp, err := client.GET(context.Background(), "", RequestOptions{})
 			if err != nil {
 				t.Fatalf("failed to send GET request: %v", err)
 			}
@@ -444,15 +443,15 @@ func TestClient_WithRateLimiting_HardLimitActuallyBlocks(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := rest.NewClient(baseURL, nil, testr.New(t),
-		rest.WithRateLimiter(), // default rate limiter with real clock
+	client := NewClient(baseURL, nil, testr.New(t),
+		WithRateLimiter(), // default rate limiter with real clock
 	)
 
-	_, err := client.GET(context.Background(), "", rest.RequestOptions{})
+	_, err := client.GET(context.Background(), "", RequestOptions{})
 	assert.Error(t, err)
 
 	before := time.Now()
-	resp, err := client.GET(context.Background(), "", rest.RequestOptions{})
+	resp, err := client.GET(context.Background(), "", RequestOptions{})
 	after := time.Now()
 
 	if err != nil {
@@ -480,15 +479,15 @@ func TestClient_WithRateLimiting_SoftLimitActuallyBlocks(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := rest.NewClient(baseURL, nil, testr.New(t),
-		rest.WithRateLimiter(), // default rate limiter with real clock
+	client := NewClient(baseURL, nil, testr.New(t),
+		WithRateLimiter(), // default rate limiter with real clock
 	)
 
-	_, _ = client.GET(context.Background(), "", rest.RequestOptions{}) // first call initializes rate limiter
+	_, _ = client.GET(context.Background(), "", RequestOptions{}) // first call initializes rate limiter
 
 	before := time.Now()
 	for i := 0; i < rps+1; i++ {
-		_, _ = client.GET(context.Background(), "", rest.RequestOptions{})
+		_, _ = client.GET(context.Background(), "", RequestOptions{})
 	}
 
 	after := time.Now()
@@ -517,15 +516,15 @@ func TestClient_WithRateLimiting_SoftLimitCanBeUpdated(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := rest.NewClient(baseURL, nil, testr.New(t),
-		rest.WithRateLimiter(), // default rate limiter with real clock
+	client := NewClient(baseURL, nil, testr.New(t),
+		WithRateLimiter(), // default rate limiter with real clock
 	)
 
-	_, _ = client.GET(context.Background(), "", rest.RequestOptions{}) // first call initializes rate limiter
+	_, _ = client.GET(context.Background(), "", RequestOptions{}) // first call initializes rate limiter
 
 	before := time.Now()
 	for i := 0; i < 100; i++ {
-		_, _ = client.GET(context.Background(), "", rest.RequestOptions{})
+		_, _ = client.GET(context.Background(), "", RequestOptions{})
 	}
 
 	after := time.Now()
@@ -570,15 +569,15 @@ func TestClient_WithRetriesAndRateLimit(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := rest.NewClient(baseURL, nil, testr.New(t),
-		rest.WithRequestRetrier(&rest.RequestRetrier{
+	client := NewClient(baseURL, nil, testr.New(t),
+		WithRequestRetrier(&RequestRetrier{
 			MaxRetries:      5,
-			ShouldRetryFunc: rest.RetryIfNotSuccess,
+			ShouldRetryFunc: RetryIfNotSuccess,
 		}),
-		rest.WithRateLimiter(), // default rate limiter with real clock
+		WithRateLimiter(), // default rate limiter with real clock
 	)
 
-	resp, err := client.GET(context.Background(), "/sample/endpoint", rest.RequestOptions{url.Values{"type": {"car", "bike"}}})
+	resp, err := client.GET(context.Background(), "/sample/endpoint", RequestOptions{url.Values{"type": {"car", "bike"}}})
 	defer resp.Body.Close()
 
 	assert.NoError(t, err)
@@ -597,6 +596,6 @@ func TestClient_RequestOptionsQueryParams(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := rest.NewClient(baseURL, nil, testr.New(t))
-	client.GET(context.TODO(), "", rest.RequestOptions{expectedQueryParams})
+	client := NewClient(baseURL, nil, testr.New(t))
+	client.GET(context.TODO(), "", RequestOptions{expectedQueryParams})
 }
