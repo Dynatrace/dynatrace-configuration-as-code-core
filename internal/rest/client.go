@@ -79,19 +79,20 @@ func WithRateLimiter() Option {
 
 // Client represents a general HTTP client
 type Client struct {
-	BaseURL                  string                    // base URL of the server
-	Headers                  map[string]string         // Custom headers to be set
-	Logger                   logr.Logger               // Logger interface to be used
+	BaseURL    *url.URL          // base URL of the server
+	HTTPClient *http.Client      // Custom HTTP client support
+	Headers    map[string]string // Custom headers to be set
+	Logger     logr.Logger       // Logger interface to be used
+
 	ConcurrentRequestLimiter *ConcurrentRequestLimiter // Concurrent request limiter component (optional)
 	Timeout                  time.Duration             // Request timeout (optional)
-	HTTPClient               *http.Client              // Custom HTTP client support (optional)
 	RequestRetrier           *RequestRetrier           // HTTP request retrier component (optional)
 	RequestResponseRecorder  *RequestResponseRecorder  // Request-response recorder component (optional)
 	RateLimiter              *RateLimiter              // Rate limiter component (optional)
 }
 
 // NewClient creates a new instance of the Client with specified options.
-func NewClient(baseURL string, httpClient *http.Client, logger logr.Logger, opts ...Option) *Client {
+func NewClient(baseURL *url.URL, httpClient *http.Client, logger logr.Logger, opts ...Option) *Client {
 	client := &Client{
 		BaseURL:    baseURL,
 		Headers:    make(map[string]string),
@@ -143,16 +144,12 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		defer c.ConcurrentRequestLimiter.Release()
 	}
 
-	fullURL, err := url.JoinPath(c.BaseURL, endpoint)
-	if err != nil {
-		return nil, err
-	}
-
+	fullURL := c.BaseURL.ResolveReference(&url.URL{Path: endpoint})
 	if options.QueryParams != nil {
-		fullURL += "?" + options.QueryParams.Encode()
+		fullURL.RawQuery = options.QueryParams.Encode()
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, fullURL, body)
+	req, err := http.NewRequestWithContext(ctx, method, fullURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
