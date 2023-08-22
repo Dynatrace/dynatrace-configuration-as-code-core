@@ -69,7 +69,7 @@ func WithRequestResponseRecorder(recorder *RequestResponseRecorder) Option {
 // The RateLimiter will block subsequent Client calls after a 429 status code is received until the mandated reset time is
 // reached. If the server should not reply with an X-RateLimit-Reset header, a default delay is enforced.
 // Note that a Client with RateLimiter will not automatically retry an API call after a limit was hit, but return the
-// Too Many Requests 429 HTTPError to you.
+// Too Many Requests 429 Response to you.
 // If wish for the Client to retry on errors configure a RequestRetrier as well.
 func WithRateLimiter() Option {
 	return func(c *Client) {
@@ -210,14 +210,5 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		c.logger.V(1).Error(err, "Failed to close response body of failed request")
 	}
 
-	if !isSuccess(response) {
-		return nil, HTTPError{Code: response.StatusCode, Payload: payload}
-	}
-
 	return &Response{Payload: payload, StatusCode: response.StatusCode}, nil
-}
-
-// isSuccess checks if the HTTP response is in the success range (2xx).
-func isSuccess(resp *http.Response) bool {
-	return resp.StatusCode >= 200 && resp.StatusCode <= 299
 }

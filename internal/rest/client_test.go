@@ -145,10 +145,9 @@ func TestClient_CRUD_HTTPErrors(t *testing.T) {
 		t.Run(tc.method, func(t *testing.T) {
 			resp, err := tc.requestFn()
 
-			assert.Error(t, err, "Expected error")
-			assert.Nil(t, resp, "Expected response to be nil")
-			assert.IsType(t, HTTPError{}, err)
-			assert.Equal(t, err.(HTTPError).Payload, []byte("Internal Server Error\n"))
+			assert.Nil(t, err, "Expected not error")
+			assert.NotNil(t, resp, "Expected response to be not nil")
+			assert.Equal(t, resp.Payload, []byte("Internal Server Error\n"))
 		})
 	}
 }
@@ -392,17 +391,12 @@ func TestClient_WithRateLimiting(t *testing.T) {
 			client := NewClient(baseURL, nil, testr.New(t))
 			client.rateLimiter = &limiter
 
-			_, err := client.GET(context.Background(), "", RequestOptions{})
-
-			assert.Error(t, err)
-
-			var httpErr HTTPError
-			assert.ErrorAs(t, err, &httpErr)
-			errors.As(err, &httpErr)
-
-			assert.Equal(t, http.StatusTooManyRequests, httpErr.Code)
-			assert.Nil(t, clock.requestedWait)
 			resp, err := client.GET(context.Background(), "", RequestOptions{})
+
+			assert.NoError(t, err)
+			assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
+			assert.Nil(t, clock.requestedWait)
+			resp, err = client.GET(context.Background(), "", RequestOptions{})
 			if err != nil {
 				t.Fatalf("failed to send GET request: %v", err)
 			}
@@ -441,7 +435,7 @@ func TestClient_WithRateLimiting_HardLimitActuallyBlocks(t *testing.T) {
 	)
 
 	_, err := client.GET(context.Background(), "", RequestOptions{})
-	assert.Error(t, err)
+	assert.NoError(t, err)
 
 	before := time.Now()
 	_, err = client.GET(context.Background(), "", RequestOptions{})
