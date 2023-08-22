@@ -1,4 +1,4 @@
-.PHONY: default setup lint format add-license-headers vet check compile test update-dependencies
+.PHONY: default setup lint format add-license-headers vet check compile test test-fast update-dependencies
 
 default: test
 
@@ -46,6 +46,10 @@ compile:
 test: setup
 	@echo "Testing $(BINARY_NAME)..."
 	@gotestsum ${testopts} -- -v -race ./...
+
+test-fast: setup
+	@echo "Testing short tests $(BINARY_NAME)..."
+	@gotestsum ${testopts} -- -v -race -short ./...
 
 update-dependencies:
 	@echo Update go dependencies
