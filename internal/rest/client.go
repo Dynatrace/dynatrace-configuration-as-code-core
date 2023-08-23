@@ -16,6 +16,7 @@ package rest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/go-logr/logr"
 	"io"
@@ -177,6 +178,11 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		if c.requestResponseRecorder != nil {
 			c.requestResponseRecorder.RecordResponse(ctx, nil, err)
 		}
+
+		if isConnectionResetErr(err) {
+			return nil, fmt.Errorf("unable to connect to host %q, connection closed unexpectedly: %w", req.Host, err)
+		}
+
 		return nil, err
 	}
 
@@ -211,4 +217,14 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 	}
 
 	return &Response{Payload: payload, StatusCode: response.StatusCode}, nil
+}
+
+func isConnectionResetErr(err error) bool {
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) && errors.Is(urlErr, io.EOF) {
+		// there is no direct way to discern a connection reset error, but if it's an url.Error wrapping an io.EOF we can be relatively certain it is
+		// unless net/http stops reporting this as io.EOF
+		return true
+	}
+	return false
 }

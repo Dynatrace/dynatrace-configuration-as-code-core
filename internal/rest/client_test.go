@@ -213,6 +213,63 @@ func TestClient_CRUD_TransportErrors(t *testing.T) {
 	}
 }
 
+func TestClient_CRUD_EOFIsWrappedInUserfriendlyError(t *testing.T) {
+	server := httptest.NewUnstartedServer(nil)
+	server.Config.Handler = http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		server.CloseClientConnections() // cause a connection reset on request
+	})
+	server.Start()
+	defer server.Close()
+
+	baseURL, _ := url.Parse(server.URL)
+	client := NewClient(baseURL, server.Client(), testr.New(t))
+
+	testCases := []struct {
+		method    string
+		requestFn func() (*Response, error)
+	}{
+		{
+			method: "GET",
+			requestFn: func() (*Response, error) {
+				return client.GET(context.Background(), "/test", RequestOptions{})
+			},
+		},
+		{
+			method: "POST",
+			requestFn: func() (*Response, error) {
+				return client.POST(context.Background(), "/test", nil, RequestOptions{})
+			},
+		},
+		{
+			method: "POST_WithCustomHeaders",
+			requestFn: func() (*Response, error) {
+				return client.POST(context.Background(), "/test", nil, RequestOptions{})
+			},
+		},
+		{
+			method: "PUT",
+			requestFn: func() (*Response, error) {
+				return client.PUT(context.Background(), "/test", nil, RequestOptions{})
+			},
+		},
+		{
+			method: "DELETE",
+			requestFn: func() (*Response, error) {
+				return client.DELETE(context.Background(), "/test", RequestOptions{})
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.method, func(t *testing.T) {
+			_, err := tc.requestFn()
+
+			assert.Error(t, err, "Expected error")
+			assert.ErrorContains(t, err, "connection closed unexpectedly")
+		})
+	}
+}
+
 func TestClient_WithRetries(t *testing.T) {
 	apiHits := 0
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
