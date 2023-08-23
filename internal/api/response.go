@@ -25,14 +25,6 @@ type Response struct {
 	Data       []byte `json:"-"`
 }
 
-// DecodeJSON tries to unmarshal the data of the response to obj
-func (r Response) DecodeJSON(obj interface{}) error {
-	if err := json.Unmarshal(r.Data, obj); err != nil {
-		return fmt.Errorf("failed to unmarshal JSON: %w", err)
-	}
-	return nil
-}
-
 // IsSuccess returns true if the response indicates a successful HTTP status code.
 // A status code between 200 and 299 (inclusive) is considered a success.
 func (resp Response) IsSuccess() bool {
@@ -49,4 +41,12 @@ func (resp Response) Is4xxError() bool {
 // A status code between 500 and 599 (inclusive) is considered a server error.
 func (resp Response) Is5xxError() bool {
 	return resp.StatusCode >= 500 && resp.StatusCode <= 599
+}
+
+// DecodeJSON tries to unmarshal the data of the response to obj
+func (r Response) DecodeJSON(obj interface{}) error {
+	if err := json.Unmarshal(r.Data, obj); err != nil {
+		return fmt.Errorf("failed to unmarshal JSON: %w", err)
+	}
+	return nil
 }
