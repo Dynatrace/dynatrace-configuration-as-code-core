@@ -69,7 +69,7 @@ func WithRequestResponseRecorder(recorder *RequestResponseRecorder) Option {
 // The RateLimiter will block subsequent Client calls after a 429 status code is received until the mandated reset time is
 // reached. If the server should not reply with an X-RateLimit-Reset header, a default delay is enforced.
 // Note that a Client with RateLimiter will not automatically retry an API call after a limit was hit, but return the
-// Too Many Requests 429 HTTPError to you.
+// Too Many Requests 429 Response to you.
 // If wish for the Client to retry on errors configure a RequestRetrier as well.
 func WithRateLimiter() Option {
 	return func(c *Client) {
@@ -108,22 +108,22 @@ func NewClient(baseURL *url.URL, httpClient *http.Client, logger logr.Logger, op
 }
 
 // GET sends a GET request to the specified endpoint.
-func (c *Client) GET(ctx context.Context, endpoint string, options RequestOptions) (*http.Response, error) {
+func (c *Client) GET(ctx context.Context, endpoint string, options RequestOptions) (*Response, error) {
 	return c.sendRequestWithRetries(ctx, http.MethodGet, endpoint, nil, 0, options)
 }
 
 // PUT sends a PUT request to the specified endpoint with the given body.
-func (c *Client) PUT(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (*http.Response, error) {
+func (c *Client) PUT(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (*Response, error) {
 	return c.sendRequestWithRetries(ctx, http.MethodPut, endpoint, body, 0, options)
 }
 
 // POST sends a POST request to the specified endpoint with the given body.
-func (c *Client) POST(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (*http.Response, error) {
+func (c *Client) POST(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (*Response, error) {
 	return c.sendRequestWithRetries(ctx, http.MethodPost, endpoint, body, 0, options)
 }
 
 // DELETE sends a DELETE request to the specified endpoint.
-func (c *Client) DELETE(ctx context.Context, endpoint string, options RequestOptions) (*http.Response, error) {
+func (c *Client) DELETE(ctx context.Context, endpoint string, options RequestOptions) (*Response, error) {
 	return c.sendRequestWithRetries(ctx, http.MethodDelete, endpoint, nil, 0, options)
 }
 
@@ -133,7 +133,7 @@ func (c *Client) SetHeader(key, value string) {
 }
 
 // sendRequestWithRetries sends an HTTP request with custom headers and modified request body, with retries if configured.
-func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endpoint string, body io.Reader, retryCount int, options RequestOptions) (*http.Response, error) {
+func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endpoint string, body io.Reader, retryCount int, options RequestOptions) (*Response, error) {
 	if c.rateLimiter != nil {
 		c.rateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
 	}
@@ -144,7 +144,7 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		defer c.concurrentRequestLimiter.Release()
 	}
 
-	fullURL := c.baseURL.ResolveReference(&url.URL{Path: endpoint})
+	fullURL := c.baseURL.JoinPath(endpoint)
 	if options.QueryParams != nil {
 		fullURL.RawQuery = options.QueryParams.Encode()
 	}
@@ -200,23 +200,15 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		return c.sendRequestWithRetries(ctx, method, endpoint, body, retryCount+1, options)
 	}
 
-	if !isSuccess(response) {
-		// If the response code is not in the success range, read the response payload for the error details
-		payload, err := io.ReadAll(response.Body)
-		if err != nil {
-			c.logger.Error(err, fmt.Sprintf("Failed to read response body of failed request %q (HTTP %s)", fullURL, response.Status))
-		}
-		err = response.Body.Close()
-		if err != nil {
-			c.logger.V(1).Error(err, "Failed to close response body of failed request")
-		}
-		return nil, HTTPError{Code: response.StatusCode, Payload: payload}
+	// Read payload
+	payload, err := io.ReadAll(response.Body)
+	if err != nil {
+		c.logger.Error(err, fmt.Sprintf("Failed to read response body of failed request %q (HTTP %s)", fullURL, response.Status))
 	}
 
-	return response, nil
-}
+	if err := response.Body.Close(); err != nil {
+		c.logger.V(1).Error(err, "Failed to close response body of failed request")
+	}
 
-// isSuccess checks if the HTTP response is in the success range (2xx).
-func isSuccess(resp *http.Response) bool {
-	return resp.StatusCode >= 200 && resp.StatusCode <= 299
+	return &Response{Payload: payload, StatusCode: response.StatusCode}, nil
 }

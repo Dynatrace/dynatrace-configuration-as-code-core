@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -70,7 +69,6 @@ func TestClient_CRUD(t *testing.T) {
 
 	t.Run("GET", func(t *testing.T) {
 		resp, err := client.GET(context.Background(), "/test", RequestOptions{})
-		defer resp.Body.Close()
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Expected status code 200")
@@ -78,7 +76,6 @@ func TestClient_CRUD(t *testing.T) {
 
 	t.Run("POST", func(t *testing.T) {
 		resp, err := client.POST(context.Background(), "/test", nil, RequestOptions{})
-		defer resp.Body.Close()
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusCreated, resp.StatusCode, "Expected status code 201")
@@ -86,7 +83,6 @@ func TestClient_CRUD(t *testing.T) {
 
 	t.Run("PUT", func(t *testing.T) {
 		resp, err := client.PUT(context.Background(), "/test", nil, RequestOptions{})
-		defer resp.Body.Close()
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusNoContent, resp.StatusCode, "Expected status code 204")
@@ -94,7 +90,6 @@ func TestClient_CRUD(t *testing.T) {
 
 	t.Run("DELETE", func(t *testing.T) {
 		resp, err := client.DELETE(context.Background(), "/test", RequestOptions{})
-		defer resp.Body.Close()
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusNoContent, resp.StatusCode, "Expected status code 204")
@@ -112,35 +107,35 @@ func TestClient_CRUD_HTTPErrors(t *testing.T) {
 
 	testCases := []struct {
 		method    string
-		requestFn func() (*http.Response, error)
+		requestFn func() (*Response, error)
 	}{
 		{
 			method: "GET",
-			requestFn: func() (*http.Response, error) {
+			requestFn: func() (*Response, error) {
 				return client.GET(context.Background(), "/test", RequestOptions{})
 			},
 		},
 		{
 			method: "POST",
-			requestFn: func() (*http.Response, error) {
+			requestFn: func() (*Response, error) {
 				return client.POST(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "POST_WithCustomHeaders",
-			requestFn: func() (*http.Response, error) {
+			requestFn: func() (*Response, error) {
 				return client.POST(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "PUT",
-			requestFn: func() (*http.Response, error) {
+			requestFn: func() (*Response, error) {
 				return client.PUT(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "DELETE",
-			requestFn: func() (*http.Response, error) {
+			requestFn: func() (*Response, error) {
 				return client.DELETE(context.Background(), "/test", RequestOptions{})
 			},
 		},
@@ -150,10 +145,9 @@ func TestClient_CRUD_HTTPErrors(t *testing.T) {
 		t.Run(tc.method, func(t *testing.T) {
 			resp, err := tc.requestFn()
 
-			assert.Error(t, err, "Expected error")
-			assert.Nil(t, resp, "Expected response to be nil")
-			assert.IsType(t, HTTPError{}, err)
-			assert.Equal(t, err.(HTTPError).Payload, []byte("Internal Server Error\n"))
+			assert.Nil(t, err, "Expected not error")
+			assert.NotNil(t, resp, "Expected response to be not nil")
+			assert.Equal(t, resp.Payload, []byte("Internal Server Error\n"))
 		})
 	}
 }
@@ -175,35 +169,35 @@ func TestClient_CRUD_TransportErrors(t *testing.T) {
 
 	testCases := []struct {
 		method    string
-		requestFn func() (*http.Response, error)
+		requestFn func() (*Response, error)
 	}{
 		{
 			method: "GET",
-			requestFn: func() (*http.Response, error) {
+			requestFn: func() (*Response, error) {
 				return client.GET(context.Background(), "/test", RequestOptions{})
 			},
 		},
 		{
 			method: "POST",
-			requestFn: func() (*http.Response, error) {
+			requestFn: func() (*Response, error) {
 				return client.POST(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "POST_WithCustomHeaders",
-			requestFn: func() (*http.Response, error) {
+			requestFn: func() (*Response, error) {
 				return client.POST(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "PUT",
-			requestFn: func() (*http.Response, error) {
+			requestFn: func() (*Response, error) {
 				return client.PUT(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "DELETE",
-			requestFn: func() (*http.Response, error) {
+			requestFn: func() (*Response, error) {
 				return client.DELETE(context.Background(), "/test", RequestOptions{})
 			},
 		},
@@ -243,7 +237,6 @@ func TestClient_WithRetries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to send GET request: %v", err)
 	}
-	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, 2, apiHits)
 }
@@ -398,21 +391,15 @@ func TestClient_WithRateLimiting(t *testing.T) {
 			client := NewClient(baseURL, nil, testr.New(t))
 			client.rateLimiter = &limiter
 
-			_, err := client.GET(context.Background(), "", RequestOptions{})
-
-			assert.Error(t, err)
-
-			var httpErr HTTPError
-			assert.ErrorAs(t, err, &httpErr)
-			errors.As(err, &httpErr)
-
-			assert.Equal(t, http.StatusTooManyRequests, httpErr.Code)
-			assert.Nil(t, clock.requestedWait)
 			resp, err := client.GET(context.Background(), "", RequestOptions{})
+
+			assert.NoError(t, err)
+			assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
+			assert.Nil(t, clock.requestedWait)
+			resp, err = client.GET(context.Background(), "", RequestOptions{})
 			if err != nil {
 				t.Fatalf("failed to send GET request: %v", err)
 			}
-			defer resp.Body.Close()
 
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
 			assert.NotNil(t, clock.requestedWait)
@@ -448,16 +435,15 @@ func TestClient_WithRateLimiting_HardLimitActuallyBlocks(t *testing.T) {
 	)
 
 	_, err := client.GET(context.Background(), "", RequestOptions{})
-	assert.Error(t, err)
+	assert.NoError(t, err)
 
 	before := time.Now()
-	resp, err := client.GET(context.Background(), "", RequestOptions{})
+	_, err = client.GET(context.Background(), "", RequestOptions{})
 	after := time.Now()
 
 	if err != nil {
 		t.Fatalf("failed to send GET request: %v", err)
 	}
-	defer resp.Body.Close()
 
 	diff := after.Sub(before)
 
@@ -578,14 +564,13 @@ func TestClient_WithRetriesAndRateLimit(t *testing.T) {
 	)
 
 	resp, err := client.GET(context.Background(), "/sample/endpoint", RequestOptions{url.Values{"type": {"car", "bike"}}})
-	defer resp.Body.Close()
 
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	b, err := io.ReadAll(resp.Body)
+
 	assert.NoError(t, err)
-	assert.Equal(t, `{ "hello": "there" }`, string(b))
+	assert.Equal(t, `{ "hello": "there" }`, string(resp.Payload))
 }
 
 func TestClient_RequestOptionsQueryParams(t *testing.T) {
