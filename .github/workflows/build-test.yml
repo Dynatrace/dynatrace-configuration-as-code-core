@@ -27,7 +27,10 @@ jobs:
     permissions:
       contents: read
       checks: write
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: 🛠️ Set up Go 1.x
