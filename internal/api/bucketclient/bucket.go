@@ -137,7 +137,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	maxRetries := 3
 	waitDuration := time.Second
 
-	var resp *rest.Response
+	var resp rest.Response
 	var err error
 	for i := 0; i < maxRetries; i++ {
 		c.logger.V(1).Info(fmt.Sprintf("Trying to update bucket with bucket name %q (%d/%d retries)", bucketName, i+1, maxRetries))
@@ -268,31 +268,31 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload}}, err
 }
 
-func (c Client) create(ctx context.Context, bucketName string, data []byte) (*rest.Response, error) {
+func (c Client) create(ctx context.Context, bucketName string, data []byte) (rest.Response, error) {
 	if err := setBucketName(bucketName, &data); err != nil {
-		return nil, err
+		return rest.Response{}, err
 	}
 	r, err := c.client.POST(ctx, endpointPath, bytes.NewReader(data), rest.RequestOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create object with bucketName %q: %w", bucketName, err)
+		return rest.Response{}, fmt.Errorf("failed to create object with bucketName %q: %w", bucketName, err)
 	}
 	return r, nil
 }
 
-func (c Client) get(ctx context.Context, bucketName string) (*rest.Response, error) {
+func (c Client) get(ctx context.Context, bucketName string) (rest.Response, error) {
 	path, err := url.JoinPath(endpointPath, bucketName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create URL: %w", err)
+		return rest.Response{}, fmt.Errorf("failed to create URL: %w", err)
 	}
 	return c.client.GET(ctx, path, rest.RequestOptions{})
 
 }
 
-func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte) (*rest.Response, error) {
+func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte) (rest.Response, error) {
 	// try to get existing bucket definition
 	b, err := c.get(ctx, bucketName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get object with bucket name %q: %w", bucketName, err)
+		return rest.Response{}, fmt.Errorf("failed to get object with bucket name %q: %w", bucketName, err)
 	}
 
 	// return the result in case it's no HTTP 200
@@ -301,22 +301,22 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 	}
 
 	// try to unmarshal into internal struct
-	res, err := unmarshalJSON(b)
+	res, err := unmarshalJSON(&b)
 	if err != nil {
-		return nil, err
+		return rest.Response{}, err
 	}
 
 	// construct path for PUT request
 	path, err := url.JoinPath(endpointPath, res.BucketName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to join URL: %w", err)
+		return rest.Response{}, fmt.Errorf("failed to join URL: %w", err)
 	}
 
 	// convert data to be sent to JSON
 	var m map[string]interface{}
 	err = json.Unmarshal(data, &m)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal template: %w", err)
+		return rest.Response{}, fmt.Errorf("unable to unmarshal template: %w", err)
 	}
 	m["bucketName"] = res.BucketName
 	m["version"] = res.Version
@@ -324,7 +324,7 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 
 	data, err = json.Marshal(m)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal data: %w", err)
+		return rest.Response{}, fmt.Errorf("unable to marshal data: %w", err)
 	}
 
 	// make PUT request

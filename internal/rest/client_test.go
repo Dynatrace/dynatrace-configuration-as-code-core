@@ -107,35 +107,35 @@ func TestClient_CRUD_HTTPErrors(t *testing.T) {
 
 	testCases := []struct {
 		method    string
-		requestFn func() (*Response, error)
+		requestFn func() (Response, error)
 	}{
 		{
 			method: "GET",
-			requestFn: func() (*Response, error) {
+			requestFn: func() (Response, error) {
 				return client.GET(context.Background(), "/test", RequestOptions{})
 			},
 		},
 		{
 			method: "POST",
-			requestFn: func() (*Response, error) {
+			requestFn: func() (Response, error) {
 				return client.POST(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "POST_WithCustomHeaders",
-			requestFn: func() (*Response, error) {
+			requestFn: func() (Response, error) {
 				return client.POST(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "PUT",
-			requestFn: func() (*Response, error) {
+			requestFn: func() (Response, error) {
 				return client.PUT(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "DELETE",
-			requestFn: func() (*Response, error) {
+			requestFn: func() (Response, error) {
 				return client.DELETE(context.Background(), "/test", RequestOptions{})
 			},
 		},
@@ -169,35 +169,35 @@ func TestClient_CRUD_TransportErrors(t *testing.T) {
 
 	testCases := []struct {
 		method    string
-		requestFn func() (*Response, error)
+		requestFn func() (Response, error)
 	}{
 		{
 			method: "GET",
-			requestFn: func() (*Response, error) {
+			requestFn: func() (Response, error) {
 				return client.GET(context.Background(), "/test", RequestOptions{})
 			},
 		},
 		{
 			method: "POST",
-			requestFn: func() (*Response, error) {
+			requestFn: func() (Response, error) {
 				return client.POST(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "POST_WithCustomHeaders",
-			requestFn: func() (*Response, error) {
+			requestFn: func() (Response, error) {
 				return client.POST(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "PUT",
-			requestFn: func() (*Response, error) {
+			requestFn: func() (Response, error) {
 				return client.PUT(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "DELETE",
-			requestFn: func() (*Response, error) {
+			requestFn: func() (Response, error) {
 				return client.DELETE(context.Background(), "/test", RequestOptions{})
 			},
 		},
@@ -208,7 +208,7 @@ func TestClient_CRUD_TransportErrors(t *testing.T) {
 			resp, err := tc.requestFn()
 
 			assert.Error(t, err, "Expected error")
-			assert.Nil(t, resp, "Expected response to be nil")
+			assert.Zero(t, resp, "Expected response to be zero")
 		})
 	}
 }
@@ -226,35 +226,35 @@ func TestClient_CRUD_EOFIsWrappedInUserfriendlyError(t *testing.T) {
 
 	testCases := []struct {
 		method    string
-		requestFn func() (*Response, error)
+		requestFn func() (Response, error)
 	}{
 		{
 			method: "GET",
-			requestFn: func() (*Response, error) {
+			requestFn: func() (Response, error) {
 				return client.GET(context.Background(), "/test", RequestOptions{})
 			},
 		},
 		{
 			method: "POST",
-			requestFn: func() (*Response, error) {
+			requestFn: func() (Response, error) {
 				return client.POST(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "POST_WithCustomHeaders",
-			requestFn: func() (*Response, error) {
+			requestFn: func() (Response, error) {
 				return client.POST(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "PUT",
-			requestFn: func() (*Response, error) {
+			requestFn: func() (Response, error) {
 				return client.PUT(context.Background(), "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "DELETE",
-			requestFn: func() (*Response, error) {
+			requestFn: func() (Response, error) {
 				return client.DELETE(context.Background(), "/test", RequestOptions{})
 			},
 		},

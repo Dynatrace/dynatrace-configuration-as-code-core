@@ -109,22 +109,22 @@ func NewClient(baseURL *url.URL, httpClient *http.Client, logger logr.Logger, op
 }
 
 // GET sends a GET request to the specified endpoint.
-func (c *Client) GET(ctx context.Context, endpoint string, options RequestOptions) (*Response, error) {
+func (c *Client) GET(ctx context.Context, endpoint string, options RequestOptions) (Response, error) {
 	return c.sendRequestWithRetries(ctx, http.MethodGet, endpoint, nil, 0, options)
 }
 
 // PUT sends a PUT request to the specified endpoint with the given body.
-func (c *Client) PUT(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (*Response, error) {
+func (c *Client) PUT(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (Response, error) {
 	return c.sendRequestWithRetries(ctx, http.MethodPut, endpoint, body, 0, options)
 }
 
 // POST sends a POST request to the specified endpoint with the given body.
-func (c *Client) POST(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (*Response, error) {
+func (c *Client) POST(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (Response, error) {
 	return c.sendRequestWithRetries(ctx, http.MethodPost, endpoint, body, 0, options)
 }
 
 // DELETE sends a DELETE request to the specified endpoint.
-func (c *Client) DELETE(ctx context.Context, endpoint string, options RequestOptions) (*Response, error) {
+func (c *Client) DELETE(ctx context.Context, endpoint string, options RequestOptions) (Response, error) {
 	return c.sendRequestWithRetries(ctx, http.MethodDelete, endpoint, nil, 0, options)
 }
 
@@ -134,7 +134,7 @@ func (c *Client) SetHeader(key, value string) {
 }
 
 // sendRequestWithRetries sends an HTTP request with custom headers and modified request body, with retries if configured.
-func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endpoint string, body io.Reader, retryCount int, options RequestOptions) (*Response, error) {
+func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endpoint string, body io.Reader, retryCount int, options RequestOptions) (Response, error) {
 	if c.rateLimiter != nil {
 		c.rateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
 	}
@@ -152,7 +152,7 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 
 	req, err := http.NewRequestWithContext(ctx, method, fullURL.String(), body)
 	if err != nil {
-		return nil, err
+		return Response{}, err
 	}
 
 	for key, value := range c.headers {
@@ -168,7 +168,7 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 	if c.requestResponseRecorder != nil {
 		// wrap the body so that it could be read again
 		if req.Body, err = ReusableReader(req.Body); err != nil {
-			return nil, err
+			return Response{}, err
 		}
 		c.requestResponseRecorder.RecordRequest(ctx, req)
 	}
@@ -180,16 +180,16 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		}
 
 		if isConnectionResetErr(err) {
-			return nil, fmt.Errorf("unable to connect to host %q, connection closed unexpectedly: %w", req.Host, err)
+			return Response{}, fmt.Errorf("unable to connect to host %q, connection closed unexpectedly: %w", req.Host, err)
 		}
 
-		return nil, err
+		return Response{}, err
 	}
 
 	if c.requestResponseRecorder != nil {
 		// wrap the body so that it could be read again
 		if response.Body, err = ReusableReader(response.Body); err != nil {
-			return nil, err
+			return Response{}, err
 		}
 		c.requestResponseRecorder.RecordResponse(ctx, response, nil)
 	}
@@ -216,7 +216,7 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		c.logger.V(1).Error(err, "Failed to close response body of failed request")
 	}
 
-	return &Response{Payload: payload, StatusCode: response.StatusCode}, nil
+	return Response{Payload: payload, StatusCode: response.StatusCode}, nil
 }
 
 func isConnectionResetErr(err error) bool {
