@@ -42,6 +42,18 @@ type response struct {
 	Version    int    `json:"version"`
 }
 
+// ListResponse is a Bucket API response containing multiple bucket objects.
+// For convenience, it contains a slice of Buckets in addition to the base api.Response data.
+type ListResponse struct {
+	api.Response
+	Buckets [][]byte
+}
+
+type listResponse struct {
+	api.Response
+	Buckets []json.RawMessage `json:"buckets"`
+}
+
 type Client struct {
 	client *rest.Client
 	logger logr.Logger
@@ -85,6 +97,35 @@ func (c Client) Get(ctx context.Context, bucketName string) (Response, error) {
 		return Response{}, err
 	}
 	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload}}, nil
+}
+
+// List retrieves all bucket definitions. The function sends a GET request
+// to the server using the given context. It returns a slice of bucket Responses and an error indicating
+// the success or failure its execution.
+//
+// If the HTTP request to the server fails, the method returns an empty slice and an error explaining the issue.
+//
+// Parameters:
+//   - ctx: Context for controlling the HTTP operation's lifecycle.
+//
+// Returns:
+//   - []Response: A slice of bucket Response containing the individual buckets resulting from the HTTP call, including status code and data.
+//   - error: An error if the HTTP call fails or another error happened.
+func (c Client) List(ctx context.Context) (ListResponse, error) {
+	resp, err := c.list(ctx)
+	if err != nil {
+		return ListResponse{}, err
+	}
+
+	b := make([][]byte, len(resp.Buckets))
+	for i, v := range resp.Buckets {
+		b[i], _ = v.MarshalJSON() // marshalling the JSON back to JSON will not fail
+	}
+
+	return ListResponse{
+		Response: resp.Response,
+		Buckets:  b,
+	}, nil
 }
 
 // Create sends a request to the server to create a new bucket with the provided bucketName and data.
@@ -288,6 +329,18 @@ func (c Client) get(ctx context.Context, bucketName string) (rest.Response, erro
 
 }
 
+func (c Client) list(ctx context.Context) (listResponse, error) {
+	resp, err := c.client.GET(ctx, endpointPath, rest.RequestOptions{})
+	if err != nil {
+		return listResponse{}, fmt.Errorf("failed to list buckets:%w", err)
+	}
+	l, err := unmarshalJSONList(&resp)
+	if err != nil {
+		return listResponse{}, fmt.Errorf("failed to parse list response:%w", err)
+	}
+	return l, nil
+}
+
 func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte) (rest.Response, error) {
 	// try to get existing bucket definition
 	b, err := c.get(ctx, bucketName)
@@ -348,12 +401,24 @@ func setBucketName(bucketName string, data *[]byte) error {
 	return nil
 }
 
-// unmarshalJSON unmarshals JSON data into a Response struct.
+// unmarshalJSON unmarshals JSON data into a response struct.
 func unmarshalJSON(raw *rest.Response) (response, error) {
 	var r response
 	err := json.Unmarshal(raw.Payload, &r)
 	if err != nil {
 		return response{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+	r.Data = raw.Payload
+	r.StatusCode = raw.StatusCode
+	return r, nil
+}
+
+// unmarshalJSONList unmarshals JSON data into a listResponse struct.
+func unmarshalJSONList(raw *rest.Response) (listResponse, error) {
+	var r listResponse
+	err := json.Unmarshal(raw.Payload, &r)
+	if err != nil {
+		return listResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 	r.Data = raw.Payload
 	r.StatusCode = raw.StatusCode
