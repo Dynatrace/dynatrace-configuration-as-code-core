@@ -45,8 +45,7 @@ type response struct {
 // ListResponse is a Bucket API response containing multiple bucket objects.
 // For convenience, it contains a slice of Buckets in addition to the base api.Response data.
 type ListResponse struct {
-	api.Response
-	Buckets [][]byte
+	api.ListResponse
 }
 
 type listResponse struct {
@@ -123,8 +122,10 @@ func (c Client) List(ctx context.Context) (ListResponse, error) {
 	}
 
 	return ListResponse{
-		Response: resp.Response,
-		Buckets:  b,
+		ListResponse: api.ListResponse{
+			Response: resp.Response,
+			Objects:  b,
+		},
 	}, nil
 }
 
