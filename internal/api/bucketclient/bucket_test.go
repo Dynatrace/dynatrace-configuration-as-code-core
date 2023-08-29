@@ -17,9 +17,10 @@ package bucketclient_test
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/api/bucketclient"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/rest"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/testutils"
+
 	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
 	"io"
@@ -41,17 +42,16 @@ func TestGet(t *testing.T) {
  "version": 1
 }`
 
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodGet: {
-				code:     http.StatusOK,
-				response: payload,
+				ResponseCode: http.StatusOK,
+				ResponseBody: payload,
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 
 		resp, err := client.Get(context.TODO(), "bucket name")
 		assert.NoError(t, err)
@@ -59,17 +59,16 @@ func TestGet(t *testing.T) {
 	})
 
 	t.Run("correctly create the error in case of a server issue", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodGet: {
-				code:     http.StatusNotFound,
-				response: "{}",
+				ResponseCode: http.StatusNotFound,
+				ResponseBody: "{}",
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 
 		resp, err := client.Get(context.TODO(), "bucket name")
 		assert.NoError(t, err, "expected err to be nil")
@@ -89,25 +88,24 @@ func TestUpsert(t *testing.T) {
   "version": 1
 }`
 	t.Run("update fails", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodPost: {
-				code:     http.StatusBadRequest,
-				response: "ERROR",
+				ResponseCode: http.StatusBadRequest,
+				ResponseBody: "ERROR",
 			},
 			http.MethodGet: {
-				code:     http.StatusOK,
-				response: someBucketResponse,
+				ResponseCode: http.StatusOK,
+				ResponseBody: someBucketResponse,
 			},
 			http.MethodPut: {
-				code:     http.StatusForbidden,
-				response: "no write access message",
+				ResponseCode: http.StatusForbidden,
+				ResponseBody: "no write access message",
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 
 		data := []byte("{}")
 
@@ -117,11 +115,11 @@ func TestUpsert(t *testing.T) {
 	})
 
 	t.Run("create new bucket - OK", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodPost: {
-				code:     http.StatusOK,
-				response: someBucketResponse,
-				validate: func(req *http.Request) {
+				ResponseCode: http.StatusOK,
+				ResponseBody: someBucketResponse,
+				ValidateRequestFunc: func(req *http.Request) {
 					data, err := io.ReadAll(req.Body)
 					assert.NoError(t, err)
 
@@ -133,11 +131,10 @@ func TestUpsert(t *testing.T) {
 				},
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Upsert(context.TODO(), "bucket name", data)
@@ -151,22 +148,22 @@ func TestUpsert(t *testing.T) {
 	})
 
 	t.Run("update new bucket - OK", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodPost: {
-				code:     http.StatusForbidden,
-				response: "this is an error",
+				ResponseCode: http.StatusForbidden,
+				ResponseBody: "this is an error",
 			},
 			http.MethodGet: {
-				code:     http.StatusOK,
-				response: someBucketResponse,
-				validate: func(req *http.Request) {
+				ResponseCode: http.StatusOK,
+				ResponseBody: someBucketResponse,
+				ValidateRequestFunc: func(req *http.Request) {
 					assert.Contains(t, req.URL.String(), url.PathEscape("bucket name"))
 				},
 			},
 			http.MethodPut: {
-				code:     http.StatusOK,
-				response: someBucketResponse,
-				validate: func(req *http.Request) {
+				ResponseCode: http.StatusOK,
+				ResponseBody: someBucketResponse,
+				ValidateRequestFunc: func(req *http.Request) {
 					data, err := io.ReadAll(req.Body)
 					assert.NoError(t, err)
 
@@ -178,11 +175,10 @@ func TestUpsert(t *testing.T) {
 				},
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Upsert(context.TODO(), "bucket name", data)
@@ -196,25 +192,24 @@ func TestUpsert(t *testing.T) {
 	})
 
 	t.Run("Update fails with conflict", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodPost: {
-				code:     http.StatusForbidden,
-				response: "expected error, we don't want to create",
+				ResponseCode: http.StatusForbidden,
+				ResponseBody: "expected error, we don't want to create",
 			},
 			http.MethodGet: {
-				code:     http.StatusOK,
-				response: someBucketResponse,
+				ResponseCode: http.StatusOK,
+				ResponseBody: someBucketResponse,
 			},
 			http.MethodPut: {
-				code:     http.StatusConflict,
-				response: `some conflicting error'`,
+				ResponseCode: http.StatusConflict,
+				ResponseBody: `some conflicting error'`,
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Upsert(context.TODO(), "bucket name", data)
@@ -223,21 +218,20 @@ func TestUpsert(t *testing.T) {
 	})
 
 	t.Run("Update fails because GET fails", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodPost: {
-				code:     http.StatusForbidden,
-				response: "expected error, we don't want to create",
+				ResponseCode: http.StatusForbidden,
+				ResponseBody: "expected error, we don't want to create",
 			},
 			http.MethodGet: {
-				code:     http.StatusForbidden,
-				response: "expected error, we don't want to get",
+				ResponseCode: http.StatusForbidden,
+				ResponseBody: "expected error, we don't want to get",
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Upsert(context.TODO(), "bucket name", data)
@@ -271,7 +265,7 @@ func TestUpsert(t *testing.T) {
 		defer server.Close()
 
 		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(u, server.Client(), testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Upsert(context.TODO(), "bucket name", data)
@@ -299,17 +293,16 @@ func TestDelete(t *testing.T) {
 }`
 
 	t.Run("delete bucket - OK", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodDelete: {
-				code:     http.StatusAccepted,
-				response: someBucketResponse,
+				ResponseCode: http.StatusAccepted,
+				ResponseBody: someBucketResponse,
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		resp, err := client.Delete(context.TODO(), "bucket name")
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
@@ -317,16 +310,15 @@ func TestDelete(t *testing.T) {
 	})
 
 	t.Run("delete bucket - not found", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodDelete: {
-				code: http.StatusNotFound,
+				ResponseCode: http.StatusNotFound,
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		resp, err := client.Delete(context.TODO(), "bucket name")
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
@@ -334,16 +326,15 @@ func TestDelete(t *testing.T) {
 	})
 
 	t.Run("delete bucket - network error", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodDelete: {
-				code: http.StatusNotFound,
+				ResponseCode: http.StatusNotFound,
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{Transport: &errorTransport{}}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), server.FaultyClient(), testr.New(t)), testr.New(t))
 		resp, err := client.Delete(context.TODO(), "bucket name")
 		assert.Error(t, err)
 		assert.Zero(t, resp)
@@ -371,17 +362,16 @@ func TestCreate(t *testing.T) {
 }`
 
 	t.Run("create bucket - OK", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodPost: {
-				code:     http.StatusCreated,
-				response: someBucketResponse,
+				ResponseCode: http.StatusCreated,
+				ResponseBody: someBucketResponse,
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		resp, err := client.Create(context.TODO(), "bucket name", []byte(someBucketData))
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusCreated, resp.StatusCode)
@@ -389,32 +379,30 @@ func TestCreate(t *testing.T) {
 	})
 
 	t.Run("create bucket - network error", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodDelete: {
-				code: http.StatusNotFound,
+				ResponseCode: http.StatusNotFound,
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{Transport: &errorTransport{}}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), server.FaultyClient(), testr.New(t)), testr.New(t))
 		resp, err := client.Create(context.TODO(), "bucket name", []byte(someBucketData))
 		assert.Error(t, err)
 		assert.Zero(t, resp)
 	})
 
 	t.Run("create bucket - invalid data", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodDelete: {
-				code: http.StatusNotFound,
+				ResponseCode: http.StatusNotFound,
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{Transport: &errorTransport{}}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		resp, err := client.Create(context.TODO(), "bucket name", []byte("-)§/$/(="))
 		assert.Error(t, err)
 		assert.Zero(t, resp)
@@ -433,25 +421,24 @@ func TestUpdate(t *testing.T) {
   "version": 1
 }`
 	t.Run("update fails", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodPost: {
-				code:     http.StatusBadRequest,
-				response: "ERROR",
+				ResponseCode: http.StatusBadRequest,
+				ResponseBody: "ERROR",
 			},
 			http.MethodGet: {
-				code:     http.StatusOK,
-				response: someBucketResponse,
+				ResponseCode: http.StatusOK,
+				ResponseBody: someBucketResponse,
 			},
 			http.MethodPut: {
-				code:     http.StatusForbidden,
-				response: "no write access message",
+				ResponseCode: http.StatusForbidden,
+				ResponseBody: "no write access message",
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
 
 		data := []byte("{}")
 
@@ -461,18 +448,18 @@ func TestUpdate(t *testing.T) {
 	})
 
 	t.Run("update new bucket - OK", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodGet: {
-				code:     http.StatusOK,
-				response: someBucketResponse,
-				validate: func(req *http.Request) {
+				ResponseCode: http.StatusOK,
+				ResponseBody: someBucketResponse,
+				ValidateRequestFunc: func(req *http.Request) {
 					assert.Contains(t, req.URL.String(), url.PathEscape("bucket name"))
 				},
 			},
 			http.MethodPut: {
-				code:     http.StatusOK,
-				response: someBucketResponse,
-				validate: func(req *http.Request) {
+				ResponseCode: http.StatusOK,
+				ResponseBody: someBucketResponse,
+				ValidateRequestFunc: func(req *http.Request) {
 					data, err := io.ReadAll(req.Body)
 					assert.NoError(t, err)
 
@@ -484,11 +471,10 @@ func TestUpdate(t *testing.T) {
 				},
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Update(context.TODO(), "bucket name", data)
@@ -502,21 +488,20 @@ func TestUpdate(t *testing.T) {
 	})
 
 	t.Run("Update fails with conflict", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodGet: {
-				code:     http.StatusOK,
-				response: someBucketResponse,
+				ResponseCode: http.StatusOK,
+				ResponseBody: someBucketResponse,
 			},
 			http.MethodPut: {
-				code:     http.StatusConflict,
-				response: `some conflicting error'`,
+				ResponseCode: http.StatusConflict,
+				ResponseBody: `some conflicting error'`,
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Update(context.TODO(), "bucket name", data)
@@ -525,21 +510,20 @@ func TestUpdate(t *testing.T) {
 	})
 
 	t.Run("Update fails because GET fails", func(t *testing.T) {
-		responses := serverResponses{
+		responses := testutils.ServerResponses{
 			http.MethodPost: {
-				code:     http.StatusForbidden,
-				response: "expected error, we don't want to create",
+				ResponseCode: http.StatusForbidden,
+				ResponseBody: "expected error, we don't want to create",
 			},
 			http.MethodGet: {
-				code:     http.StatusForbidden,
-				response: "expected error, we don't want to get",
+				ResponseCode: http.StatusForbidden,
+				ResponseBody: "expected error, we don't want to get",
 			},
 		}
-		server := createServer(t, responses)
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := bucketclient.New(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Update(context.TODO(), "bucket name", data)
@@ -585,31 +569,4 @@ func TestUpdate(t *testing.T) {
 
 		assert.Equal(t, "bucket name", m["bucketName"])
 	})
-}
-
-type httpMethod = string
-type serverResponses map[httpMethod]struct {
-	code     int
-	response string
-	validate func(*http.Request)
-}
-
-func createServer(t *testing.T, arg serverResponses) *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		if res, found := arg[req.Method]; found {
-			if res.validate != nil {
-				res.validate(req)
-			}
-			rw.WriteHeader(res.code)
-			rw.Write([]byte(res.response))
-		} else {
-			assert.Fail(t, "unexpected HTTP method call")
-		}
-	}))
-}
-
-type errorTransport struct{}
-
-func (t *errorTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
-	return nil, errors.New("simulated network error")
 }
