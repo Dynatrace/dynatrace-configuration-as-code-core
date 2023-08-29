@@ -17,6 +17,7 @@ package bucketclient_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/api/bucketclient"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/testutils"
@@ -73,6 +74,101 @@ func TestGet(t *testing.T) {
 		resp, err := client.Get(context.TODO(), "bucket name")
 		assert.NoError(t, err, "expected err to be nil")
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+	})
+}
+
+func TestList(t *testing.T) {
+	t.Run("successfully fetch a list of buckets", func(t *testing.T) {
+		const bucket1 = `{
+	"bucketName": "bucket name",
+	"table": "metrics",
+	"displayName": "Default metrics (15 months)",
+	"status": "active",
+	"retentionDays": 462,
+	"metricInterval": "PT1M",
+	"version": 1
+}`
+		const bucket2 = `{
+	"bucketName": "another name",
+	"table": "metrics",
+	"displayName": "Some logs",
+	"status": "active",
+	"retentionDays": 31,
+	"metricInterval": "PT2M",
+	"version": 42
+}`
+		payload := fmt.Sprintf(`{
+	"buckets": [
+		%s,
+		%s
+	]
+}`, bucket1, bucket2)
+
+		responses := testutils.ServerResponses{
+			http.MethodGet: {
+				ResponseCode: http.StatusOK,
+				ResponseBody: payload,
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+
+		resp, err := client.List(context.TODO())
+		assert.NoError(t, err)
+		assert.Equal(t, resp.Data, []byte(payload))
+		assert.ElementsMatch(t, resp.Buckets, [][]byte{[]byte(bucket1), []byte(bucket2)})
+	})
+
+	t.Run("successfully returns empty response if no buckets exist", func(t *testing.T) {
+		const payload = `{ "buckets": [] }`
+		responses := testutils.ServerResponses{
+			http.MethodGet: {
+				ResponseCode: http.StatusOK,
+				ResponseBody: payload,
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+
+		resp, err := client.List(context.TODO())
+		assert.NoError(t, err, "expected err to be nil")
+		assert.Equal(t, resp.Data, []byte(payload))
+		assert.Empty(t, resp.Buckets)
+	})
+
+	t.Run("successfully returns response in case of HTTP error", func(t *testing.T) {
+		responses := testutils.ServerResponses{
+			http.MethodGet: {
+				ResponseCode: http.StatusNotFound,
+				ResponseBody: "{}",
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+
+		resp, err := client.List(context.TODO())
+		assert.NoError(t, err, "expected err to be nil")
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+	})
+
+	t.Run("returns error in case of network error", func(t *testing.T) {
+
+		server := testutils.NewHTTPTestServer(t, nil)
+		defer server.Close()
+
+		faultyClient := server.FaultyClient()
+
+		client := bucketclient.New(rest.NewClient(server.URL(), faultyClient, testr.New(t)), testr.New(t))
+
+		resp, err := client.List(context.TODO())
+		assert.Error(t, err)
+		assert.Empty(t, resp)
 	})
 }
 
