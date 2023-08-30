@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package factory
+package clients
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/buckets"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/auth"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/buckets"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"net/url"
 
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/auth"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/rest"
 	"github.com/go-logr/logr"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -76,5 +76,5 @@ func (f clientFactory) BucketClient() (*buckets.Client, error) {
 		return nil, fmt.Errorf("failed to parse URL %q: %w", f.url, err)
 	}
 
-	return buckets.New(rest.NewClient(parsedURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig), f.logger), f.logger), nil
+	return buckets.NewClient(rest.NewClient(parsedURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig), f.logger), f.logger), nil
 }
