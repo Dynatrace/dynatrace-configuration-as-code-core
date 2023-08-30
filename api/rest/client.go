@@ -155,6 +155,7 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		return Response{}, err
 	}
 
+	req.Header.Set("Content-type", "application/json")
 	for key, value := range c.headers {
 		req.Header.Set(key, value)
 	}
