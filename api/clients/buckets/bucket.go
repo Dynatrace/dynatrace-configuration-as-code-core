@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bucketclient
+package buckets
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/api"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/rest"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/go-logr/logr"
 )
 
@@ -58,7 +58,7 @@ type Client struct {
 	logger logr.Logger
 }
 
-// New creates a new instance of a Client, which provides methods for interacting with the Grail bucket management API.
+// NewClient creates a new instance of a Client, which provides methods for interacting with the Grail bucket management API.
 // This function initializes and returns a new Client instance that can be used to perform various operations
 // on the remote server.
 //
@@ -68,9 +68,7 @@ type Client struct {
 //
 // Returns:
 //   - *Client: A pointer to a new Client instance initialized with the provided rest.Client and logger.
-//
-// New creates a new instance of the Client.
-func New(client *rest.Client, logger logr.Logger) *Client {
+func NewClient(client *rest.Client, logger logr.Logger) *Client {
 	return &Client{
 		client: client,
 		logger: logger,

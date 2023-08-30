@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bucketclient_test
+package buckets_test
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/api"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/api/bucketclient"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/rest"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/buckets"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/testutils"
 
 	"github.com/go-logr/logr/testr"
@@ -53,7 +53,7 @@ func TestGet(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 
 		resp, err := client.Get(context.TODO(), "bucket name")
 		assert.NoError(t, err)
@@ -70,7 +70,7 @@ func TestGet(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 
 		resp, err := client.Get(context.TODO(), "bucket name")
 		assert.NoError(t, err, "expected err to be nil")
@@ -114,7 +114,7 @@ func TestList(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 
 		resp, err := client.List(context.TODO())
 		assert.NoError(t, err)
@@ -133,7 +133,7 @@ func TestList(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 
 		resp, err := client.List(context.TODO())
 		assert.NoError(t, err, "expected err to be nil")
@@ -151,7 +151,7 @@ func TestList(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 
 		resp, err := client.List(context.TODO())
 		assert.NoError(t, err, "expected err to be nil")
@@ -165,7 +165,7 @@ func TestList(t *testing.T) {
 
 		faultyClient := server.FaultyClient()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), faultyClient, testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), faultyClient, testr.New(t)), testr.New(t))
 
 		resp, err := client.List(context.TODO())
 		assert.Error(t, err)
@@ -202,7 +202,7 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 
 		data := []byte("{}")
 
@@ -231,7 +231,7 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Upsert(context.TODO(), "bucket name", data)
@@ -275,7 +275,7 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Upsert(context.TODO(), "bucket name", data)
@@ -306,7 +306,7 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Upsert(context.TODO(), "bucket name", data)
@@ -328,7 +328,7 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Upsert(context.TODO(), "bucket name", data)
@@ -362,7 +362,7 @@ func TestUpsert(t *testing.T) {
 		defer server.Close()
 
 		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(u, server.Client(), testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Upsert(context.TODO(), "bucket name", data)
@@ -399,7 +399,7 @@ func TestDelete(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		resp, err := client.Delete(context.TODO(), "bucket name")
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
@@ -415,7 +415,7 @@ func TestDelete(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		resp, err := client.Delete(context.TODO(), "bucket name")
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
@@ -431,7 +431,7 @@ func TestDelete(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.FaultyClient(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.FaultyClient(), testr.New(t)), testr.New(t))
 		resp, err := client.Delete(context.TODO(), "bucket name")
 		assert.Error(t, err)
 		assert.Zero(t, resp)
@@ -468,7 +468,7 @@ func TestCreate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		resp, err := client.Create(context.TODO(), "bucket name", []byte(someBucketData))
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusCreated, resp.StatusCode)
@@ -484,7 +484,7 @@ func TestCreate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.FaultyClient(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.FaultyClient(), testr.New(t)), testr.New(t))
 		resp, err := client.Create(context.TODO(), "bucket name", []byte(someBucketData))
 		assert.Error(t, err)
 		assert.Zero(t, resp)
@@ -499,7 +499,7 @@ func TestCreate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 		resp, err := client.Create(context.TODO(), "bucket name", []byte("-)§/$/(="))
 		assert.Error(t, err)
 		assert.Zero(t, resp)
@@ -535,7 +535,7 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
 
 		data := []byte("{}")
 
@@ -571,7 +571,7 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Update(context.TODO(), "bucket name", data)
@@ -598,7 +598,7 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Update(context.TODO(), "bucket name", data)
@@ -620,7 +620,7 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Update(context.TODO(), "bucket name", data)
@@ -654,7 +654,7 @@ func TestUpdate(t *testing.T) {
 		defer server.Close()
 
 		u, _ := url.Parse(server.URL)
-		client := bucketclient.New(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
 		data := []byte("{}")
 
 		resp, err := client.Update(context.TODO(), "bucket name", data)
@@ -704,7 +704,7 @@ func TestDecodingBucketResponses(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 
 		resp, err := client.List(context.TODO())
 		assert.NoError(t, err)
@@ -734,7 +734,7 @@ func TestDecodingBucketResponses(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := bucketclient.New(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
 
 		resp, err := client.List(context.TODO())
 		assert.NoError(t, err)
