@@ -15,15 +15,12 @@
 package buckets_test
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/buckets"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/testutils"
-
-	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
@@ -53,9 +50,11 @@ func TestGet(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Get(context.TODO(), "bucket name")
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Get(ctx, "bucket name")
 		assert.NoError(t, err)
 		assert.Equal(t, resp.Data, []byte(payload))
 	})
@@ -70,9 +69,11 @@ func TestGet(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Get(context.TODO(), "bucket name")
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Get(ctx, "bucket name")
 		assert.NoError(t, err, "expected err to be nil")
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 	})
@@ -114,9 +115,11 @@ func TestList(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.List(context.TODO())
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.List(ctx)
 		assert.NoError(t, err)
 		assert.Equal(t, resp.Data, []byte(payload))
 		assert.ElementsMatch(t, resp.Objects, [][]byte{[]byte(bucket1), []byte(bucket2)})
@@ -133,9 +136,11 @@ func TestList(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.List(context.TODO())
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.List(ctx)
 		assert.NoError(t, err, "expected err to be nil")
 		assert.Equal(t, resp.Data, []byte(payload))
 		assert.Empty(t, resp.Objects)
@@ -151,9 +156,11 @@ func TestList(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.List(context.TODO())
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.List(ctx)
 		assert.NoError(t, err, "expected err to be nil")
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 	})
@@ -165,9 +172,11 @@ func TestList(t *testing.T) {
 
 		faultyClient := server.FaultyClient()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), faultyClient, testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), faultyClient))
 
-		resp, err := client.List(context.TODO())
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.List(ctx)
 		assert.Error(t, err)
 		assert.Empty(t, resp)
 	})
@@ -202,11 +211,12 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
-
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 		data := []byte("{}")
 
-		resp, err := client.Upsert(context.TODO(), "bucket name", data)
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Upsert(ctx, "bucket name", data)
 		assert.NoError(t, err, "expected err to be nil")
 		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 	})
@@ -231,10 +241,12 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 		data := []byte("{}")
 
-		resp, err := client.Upsert(context.TODO(), "bucket name", data)
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Upsert(ctx, "bucket name", data)
 		assert.NoError(t, err)
 
 		m := map[string]any{}
@@ -275,10 +287,12 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 		data := []byte("{}")
 
-		resp, err := client.Upsert(context.TODO(), "bucket name", data)
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Upsert(ctx, "bucket name", data)
 		assert.NoError(t, err)
 
 		m := map[string]any{}
@@ -306,10 +320,12 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 		data := []byte("{}")
 
-		resp, err := client.Upsert(context.TODO(), "bucket name", data)
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Upsert(ctx, "bucket name", data)
 		assert.NoError(t, err, "expected err to be nil")
 		assert.Equal(t, http.StatusConflict, resp.StatusCode)
 	})
@@ -328,10 +344,12 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 		data := []byte("{}")
 
-		resp, err := client.Upsert(context.TODO(), "bucket name", data)
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Upsert(ctx, "bucket name", data)
 		assert.NoError(t, err, "expected err to be nil")
 		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 
@@ -362,10 +380,12 @@ func TestUpsert(t *testing.T) {
 		defer server.Close()
 
 		u, _ := url.Parse(server.URL)
-		client := buckets.NewClient(rest.NewClient(u, server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(u, server.Client()))
 		data := []byte("{}")
 
-		resp, err := client.Upsert(context.TODO(), "bucket name", data)
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Upsert(ctx, "bucket name", data)
 		assert.NoError(t, err)
 
 		m := map[string]any{}
@@ -399,8 +419,11 @@ func TestDelete(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
-		resp, err := client.Delete(context.TODO(), "bucket name")
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Delete(ctx, "bucket name")
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 		assert.Equal(t, someBucketResponse, string(resp.Data))
@@ -415,8 +438,11 @@ func TestDelete(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
-		resp, err := client.Delete(context.TODO(), "bucket name")
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Delete(ctx, "bucket name")
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 		assert.Equal(t, []byte{}, resp.Data)
@@ -431,8 +457,11 @@ func TestDelete(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.FaultyClient(), testr.New(t)), testr.New(t))
-		resp, err := client.Delete(context.TODO(), "bucket name")
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
+
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Delete(ctx, "bucket name")
 		assert.Error(t, err)
 		assert.Zero(t, resp)
 	})
@@ -468,8 +497,11 @@ func TestCreate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
-		resp, err := client.Create(context.TODO(), "bucket name", []byte(someBucketData))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Create(ctx, "bucket name", []byte(someBucketData))
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusCreated, resp.StatusCode)
 		assert.Equal(t, someBucketResponse, string(resp.Data))
@@ -484,8 +516,11 @@ func TestCreate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.FaultyClient(), testr.New(t)), testr.New(t))
-		resp, err := client.Create(context.TODO(), "bucket name", []byte(someBucketData))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
+
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Create(ctx, "bucket name", []byte(someBucketData))
 		assert.Error(t, err)
 		assert.Zero(t, resp)
 	})
@@ -499,8 +534,11 @@ func TestCreate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
-		resp, err := client.Create(context.TODO(), "bucket name", []byte("-)§/$/(="))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Create(ctx, "bucket name", []byte("-)§/$/(="))
 		assert.Error(t, err)
 		assert.Zero(t, resp)
 	})
@@ -535,11 +573,11 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
-
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
 		data := []byte("{}")
 
-		resp, err := client.Upsert(context.TODO(), "bucket name", data)
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Upsert(ctx, "bucket name", data)
 		assert.NoError(t, err, "expected err to be nil")
 		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 	})
@@ -571,10 +609,11 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
 		data := []byte("{}")
 
-		resp, err := client.Update(context.TODO(), "bucket name", data)
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Update(ctx, "bucket name", data)
 		assert.NoError(t, err)
 
 		m := map[string]any{}
@@ -598,10 +637,11 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
 		data := []byte("{}")
 
-		resp, err := client.Update(context.TODO(), "bucket name", data)
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Update(ctx, "bucket name", data)
 		assert.NoError(t, err, "expected err to be nil")
 		assert.Equal(t, http.StatusConflict, resp.StatusCode)
 	})
@@ -620,10 +660,12 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}, testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
 		data := []byte("{}")
 
-		resp, err := client.Update(context.TODO(), "bucket name", data)
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Update(ctx, "bucket name", data)
 		assert.NoError(t, err, "expected err to be nil")
 		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 
@@ -654,10 +696,12 @@ func TestUpdate(t *testing.T) {
 		defer server.Close()
 
 		u, _ := url.Parse(server.URL)
-		client := buckets.NewClient(rest.NewClient(u, &http.Client{}, testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(u, &http.Client{}))
 		data := []byte("{}")
 
-		resp, err := client.Update(context.TODO(), "bucket name", data)
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Update(ctx, "bucket name", data)
 		assert.NoError(t, err)
 
 		m := map[string]any{}
@@ -704,9 +748,11 @@ func TestDecodingBucketResponses(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.List(context.TODO())
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.List(ctx)
 		assert.NoError(t, err)
 		b, err := api.DecodeJSON[bucket](resp.Response)
 		assert.NoError(t, err)
@@ -734,9 +780,11 @@ func TestDecodingBucketResponses(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client(), testr.New(t)), testr.New(t))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.List(context.TODO())
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.List(ctx)
 		assert.NoError(t, err)
 
 		list, err := api.DecodeJSONObjects[bucket](resp.ListResponse)

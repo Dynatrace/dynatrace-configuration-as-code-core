@@ -23,7 +23,6 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"net/url"
 
-	"github.com/go-logr/logr"
 	"golang.org/x/oauth2/clientcredentials"
 )
 
@@ -40,7 +39,6 @@ var ClientFactory = clientFactory{}
 type clientFactory struct {
 	url         string                    // The base URL of the API.
 	oauthConfig *clientcredentials.Config // Configuration for OAuth2 client credentials.
-	logger      logr.Logger               // A logging interface.
 }
 
 // WithOAuthCredentials sets the OAuth2 client credentials configuration for the factory.
@@ -52,12 +50,6 @@ func (f clientFactory) WithOAuthCredentials(config clientcredentials.Config) cli
 // WithEnvironmentURL sets the base URL for the API.
 func (f clientFactory) WithEnvironmentURL(u string) clientFactory {
 	f.url = u
-	return f
-}
-
-// WithLogger sets the logger interface for the factory.
-func (f clientFactory) WithLogger(logger logr.Logger) clientFactory {
-	f.logger = logger
 	return f
 }
 
@@ -76,5 +68,5 @@ func (f clientFactory) BucketClient() (*buckets.Client, error) {
 		return nil, fmt.Errorf("failed to parse URL %q: %w", f.url, err)
 	}
 
-	return buckets.NewClient(rest.NewClient(parsedURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig), f.logger), f.logger), nil
+	return buckets.NewClient(rest.NewClient(parsedURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig))), nil
 }

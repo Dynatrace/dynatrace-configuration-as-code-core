@@ -34,9 +34,8 @@ const (
 )
 
 type RateLimiter struct {
-	Lock   sync.RWMutex
-	Clock  Clock
-	Logger logr.Logger
+	Lock  sync.RWMutex
+	Clock Clock
 
 	limiter      *rate.Limiter
 	resetAt      *time.Time
@@ -58,24 +57,25 @@ func (realtimeClock) After(d time.Duration) <-chan time.Time {
 	return time.After(d)
 }
 
-func NewRateLimiter(logger logr.Logger) *RateLimiter {
+func NewRateLimiter() *RateLimiter {
 	return &RateLimiter{
-		Clock:  realtimeClock{},
-		Logger: logger,
+		Clock: realtimeClock{},
 	}
 }
 
-func (rl *RateLimiter) Update(status int, headers http.Header) {
+func (rl *RateLimiter) Update(ctx context.Context, status int, headers http.Header) {
 	rl.Lock.Lock()
 	defer rl.Lock.Unlock()
+
+	logger := logr.FromContextOrDiscard(ctx)
 
 	limit, err := extractLimit(headers)
 	if err == nil && limit > 0 {
 		if rl.limiter == nil {
-			rl.Logger.V(1).Info(fmt.Sprintf("Rate limit set based on HTTP response. Client limited to %v requests per second", limit), "limit", limit)
+			logger.V(1).Info(fmt.Sprintf("Rate limit set based on HTTP response. Client limited to %v requests per second", limit), "limit", limit)
 			rl.limiter = rate.NewLimiter(limit, 1)
 		} else if limit != rl.limiter.Limit() {
-			rl.Logger.V(1).Info(fmt.Sprintf("Rate limit updated based on HTTP response. Client limited to %v requests per second", limit), "limit", limit)
+			logger.V(1).Info(fmt.Sprintf("Rate limit updated based on HTTP response. Client limited to %v requests per second", limit), "limit", limit)
 			rl.limiter.SetLimit(limit)
 		}
 	}
@@ -89,7 +89,7 @@ func (rl *RateLimiter) Update(status int, headers http.Header) {
 
 	reset, err := extractTimeout(headers)
 	if err != nil {
-		rl.Logger.V(1).Info(fmt.Sprintf("Received 429 TooManyRequests HTTP response but no rate limit header. Using default timeout of %s", defaultTimeout), "timeout", defaultTimeout)
+		logger.V(1).Info(fmt.Sprintf("Received 429 TooManyRequests HTTP response but no rate limit header. Using default timeout of %s", defaultTimeout), "timeout", defaultTimeout)
 
 		rt := defaultTimeout
 		rl.resetTimeout = &rt
@@ -103,7 +103,7 @@ func (rl *RateLimiter) Update(status int, headers http.Header) {
 	rt := reset.Sub(rl.Clock.Now())
 	rl.resetTimeout = &rt
 
-	rl.Logger.V(1).Info(fmt.Sprintf("Received 429 TooManyRequests HTTP. Timeout: %s", rl.resetTimeout), "timeout", rl.resetTimeout)
+	logger.V(1).Info(fmt.Sprintf("Received 429 TooManyRequests HTTP. Timeout: %s", rl.resetTimeout), "timeout", rl.resetTimeout)
 
 }
 
@@ -138,6 +138,8 @@ func (rl *RateLimiter) Wait(ctx context.Context) {
 	rl.Lock.RLock()
 	defer rl.Lock.RUnlock()
 
+	logger := logr.FromContextOrDiscard(ctx)
+
 	if rl.resetAt != nil && rl.resetTimeout != nil && rl.resetAt.After(rl.Clock.Now()) {
 		// hard limit triggered via 429 API response, wait until its timeout is reached
 		<-rl.Clock.After(*rl.resetTimeout)
@@ -146,7 +148,7 @@ func (rl *RateLimiter) Wait(ctx context.Context) {
 	if rl.limiter != nil {
 		err := rl.limiter.Wait(ctx)
 		if err != nil {
-			rl.Logger.Error(err, "Client-side rate limiting failed")
+			logger.Error(err, "Client-side rate limiting failed")
 		}
 	}
 }

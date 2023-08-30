@@ -55,7 +55,6 @@ type listResponse struct {
 
 type Client struct {
 	client *rest.Client
-	logger logr.Logger
 }
 
 // NewClient creates a new instance of a Client, which provides methods for interacting with the Grail bucket management API.
@@ -64,14 +63,12 @@ type Client struct {
 //
 // Parameters:
 //   - client: A pointer to a rest.Client instance used for making HTTP requests to the remote server.
-//   - logger: A logr.Logger instance used for logging relevant information during client operations.
 //
 // Returns:
 //   - *Client: A pointer to a new Client instance initialized with the provided rest.Client and logger.
-func NewClient(client *rest.Client, logger logr.Logger) *Client {
+func NewClient(client *rest.Client) *Client {
 	return &Client{
 		client: client,
-		logger: logger,
 	}
 }
 
@@ -80,6 +77,8 @@ func NewClient(client *rest.Client, logger logr.Logger) *Client {
 // the success or failure its execution.
 //
 // If the HTTP request to the server fails, the method returns an empty Response and an error explaining the issue.
+//
+// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 //
 // Parameters:
 //   - ctx: Context for controlling the HTTP operation's lifecycle.
@@ -102,8 +101,10 @@ func (c Client) Get(ctx context.Context, bucketName string) (Response, error) {
 //
 // If the HTTP request to the server fails, the method returns an empty slice and an error explaining the issue.
 //
+// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
+//
 // Parameters:
-//   - ctx: Context for controlling the HTTP operation's lifecycle.
+//   - ctx: Context for controlling the HTTP operation's lifecycle. Possibly containing a logger created with logr.NewContext.
 //
 // Returns:
 //   - []Response: A slice of bucket Response containing the individual buckets resulting from the HTTP call, including status code and data.
@@ -134,8 +135,10 @@ func (c Client) List(ctx context.Context) (ListResponse, error) {
 // If setting the bucket name in the data encounters an error, or if the HTTP request to the server
 // fails, the function returns an empty Response and an error explaining the issue.
 //
+// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
+//
 // Parameters:
-//   - ctx: Context for controlling the HTTP operation's lifecycle.
+//   - ctx: Context for controlling the HTTP operation's lifecycle. Possibly containing a logger created with logr.NewContext.
 //   - bucketName: The name of the bucket to be created.
 //   - data: The data containing information about the new bucket.
 //
@@ -165,8 +168,10 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (Res
 // a Response indicating success, or if all retries fail, it returns a Response and the last
 // encountered error, if any.
 //
+// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
+//
 // Parameters:
-//   - ctx: Context for controlling the HTTP operation's lifecycle.
+//   - ctx: Context for controlling the HTTP operation's lifecycle. Possibly containing a logger created with logr.NewContext.
 //   - bucketName: The name of the bucket to be updated.
 //   - data: The new data to be assigned to the bucket.
 //
@@ -174,13 +179,16 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (Res
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
 func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Response, error) {
+
+	logger := logr.FromContextOrDiscard(ctx)
+
 	maxRetries := 3
 	waitDuration := time.Second
 
 	var resp rest.Response
 	var err error
 	for i := 0; i < maxRetries; i++ {
-		c.logger.V(1).Info(fmt.Sprintf("Trying to update bucket with bucket name %q (%d/%d retries)", bucketName, i+1, maxRetries))
+		logger.V(1).Info(fmt.Sprintf("Trying to update bucket with bucket name %q (%d/%d retries)", bucketName, i+1, maxRetries))
 
 		resp, err = c.getAndUpdate(ctx, bucketName, data)
 		if err != nil {
@@ -195,7 +203,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 		}
 
 		if resp.IsSuccess() {
-			c.logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
+			logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
 			return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload}}, nil
 		}
 		time.Sleep(waitDuration)
@@ -217,8 +225,10 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 //
 // If any HTTP request to the server fails, the method returns an empty Response and an error explaining the issue.
 //
+// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
+//
 // Parameters:
-//   - ctx: Context for controlling the upsert operation's lifecycle.
+//   - ctx: Context for controlling the upsert operation's lifecycle. Possibly containing a logger created with logr.NewContext.
 //   - bucketName: The name of the bucket to be upserted.
 //   - data: The data for creating or updating the bucket.
 //
@@ -238,8 +248,10 @@ func (c Client) Upsert(ctx context.Context, bucketName string, data []byte) (Res
 // If the provided bucketName is empty, the function returns an error indicating that the bucketName must be non-empty.
 // If the HTTP request to the server fails, the method returns an empty Response and an error explaining the issue.
 //
+// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
+//
 // Parameters:
-//   - ctx: Context for controlling the deletion operation's lifecycle.
+//   - ctx: Context for controlling the deletion operation's lifecycle. Possibly containing a logger created with logr.NewContext.
 //   - bucketName: The name of the bucket to be deleted.
 //
 // Returns:
@@ -262,6 +274,9 @@ func (c Client) Delete(ctx context.Context, bucketName string) (Response, error)
 
 // upsert is an internal function used by Upsert to perform the create or update logic.
 func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Response, error) {
+
+	logger := logr.FromContextOrDiscard(ctx)
+
 	// First, try to create a new bucket definition
 	resp, err := c.create(ctx, bucketName, data)
 	if err != nil {
@@ -270,16 +285,16 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 
 	// If creating the bucket definition worked, return the result
 	if resp.IsSuccess() {
-		c.logger.Info(fmt.Sprintf("Created bucket with bucket name %q", bucketName))
+		logger.Info(fmt.Sprintf("Created bucket with bucket name %q", bucketName))
 		return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload}}, nil
 	}
 
 	// Otherwise, try to update an existing bucket definition
-	c.logger.V(1).Info(fmt.Sprintf("Failed to create new object with bucket name %q. Trying to update existing object. Error: %s", bucketName, err))
+	logger.V(1).Info(fmt.Sprintf("Failed to create new object with bucket name %q. Trying to update existing object. Error: %s", bucketName, err))
 	maxRetries := 3
 	waitDuration := time.Second
 	for i := 0; i < maxRetries; i++ {
-		c.logger.V(1).Info(fmt.Sprintf("Trying to update bucket with bucket name %q (%d/%d retries)", bucketName, i+1, maxRetries))
+		logger.V(1).Info(fmt.Sprintf("Trying to update bucket with bucket name %q (%d/%d retries)", bucketName, i+1, maxRetries))
 
 		// Attempt to get and update the bucket's data
 		resp, err = c.getAndUpdate(ctx, bucketName, data)
@@ -297,7 +312,7 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 
 		if resp.IsSuccess() {
 			// Update operation was successful
-			c.logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
+			logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
 			return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload}}, nil
 		}
 
