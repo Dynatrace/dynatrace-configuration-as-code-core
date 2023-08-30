@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bucketclient
+package buckets
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/rest"
 	"github.com/go-logr/logr"
 )
