@@ -50,12 +50,13 @@ func (r Response) Is5xxError() bool {
 	return r.StatusCode >= 500 && r.StatusCode <= 599
 }
 
-// DecodeJSON tries to unmarshal the data of the response to obj
-func (r Response) DecodeJSON(obj interface{}) error {
-	if err := json.Unmarshal(r.Data, obj); err != nil {
-		return fmt.Errorf("failed to unmarshal JSON: %w", err)
+// DecodeJSON tries to unmarshal the Response.Data of the given Response r into an object of T.
+func DecodeJSON[T any](r Response) (T, error) {
+	var t T
+	if err := json.Unmarshal(r.Data, &t); err != nil {
+		return t, fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
-	return nil
+	return t, nil
 }
 
 // DecodeJSONObjects unmarshalls the Objects contained in the given ListResponse into a slice of T.
