@@ -708,8 +708,7 @@ func TestDecodingBucketResponses(t *testing.T) {
 
 		resp, err := client.List(context.TODO())
 		assert.NoError(t, err)
-		var b bucket
-		err = resp.DecodeJSON(&b)
+		b, err := api.DecodeJSON[bucket](resp.Response)
 		assert.NoError(t, err)
 
 		assert.Equal(t, "bucket name", b.Name)

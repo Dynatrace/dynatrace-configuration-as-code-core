@@ -23,9 +23,9 @@ func TestResponse_DecodeJSON(t *testing.T) {
 	t.Run("ValidJSON", func(t *testing.T) {
 		data := []byte(`{"key": "value"}`)
 		response := Response{Data: data}
-		var obj map[string]string
+		type objType map[string]string
 
-		err := response.DecodeJSON(&obj)
+		obj, err := DecodeJSON[objType](response)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "value", obj["key"])
@@ -34,9 +34,10 @@ func TestResponse_DecodeJSON(t *testing.T) {
 	t.Run("InvalidJSON", func(t *testing.T) {
 		data := []byte(`invalid-json`)
 		response := Response{Data: data}
-		var obj map[string]string
 
-		err := response.DecodeJSON(&obj)
+		type objType map[string]string
+
+		_, err := DecodeJSON[objType](response)
 
 		assert.Error(t, err)
 		assert.Equal(t, "failed to unmarshal JSON: invalid character 'i' looking for beginning of value", err.Error())
@@ -50,9 +51,9 @@ func TestListResponse_DecodeJSON(t *testing.T) {
 				Data: data,
 			},
 		}
-		var obj map[string][]map[string]string
+		type objType map[string][]map[string]string
 
-		err := response.DecodeJSON(&obj)
+		obj, err := DecodeJSON[objType](response.Response)
 
 		assert.NoError(t, err)
 		assert.Len(t, obj["results"], 2)
@@ -67,9 +68,9 @@ func TestListResponse_DecodeJSON(t *testing.T) {
 				Data: data,
 			},
 		}
-		var obj map[string][]map[string]string
+		type objType map[string][]map[string]string
 
-		err := response.DecodeJSON(&obj)
+		_, err := DecodeJSON[objType](response.Response)
 
 		assert.Error(t, err)
 		assert.Equal(t, "failed to unmarshal JSON: invalid character 'i' looking for beginning of value", err.Error())
