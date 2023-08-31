@@ -26,22 +26,21 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
-// ErrOAuthCredentialsMissing is returned when no OAuth2 client credentials are provided.
+// ErrOAuthCredentialsMissing indicates that no OAuth2 client credentials were provided.
 var ErrOAuthCredentialsMissing = errors.New("no OAuth2 client credentials provided")
 
-// ErrEnvironmentURLMissing is returned when no URL to an environment is provided
+// ErrEnvironmentURLMissing indicates that no environment URL was provided.
 var ErrEnvironmentURLMissing = errors.New("no environment URL provided")
 
-// Factory creates a factory component to be used
-// to create API client instances
+// Factory creates a factory-like component that is used to create API client instances.
 func Factory() factory {
 	return factory{}
 }
 
-// factory represents a factory for creating API client instances.
+// factory represents a factory-like component for creating API client instances.
 type factory struct {
-	url         string                    // The base URL of the API.
-	oauthConfig *clientcredentials.Config // Configuration for OAuth2 client credentials.
+	url         string                    // The base URL of the API
+	oauthConfig *clientcredentials.Config // Configuration for OAuth2 client credentials
 	userAgent   string                    // The User-Agent header to be set
 }
 
@@ -57,13 +56,13 @@ func (f factory) WithEnvironmentURL(u string) factory {
 	return f
 }
 
-// WithUserAgent sets the user agent
+// WithUserAgent sets the User-Agent header.
 func (f factory) WithUserAgent(userAgent string) factory {
 	f.userAgent = userAgent
 	return f
 }
 
-// BucketClient creates and returns a new instance of buckets.Client for interacting with the bucket API
+// BucketClient creates and returns a new instance of buckets.Client for interacting with the bucket API.
 func (f factory) BucketClient() (*buckets.Client, error) {
 	if f.url == "" {
 		return nil, ErrEnvironmentURLMissing
