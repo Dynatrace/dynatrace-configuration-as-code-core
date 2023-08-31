@@ -32,29 +32,32 @@ var ErrOAuthCredentialsMissing = errors.New("no OAuth2 client credentials provid
 // ErrEnvironmentURLMissing is returned when no URL to an environment is provided
 var ErrEnvironmentURLMissing = errors.New("no environment URL provided")
 
-// ClientFactory is a factory for creating API client instances.
-var ClientFactory = clientFactory{}
+// Factory creates a factory component to be used
+// to create API client instances
+func Factory() factory {
+	return factory{}
+}
 
-// clientFactory represents a factory for creating API client instances.
-type clientFactory struct {
+// factory represents a factory for creating API client instances.
+type factory struct {
 	url         string                    // The base URL of the API.
 	oauthConfig *clientcredentials.Config // Configuration for OAuth2 client credentials.
 }
 
 // WithOAuthCredentials sets the OAuth2 client credentials configuration for the factory.
-func (f clientFactory) WithOAuthCredentials(config clientcredentials.Config) clientFactory {
+func (f factory) WithOAuthCredentials(config clientcredentials.Config) factory {
 	f.oauthConfig = &config
 	return f
 }
 
 // WithEnvironmentURL sets the base URL for the API.
-func (f clientFactory) WithEnvironmentURL(u string) clientFactory {
+func (f factory) WithEnvironmentURL(u string) factory {
 	f.url = u
 	return f
 }
 
 // BucketClient creates and returns a new instance of buckets.Client for interacting with the bucket API
-func (f clientFactory) BucketClient() (*buckets.Client, error) {
+func (f factory) BucketClient() (*buckets.Client, error) {
 	if f.url == "" {
 		return nil, ErrEnvironmentURLMissing
 	}
