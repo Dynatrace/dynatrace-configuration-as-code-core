@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/go-logr/logr/testr"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/testutils"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -32,21 +32,21 @@ import (
 func TestNewClient(t *testing.T) {
 	baseURL, _ := url.Parse("https://example.com")
 	// Test WithConcurrentRequestLimit
-	client := NewClient(baseURL, nil, testr.New(t), WithConcurrentRequestLimit(10))
+	client := NewClient(baseURL, nil, WithConcurrentRequestLimit(10))
 	assert.NotNil(t, client.concurrentRequestLimiter, "Expected concurrentRequestLimiter to be set")
 
 	// Test WithTimeout
-	client = NewClient(baseURL, nil, testr.New(t), WithTimeout(5*time.Second))
+	client = NewClient(baseURL, nil, WithTimeout(5*time.Second))
 	assert.Equal(t, 5*time.Second, client.timeout, "Expected timeout to be set to 5 seconds")
 
 	// Test WithHTTPClient
 	customHTTPClient := &http.Client{}
-	client = NewClient(baseURL, customHTTPClient, testr.New(t))
+	client = NewClient(baseURL, customHTTPClient)
 	assert.Equal(t, customHTTPClient, client.httpClient, "Expected custom HTTP client to be set")
 
 	// Test WithRequestRetrier
 	retrier := &RequestRetrier{}
-	client = NewClient(baseURL, nil, testr.New(t), WithRequestRetrier(retrier))
+	client = NewClient(baseURL, nil, WithRequestRetrier(retrier))
 	assert.Equal(t, retrier, client.requestRetrier, "Expected RequestRetrier to be set")
 }
 
@@ -65,7 +65,7 @@ func TestClient_CRUD(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := NewClient(baseURL, nil, testr.New(t))
+	client := NewClient(baseURL, nil)
 
 	t.Run("GET", func(t *testing.T) {
 		resp, err := client.GET(context.Background(), "/test", RequestOptions{})
@@ -103,7 +103,9 @@ func TestClient_CRUD_HTTPErrors(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := NewClient(baseURL, nil, testr.New(t))
+	client := NewClient(baseURL, nil)
+
+	ctxWithLogger := testutils.ContextWithLogger(t)
 
 	testCases := []struct {
 		method    string
@@ -112,25 +114,25 @@ func TestClient_CRUD_HTTPErrors(t *testing.T) {
 		{
 			method: "GET",
 			requestFn: func() (Response, error) {
-				return client.GET(context.Background(), "/test", RequestOptions{})
+				return client.GET(ctxWithLogger, "/test", RequestOptions{})
 			},
 		},
 		{
 			method: "POST",
 			requestFn: func() (Response, error) {
-				return client.POST(context.Background(), "/test", nil, RequestOptions{})
+				return client.POST(ctxWithLogger, "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "POST_WithCustomHeaders",
 			requestFn: func() (Response, error) {
-				return client.POST(context.Background(), "/test", nil, RequestOptions{})
+				return client.POST(ctxWithLogger, "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "PUT",
 			requestFn: func() (Response, error) {
-				return client.PUT(context.Background(), "/test", nil, RequestOptions{})
+				return client.PUT(ctxWithLogger, "/test", nil, RequestOptions{})
 			},
 		},
 		{
@@ -165,7 +167,9 @@ func TestClient_CRUD_TransportErrors(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := NewClient(baseURL, &http.Client{Transport: &errorTransport{}}, testr.New(t))
+	client := NewClient(baseURL, &http.Client{Transport: &errorTransport{}})
+
+	ctx := testutils.ContextWithLogger(t)
 
 	testCases := []struct {
 		method    string
@@ -174,31 +178,31 @@ func TestClient_CRUD_TransportErrors(t *testing.T) {
 		{
 			method: "GET",
 			requestFn: func() (Response, error) {
-				return client.GET(context.Background(), "/test", RequestOptions{})
+				return client.GET(ctx, "/test", RequestOptions{})
 			},
 		},
 		{
 			method: "POST",
 			requestFn: func() (Response, error) {
-				return client.POST(context.Background(), "/test", nil, RequestOptions{})
+				return client.POST(ctx, "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "POST_WithCustomHeaders",
 			requestFn: func() (Response, error) {
-				return client.POST(context.Background(), "/test", nil, RequestOptions{})
+				return client.POST(ctx, "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "PUT",
 			requestFn: func() (Response, error) {
-				return client.PUT(context.Background(), "/test", nil, RequestOptions{})
+				return client.PUT(ctx, "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "DELETE",
 			requestFn: func() (Response, error) {
-				return client.DELETE(context.Background(), "/test", RequestOptions{})
+				return client.DELETE(ctx, "/test", RequestOptions{})
 			},
 		},
 	}
@@ -222,7 +226,9 @@ func TestClient_CRUD_EOFIsWrappedInUserfriendlyError(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := NewClient(baseURL, server.Client(), testr.New(t))
+	client := NewClient(baseURL, server.Client())
+
+	ctx := testutils.ContextWithLogger(t)
 
 	testCases := []struct {
 		method    string
@@ -231,31 +237,31 @@ func TestClient_CRUD_EOFIsWrappedInUserfriendlyError(t *testing.T) {
 		{
 			method: "GET",
 			requestFn: func() (Response, error) {
-				return client.GET(context.Background(), "/test", RequestOptions{})
+				return client.GET(ctx, "/test", RequestOptions{})
 			},
 		},
 		{
 			method: "POST",
 			requestFn: func() (Response, error) {
-				return client.POST(context.Background(), "/test", nil, RequestOptions{})
+				return client.POST(ctx, "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "POST_WithCustomHeaders",
 			requestFn: func() (Response, error) {
-				return client.POST(context.Background(), "/test", nil, RequestOptions{})
+				return client.POST(ctx, "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "PUT",
 			requestFn: func() (Response, error) {
-				return client.PUT(context.Background(), "/test", nil, RequestOptions{})
+				return client.PUT(ctx, "/test", nil, RequestOptions{})
 			},
 		},
 		{
 			method: "DELETE",
 			requestFn: func() (Response, error) {
-				return client.DELETE(context.Background(), "/test", RequestOptions{})
+				return client.DELETE(ctx, "/test", RequestOptions{})
 			},
 		},
 	}
@@ -283,14 +289,16 @@ func TestClient_WithRetries(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := NewClient(baseURL, nil, testr.New(t), WithRequestRetrier(&RequestRetrier{
+	client := NewClient(baseURL, nil, WithRequestRetrier(&RequestRetrier{
 		MaxRetries: 1,
 		ShouldRetryFunc: func(resp *http.Response) bool {
 			return resp.StatusCode != http.StatusOK
 		},
 	}))
 
-	resp, err := client.GET(context.Background(), "", RequestOptions{})
+	ctx := testutils.ContextWithLogger(t)
+
+	resp, err := client.GET(ctx, "", RequestOptions{})
 	if err != nil {
 		t.Fatalf("failed to send GET request: %v", err)
 	}
@@ -299,6 +307,9 @@ func TestClient_WithRetries(t *testing.T) {
 }
 
 func TestClient_WithRequestResponseRecorder(t *testing.T) {
+
+	ctx := testutils.ContextWithLogger(t)
+
 	tests := []struct {
 		name                    string
 		httpClient              *http.Client
@@ -328,8 +339,8 @@ func TestClient_WithRequestResponseRecorder(t *testing.T) {
 				rw.Write([]byte("{}"))
 			},
 			restClientCalls: func(client *Client) error {
-				_, err := client.GET(context.TODO(), "", RequestOptions{})
-				_, err2 := client.POST(context.TODO(), "", nil, RequestOptions{})
+				_, err := client.GET(ctx, "", RequestOptions{})
+				_, err2 := client.POST(ctx, "", nil, RequestOptions{})
 				return errors.Join(err, err2)
 			},
 			expectedRecordsRecorded: 4,
@@ -350,7 +361,7 @@ func TestClient_WithRequestResponseRecorder(t *testing.T) {
 			}()
 
 			baseURL, _ := url.Parse(server.URL)
-			err := test.restClientCalls(NewClient(baseURL, test.httpClient, testr.New(t), WithRequestResponseRecorder(recorder)))
+			err := test.restClientCalls(NewClient(baseURL, test.httpClient, WithRequestResponseRecorder(recorder)))
 			wg.Wait()
 			if test.expectError {
 				assert.Error(t, err)
@@ -445,15 +456,17 @@ func TestClient_WithRateLimiting(t *testing.T) {
 			}
 
 			baseURL, _ := url.Parse(server.URL)
-			client := NewClient(baseURL, nil, testr.New(t))
+			client := NewClient(baseURL, nil)
 			client.rateLimiter = &limiter
 
-			resp, err := client.GET(context.Background(), "", RequestOptions{})
+			ctx := testutils.ContextWithLogger(t)
+
+			resp, err := client.GET(ctx, "", RequestOptions{})
 
 			assert.NoError(t, err)
 			assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
 			assert.Nil(t, clock.requestedWait)
-			resp, err = client.GET(context.Background(), "", RequestOptions{})
+			resp, err = client.GET(ctx, "", RequestOptions{})
 			if err != nil {
 				t.Fatalf("failed to send GET request: %v", err)
 			}
@@ -487,15 +500,17 @@ func TestClient_WithRateLimiting_HardLimitActuallyBlocks(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := NewClient(baseURL, nil, testr.New(t),
+	client := NewClient(baseURL, nil,
 		WithRateLimiter(), // default rate limiter with real clock
 	)
 
-	_, err := client.GET(context.Background(), "", RequestOptions{})
+	ctx := testutils.ContextWithVerboseLogger(t)
+
+	_, err := client.GET(ctx, "", RequestOptions{})
 	assert.NoError(t, err)
 
 	before := time.Now()
-	_, err = client.GET(context.Background(), "", RequestOptions{})
+	_, err = client.GET(ctx, "", RequestOptions{})
 	after := time.Now()
 
 	if err != nil {
@@ -522,15 +537,17 @@ func TestClient_WithRateLimiting_SoftLimitActuallyBlocks(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := NewClient(baseURL, nil, testr.New(t),
+	client := NewClient(baseURL, nil,
 		WithRateLimiter(), // default rate limiter with real clock
 	)
 
-	_, _ = client.GET(context.Background(), "", RequestOptions{}) // first call initializes rate limiter
+	ctx := testutils.ContextWithVerboseLogger(t)
+
+	_, _ = client.GET(ctx, "", RequestOptions{}) // first call initializes rate limiter
 
 	before := time.Now()
 	for i := 0; i < rps+1; i++ {
-		_, _ = client.GET(context.Background(), "", RequestOptions{})
+		_, _ = client.GET(ctx, "", RequestOptions{})
 	}
 
 	after := time.Now()
@@ -559,15 +576,17 @@ func TestClient_WithRateLimiting_SoftLimitCanBeUpdated(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := NewClient(baseURL, nil, testr.New(t),
+	client := NewClient(baseURL, nil,
 		WithRateLimiter(), // default rate limiter with real clock
 	)
 
-	_, _ = client.GET(context.Background(), "", RequestOptions{}) // first call initializes rate limiter
+	ctx := testutils.ContextWithVerboseLogger(t)
+
+	_, _ = client.GET(ctx, "", RequestOptions{}) // first call initializes rate limiter
 
 	before := time.Now()
 	for i := 0; i < 100; i++ {
-		_, _ = client.GET(context.Background(), "", RequestOptions{})
+		_, _ = client.GET(ctx, "", RequestOptions{})
 	}
 
 	after := time.Now()
@@ -612,7 +631,7 @@ func TestClient_WithRetriesAndRateLimit(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := NewClient(baseURL, nil, testr.New(t),
+	client := NewClient(baseURL, nil,
 		WithRequestRetrier(&RequestRetrier{
 			MaxRetries:      5,
 			ShouldRetryFunc: RetryIfNotSuccess,
@@ -620,7 +639,9 @@ func TestClient_WithRetriesAndRateLimit(t *testing.T) {
 		WithRateLimiter(), // default rate limiter with real clock
 	)
 
-	resp, err := client.GET(context.Background(), "/sample/endpoint", RequestOptions{url.Values{"type": {"car", "bike"}}})
+	ctx := testutils.ContextWithVerboseLogger(t)
+
+	resp, err := client.GET(ctx, "/sample/endpoint", RequestOptions{url.Values{"type": {"car", "bike"}}})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -638,6 +659,9 @@ func TestClient_RequestOptionsQueryParams(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := NewClient(baseURL, nil, testr.New(t))
-	client.GET(context.TODO(), "", RequestOptions{expectedQueryParams})
+	client := NewClient(baseURL, nil)
+
+	ctx := testutils.ContextWithLogger(t)
+
+	client.GET(ctx, "", RequestOptions{expectedQueryParams})
 }
