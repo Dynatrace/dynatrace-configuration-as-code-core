@@ -1,4 +1,5 @@
 # Dynatrace Configuration as Code - Core
+[![stability-wip](https://img.shields.io/badge/stability-wip-lightgrey.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#work-in-progress)
 
 Dynatrace Configuration as Code Core provides libraries simplifying development of configuration as code tooling for Dynatrace.
 
