@@ -290,7 +290,7 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	}
 
 	// Otherwise, try to update an existing bucket definition
-	logger.V(1).Info(fmt.Sprintf("Failed to create new object with bucket name %q. Trying to update existing object. Error: %s", bucketName, err))
+	logger.V(1).Info(fmt.Sprintf("Failed to create new object with bucket name %q. Trying to update existing object. API Error (HTTP %d): %s", bucketName, resp.StatusCode, resp.Payload))
 	maxRetries := 3
 	waitDuration := time.Second
 	for i := 0; i < maxRetries; i++ {
