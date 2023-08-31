@@ -42,6 +42,7 @@ func Factory() factory {
 type factory struct {
 	url         string                    // The base URL of the API.
 	oauthConfig *clientcredentials.Config // Configuration for OAuth2 client credentials.
+	userAgent   string                    // The User-Agent header to be set
 }
 
 // WithOAuthCredentials sets the OAuth2 client credentials configuration for the factory.
@@ -53,6 +54,12 @@ func (f factory) WithOAuthCredentials(config clientcredentials.Config) factory {
 // WithEnvironmentURL sets the base URL for the API.
 func (f factory) WithEnvironmentURL(u string) factory {
 	f.url = u
+	return f
+}
+
+// WithUserAgent sets the user agent
+func (f factory) WithUserAgent(userAgent string) factory {
+	f.userAgent = userAgent
 	return f
 }
 
@@ -71,5 +78,10 @@ func (f factory) BucketClient() (*buckets.Client, error) {
 		return nil, fmt.Errorf("failed to parse URL %q: %w", f.url, err)
 	}
 
-	return buckets.NewClient(rest.NewClient(parsedURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig))), nil
+	restClient := rest.NewClient(parsedURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig))
+	if f.userAgent != "" {
+		restClient.SetHeader("User-Agent", f.userAgent)
+	}
+
+	return buckets.NewClient(restClient), nil
 }
