@@ -26,35 +26,44 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
-// ErrOAuthCredentialsMissing is returned when no OAuth2 client credentials are provided.
+// ErrOAuthCredentialsMissing indicates that no OAuth2 client credentials were provided.
 var ErrOAuthCredentialsMissing = errors.New("no OAuth2 client credentials provided")
 
-// ErrEnvironmentURLMissing is returned when no URL to an environment is provided
+// ErrEnvironmentURLMissing indicates that no environment URL was provided.
 var ErrEnvironmentURLMissing = errors.New("no environment URL provided")
 
-// ClientFactory is a factory for creating API client instances.
-var ClientFactory = clientFactory{}
+// Factory creates a factory-like component that is used to create API client instances.
+func Factory() factory {
+	return factory{}
+}
 
-// clientFactory represents a factory for creating API client instances.
-type clientFactory struct {
-	url         string                    // The base URL of the API.
-	oauthConfig *clientcredentials.Config // Configuration for OAuth2 client credentials.
+// factory represents a factory-like component for creating API client instances.
+type factory struct {
+	url         string                    // The base URL of the API
+	oauthConfig *clientcredentials.Config // Configuration for OAuth2 client credentials
+	userAgent   string                    // The User-Agent header to be set
 }
 
 // WithOAuthCredentials sets the OAuth2 client credentials configuration for the factory.
-func (f clientFactory) WithOAuthCredentials(config clientcredentials.Config) clientFactory {
+func (f factory) WithOAuthCredentials(config clientcredentials.Config) factory {
 	f.oauthConfig = &config
 	return f
 }
 
 // WithEnvironmentURL sets the base URL for the API.
-func (f clientFactory) WithEnvironmentURL(u string) clientFactory {
+func (f factory) WithEnvironmentURL(u string) factory {
 	f.url = u
 	return f
 }
 
-// BucketClient creates and returns a new instance of buckets.Client for interacting with the bucket API
-func (f clientFactory) BucketClient() (*buckets.Client, error) {
+// WithUserAgent sets the User-Agent header.
+func (f factory) WithUserAgent(userAgent string) factory {
+	f.userAgent = userAgent
+	return f
+}
+
+// BucketClient creates and returns a new instance of buckets.Client for interacting with the bucket API.
+func (f factory) BucketClient() (*buckets.Client, error) {
 	if f.url == "" {
 		return nil, ErrEnvironmentURLMissing
 	}
@@ -68,5 +77,10 @@ func (f clientFactory) BucketClient() (*buckets.Client, error) {
 		return nil, fmt.Errorf("failed to parse URL %q: %w", f.url, err)
 	}
 
-	return buckets.NewClient(rest.NewClient(parsedURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig))), nil
+	restClient := rest.NewClient(parsedURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig))
+	if f.userAgent != "" {
+		restClient.SetHeader("User-Agent", f.userAgent)
+	}
+
+	return buckets.NewClient(restClient), nil
 }
