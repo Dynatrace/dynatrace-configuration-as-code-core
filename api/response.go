@@ -17,12 +17,14 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
 // Response represents an API response
 type Response struct {
-	StatusCode int    `json:"-"`
-	Data       []byte `json:"-"`
+	StatusCode int              `json:"-"`
+	Data       []byte           `json:"-"`
+	Request    rest.RequestInfo `json:"-"`
 }
 
 // ListResponse represents a multi-object API response
@@ -48,6 +50,42 @@ func (r Response) Is4xxError() bool {
 // A status code between 500 and 599 (inclusive) is considered a server error.
 func (r Response) Is5xxError() bool {
 	return r.StatusCode >= 500 && r.StatusCode <= 599
+}
+
+// AsAPIError converts a Response object to an APIError if it represents a 4xx or 5xx error.
+// If the Response does not represent an error, it returns an empty APIError and false.
+//
+// Parameters:
+// - r (Response): The Response object to convert to an APIError.
+//
+// Returns:
+//   - (APIError, bool): An APIError containing error information and a boolean indicating
+//     whether the conversion was successful (true for errors, false otherwise).
+func (r Response) AsAPIError() (APIError, bool) {
+	if r.Is4xxError() || r.Is5xxError() {
+		return APIError{
+			Body:       r.Data,
+			StatusCode: r.StatusCode,
+			Request:    r.Request,
+		}, true
+	}
+	return APIError{}, false
+}
+
+// APIError represents an error returned by an API with associated information.
+type APIError struct {
+	StatusCode int              `json:"statusCode"` // StatusCode is the HTTP response status code returned by the API.
+	Body       []byte           `json:"body"`       // Body is the HTTP payload returned by the API.
+	Request    rest.RequestInfo `json:"request"`    // Request is information about the original request that led to this response error.
+}
+
+// Error returns a string representation of the APIError, providing details about the failed API request.
+// It includes the HTTP method, URL, status code, and response body.
+//
+// Returns:
+// - string: A string representing the error message.
+func (r APIError) Error() string {
+	return fmt.Sprintf("API request HTTP %s %s failed with status code %d: %s", r.Request.Method, r.Request.URL, r.StatusCode, string(r.Body))
 }
 
 // DecodeJSON tries to unmarshal the Response.Data of the given Response r into an object of T.

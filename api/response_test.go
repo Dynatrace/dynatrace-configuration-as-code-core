@@ -15,7 +15,9 @@
 package api
 
 import (
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/stretchr/testify/assert"
+	"net/http"
 	"testing"
 )
 
@@ -96,4 +98,68 @@ func TestDecodeJSONObjects(t *testing.T) {
 	assert.Equal(t, "one", res[0].Key)
 	assert.Equal(t, "two", res[1].Key)
 	assert.Equal(t, "three", res[2].Key)
+}
+
+func TestAsAPIError(t *testing.T) {
+	testCases := []struct {
+		name       string
+		statusCode int
+		expected   APIError
+		expectedOK bool
+	}{
+		{
+			name:       "Not an API error (2xx)",
+			statusCode: http.StatusOK,
+			expected:   APIError{},
+			expectedOK: false,
+		},
+		{
+			name:       "Not an API error (3xx)",
+			statusCode: http.StatusNotModified,
+			expected:   APIError{},
+			expectedOK: false,
+		},
+		{
+			name:       "API error (4xx)",
+			statusCode: http.StatusNotFound,
+			expected: APIError{
+				StatusCode: http.StatusNotFound,
+				Request: rest.RequestInfo{
+					Method: http.MethodGet,
+					URL:    "https://www.dt.com/resources",
+				},
+			},
+			expectedOK: true,
+		},
+		{
+			name:       "API error (5xx)",
+			statusCode: http.StatusServiceUnavailable,
+			expected: APIError{
+				StatusCode: http.StatusServiceUnavailable,
+				Request: rest.RequestInfo{
+					Method: http.MethodGet,
+					URL:    "https://www.dt.com/resources",
+				},
+			},
+			expectedOK: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := Response{
+				StatusCode: tc.statusCode,
+				Request: rest.RequestInfo{
+					Method: http.MethodGet,
+					URL:    "https://www.dt.com/resources",
+				},
+			}
+
+			err, ok := resp.AsAPIError()
+
+			assert.IsType(t, tc.expected, err)
+			assert.Equal(t, tc.expected, err)
+			assert.Equal(t, tc.expectedOK, ok)
+		})
+	}
 }

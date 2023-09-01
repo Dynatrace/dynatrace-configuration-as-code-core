@@ -72,6 +72,8 @@ func TestClient_CRUD(t *testing.T) {
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Expected status code 200")
+		assert.Equal(t, http.MethodGet, resp.RequestInfo.Method)
+		assert.Equal(t, baseURL.String()+"/test", resp.RequestInfo.URL)
 	})
 
 	t.Run("POST", func(t *testing.T) {
@@ -79,6 +81,8 @@ func TestClient_CRUD(t *testing.T) {
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusCreated, resp.StatusCode, "Expected status code 201")
+		assert.Equal(t, http.MethodPost, resp.RequestInfo.Method)
+		assert.Equal(t, baseURL.String()+"/test", resp.RequestInfo.URL)
 	})
 
 	t.Run("PUT", func(t *testing.T) {
@@ -86,6 +90,8 @@ func TestClient_CRUD(t *testing.T) {
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusNoContent, resp.StatusCode, "Expected status code 204")
+		assert.Equal(t, http.MethodPut, resp.RequestInfo.Method)
+		assert.Equal(t, baseURL.String()+"/test", resp.RequestInfo.URL)
 	})
 
 	t.Run("DELETE", func(t *testing.T) {
@@ -93,6 +99,8 @@ func TestClient_CRUD(t *testing.T) {
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusNoContent, resp.StatusCode, "Expected status code 204")
+		assert.Equal(t, http.MethodDelete, resp.RequestInfo.Method)
+		assert.Equal(t, baseURL.String()+"/test", resp.RequestInfo.URL)
 	})
 }
 
@@ -108,35 +116,41 @@ func TestClient_CRUD_HTTPErrors(t *testing.T) {
 	ctxWithLogger := testutils.ContextWithLogger(t)
 
 	testCases := []struct {
+		name      string
 		method    string
 		requestFn func() (Response, error)
 	}{
 		{
-			method: "GET",
+			name:   "GET",
+			method: http.MethodGet,
 			requestFn: func() (Response, error) {
 				return client.GET(ctxWithLogger, "/test", RequestOptions{})
 			},
 		},
 		{
-			method: "POST",
+			name:   "POST",
+			method: http.MethodPost,
 			requestFn: func() (Response, error) {
 				return client.POST(ctxWithLogger, "/test", nil, RequestOptions{})
 			},
 		},
 		{
-			method: "POST_WithCustomHeaders",
+			name:   "POST_WithCustomHeaders",
+			method: http.MethodPost,
 			requestFn: func() (Response, error) {
 				return client.POST(ctxWithLogger, "/test", nil, RequestOptions{})
 			},
 		},
 		{
-			method: "PUT",
+			name:   "PUT",
+			method: http.MethodPut,
 			requestFn: func() (Response, error) {
 				return client.PUT(ctxWithLogger, "/test", nil, RequestOptions{})
 			},
 		},
 		{
-			method: "DELETE",
+			name:   "DELETE",
+			method: http.MethodDelete,
 			requestFn: func() (Response, error) {
 				return client.DELETE(context.Background(), "/test", RequestOptions{})
 			},
@@ -144,12 +158,14 @@ func TestClient_CRUD_HTTPErrors(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.method, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			resp, err := tc.requestFn()
 
 			assert.Nil(t, err, "Expected not error")
 			assert.NotNil(t, resp, "Expected response to be not nil")
 			assert.Equal(t, resp.Payload, []byte("Internal Server Error\n"))
+			assert.Equal(t, tc.method, resp.RequestInfo.Method, "Expected request info method to be "+tc.method)
+			assert.Equal(t, baseURL.String()+"/test", resp.RequestInfo.URL, "Expected request info url to be "+baseURL.String()+"/test")
 		})
 	}
 }

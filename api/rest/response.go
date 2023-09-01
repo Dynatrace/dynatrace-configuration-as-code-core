@@ -21,6 +21,9 @@ type Response struct {
 
 	// StatusCode is the HTTP status code of the response.
 	StatusCode int
+
+	// RequestInfo holds information about the original request that led to this response
+	RequestInfo RequestInfo
 }
 
 // IsSuccess returns true if the response indicates a successful HTTP status code.
@@ -39,4 +42,10 @@ func (resp Response) Is4xxError() bool {
 // A status code between 500 and 599 (inclusive) is considered a server error.
 func (resp Response) Is5xxError() bool {
 	return resp.StatusCode >= 500 && resp.StatusCode <= 599
+}
+
+// RequestInfo holds information about the original request that led to this response
+type RequestInfo struct {
+	Method string `json:"method"` // The HTTP method of the request.
+	URL    string `json:"url"`    // The full URL of the request
 }
