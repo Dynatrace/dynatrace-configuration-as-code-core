@@ -92,7 +92,7 @@ func (c Client) Get(ctx context.Context, bucketName string) (Response, error) {
 	if err != nil {
 		return Response{}, err
 	}
-	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload}}, nil
+	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
 }
 
 // List retrieves all bucket definitions. The function sends a GET request
@@ -154,6 +154,7 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (Res
 		Response: api.Response{
 			StatusCode: resp.StatusCode,
 			Data:       resp.Payload,
+			Request:    resp.RequestInfo,
 		},
 	}, nil
 }
@@ -199,12 +200,13 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 			return Response{api.Response{
 				StatusCode: resp.StatusCode,
 				Data:       resp.Payload,
+				Request:    resp.RequestInfo,
 			}}, nil
 		}
 
 		if resp.IsSuccess() {
 			logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
-			return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload}}, nil
+			return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
 		}
 		time.Sleep(waitDuration)
 	}
@@ -212,6 +214,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 		Response: api.Response{
 			StatusCode: resp.StatusCode,
 			Data:       resp.Payload,
+			Request:    resp.RequestInfo,
 		},
 	}, err
 }
@@ -269,7 +272,7 @@ func (c Client) Delete(ctx context.Context, bucketName string) (Response, error)
 	if err != nil {
 		return Response{}, fmt.Errorf("unable to delete object with bucket name %q: %w", bucketName, err)
 	}
-	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload}}, err
+	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, err
 }
 
 // upsert is an internal function used by Upsert to perform the create or update logic.
@@ -286,7 +289,7 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	// If creating the bucket definition worked, return the result
 	if resp.IsSuccess() {
 		logger.Info(fmt.Sprintf("Created bucket with bucket name %q", bucketName))
-		return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload}}, nil
+		return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
 	}
 
 	// Otherwise, try to update an existing bucket definition
@@ -307,20 +310,21 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 			return Response{api.Response{
 				StatusCode: resp.StatusCode,
 				Data:       resp.Payload,
+				Request:    resp.RequestInfo,
 			}}, nil
 		}
 
 		if resp.IsSuccess() {
 			// Update operation was successful
 			logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
-			return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload}}, nil
+			return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
 		}
 
 		time.Sleep(waitDuration)
 	}
 
 	// All retries failed, return the last Response and error
-	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload}}, err
+	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, err
 }
 
 func (c Client) create(ctx context.Context, bucketName string, data []byte) (rest.Response, error) {
@@ -436,5 +440,6 @@ func unmarshalJSONList(raw *rest.Response) (listResponse, error) {
 	}
 	r.Data = raw.Payload
 	r.StatusCode = raw.StatusCode
+	r.Request = raw.RequestInfo
 	return r, nil
 }

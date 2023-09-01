@@ -222,7 +222,13 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		logger.V(1).Error(err, "Failed to close response body of failed request")
 	}
 
-	return Response{Payload: payload, StatusCode: response.StatusCode}, nil
+	return Response{
+		Payload:    payload,
+		StatusCode: response.StatusCode,
+		RequestInfo: RequestInfo{
+			Method: req.Method,
+			URL:    req.URL.String(),
+		}}, nil
 }
 
 func isConnectionResetErr(err error) bool {
