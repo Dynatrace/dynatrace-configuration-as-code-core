@@ -221,10 +221,10 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 
 // Upsert creates or updates a bucket definition using the provided client. The function first attempts
 // to create the bucket. If the creation is successful, it returns the created bucket. If the creation
-// fails, the function fetches the existing bucket and performs an update.
+// fails with a 409 conflict, the function fetches the existing bucket and performs an Update.
 //
-// In cases where the server does not immediately recognize an existing object after creation, retrying the GET
-// request multiple times.
+// If the creation fails with any other HTTP status (e.g. missing authorization or invalid payload) the
+// HTTP Response is returned immediately, as attempting an Update would likely just fail as well.
 //
 // If any HTTP request to the server fails, the method returns an empty Response and an error explaining the issue.
 //
@@ -292,39 +292,14 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 		return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
 	}
 
-	// Otherwise, try to update an existing bucket definition
-	logger.V(1).Info(fmt.Sprintf("Failed to create new object with bucket name %q. Trying to update existing object. API Error (HTTP %d): %s", bucketName, resp.StatusCode, resp.Payload))
-	maxRetries := 5
-	waitDuration := time.Second
-	for i := 0; i < maxRetries; i++ {
-		logger.V(1).Info(fmt.Sprintf("Trying to update bucket with bucket name %q (%d/%d retries)", bucketName, i+1, maxRetries))
-
-		// Attempt to get and update the bucket's data
-		resp, err = c.getAndUpdate(ctx, bucketName, data)
-		if err != nil {
-			return Response{}, err
-		}
-
-		// Check for specific HTTP status codes for early exits
-		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusBadRequest {
-			return Response{api.Response{
-				StatusCode: resp.StatusCode,
-				Data:       resp.Payload,
-				Request:    resp.RequestInfo,
-			}}, nil
-		}
-
-		if resp.IsSuccess() {
-			// Update operation was successful
-			logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
-			return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
-		}
-
-		time.Sleep(waitDuration)
+	// Return if creation failed, but the errors was not 409 Conflict - Bucket already exists
+	if resp.StatusCode != http.StatusConflict {
+		return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, err
 	}
 
-	// All retries failed, return the last Response and error
-	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, err
+	// Otherwise, try to update an existing bucket definition
+	logger.V(1).Info(fmt.Sprintf("Failed to create new object with bucket name %q. Trying to update existing object. API Error (HTTP %d): %s", bucketName, resp.StatusCode, resp.Payload))
+	return c.Update(ctx, bucketName, data)
 }
 
 func (c Client) create(ctx context.Context, bucketName string, data []byte) (rest.Response, error) {
