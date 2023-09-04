@@ -18,8 +18,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
+	"github.com/google/go-cmp/cmp"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -169,6 +171,10 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (Res
 // a Response indicating success, or if all retries fail, it returns a Response and the last
 // encountered error, if any.
 //
+// If the data to update the bucket fully matches what is already configured on the target environment,
+// Update will not make an HTTP call, as this would needlessly increase the buckets version.
+// This is transparent to callers and a normal StatusCode 200 Response is returned.
+//
 // If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 //
 // Parameters:
@@ -193,6 +199,15 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 
 		resp, err = c.getAndUpdate(ctx, bucketName, data)
 		if err != nil {
+
+			if errors.Is(err, unmodified) {
+				logger.Info(fmt.Sprintf("Configuration unmodified, no need to update bucket with bucket name %q", bucketName))
+
+				return Response{api.Response{
+					StatusCode: 200,
+				}}, nil
+			}
+
 			return Response{}, err
 		}
 
@@ -334,6 +349,8 @@ func (c Client) list(ctx context.Context) (listResponse, error) {
 	return l, nil
 }
 
+var unmodified = errors.New("unmodified bucket")
+
 func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte) (rest.Response, error) {
 	// try to get existing bucket definition
 	b, err := c.get(ctx, bucketName)
@@ -352,12 +369,6 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 		return rest.Response{}, err
 	}
 
-	// construct path for PUT request
-	path, err := url.JoinPath(endpointPath, res.BucketName)
-	if err != nil {
-		return rest.Response{}, fmt.Errorf("failed to join URL: %w", err)
-	}
-
 	// convert data to be sent to JSON
 	var m map[string]interface{}
 	err = json.Unmarshal(data, &m)
@@ -365,18 +376,39 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 		return rest.Response{}, fmt.Errorf("unable to unmarshal template: %w", err)
 	}
 	m["bucketName"] = res.BucketName
-	m["version"] = res.Version
+	m["version"] = float64(res.Version) // interface{} marshals number to float, so set the version as float to be consistent with the GET data
 	m["status"] = res.Status
+
+	// check if bucket needs to be updated at all
+	if bucketsEqual(res.Data, m) {
+		return rest.Response{}, unmodified
+	}
 
 	data, err = json.Marshal(m)
 	if err != nil {
 		return rest.Response{}, fmt.Errorf("unable to marshal data: %w", err)
 	}
 
+	// construct path for PUT request
+	path, err := url.JoinPath(endpointPath, res.BucketName)
+	if err != nil {
+		return rest.Response{}, fmt.Errorf("failed to join URL: %w", err)
+	}
+
 	// make PUT request
 	return c.client.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{
 		QueryParams: url.Values{"optimistic-locking-version": []string{strconv.Itoa(res.Version)}},
 	})
+}
+
+func bucketsEqual(exists []byte, new map[string]interface{}) bool {
+	var existsMap map[string]interface{}
+	err := json.Unmarshal(exists, &existsMap)
+	if err != nil {
+		return false
+	}
+
+	return cmp.Equal(existsMap, new)
 }
 
 // setBucketName sets the bucket name in the provided JSON data.
