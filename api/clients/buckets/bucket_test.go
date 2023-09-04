@@ -349,7 +349,9 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(
+			rest.NewClient(server.URL(), server.Client()),
+			buckets.WithUpdateRetrySettings(5, 0))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -373,7 +375,9 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(
+			rest.NewClient(server.URL(), server.Client()),
+			buckets.WithUpdateRetrySettings(5, 0))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -688,7 +692,9 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
+		client := buckets.NewClient(
+			rest.NewClient(server.URL(), server.Client()),
+			buckets.WithUpdateRetrySettings(5, 0))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
