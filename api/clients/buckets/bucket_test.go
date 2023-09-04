@@ -193,33 +193,6 @@ func TestUpsert(t *testing.T) {
   "metricInterval": "PT1M",
   "version": 1
 }`
-	t.Run("update fails", func(t *testing.T) {
-		responses := testutils.ServerResponses{
-			http.MethodPost: {
-				ResponseCode: http.StatusBadRequest,
-				ResponseBody: "ERROR",
-			},
-			http.MethodGet: {
-				ResponseCode: http.StatusOK,
-				ResponseBody: someBucketResponse,
-			},
-			http.MethodPut: {
-				ResponseCode: http.StatusForbidden,
-				ResponseBody: "no write access message",
-			},
-		}
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
-		data := []byte("{}")
-
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.Upsert(ctx, "bucket name", data)
-		assert.NoError(t, err, "expected err to be nil")
-		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
-	})
 
 	t.Run("create new bucket - OK", func(t *testing.T) {
 		responses := testutils.ServerResponses{
@@ -256,11 +229,39 @@ func TestUpsert(t *testing.T) {
 		assert.Equal(t, "bucket name", m["bucketName"])
 	})
 
-	t.Run("update new bucket - OK", func(t *testing.T) {
+	t.Run("create fails", func(t *testing.T) {
 		responses := testutils.ServerResponses{
 			http.MethodPost: {
 				ResponseCode: http.StatusForbidden,
-				ResponseBody: "this is an error",
+				ResponseBody: "Bucket exists",
+			},
+			http.MethodGet: {
+				ResponseCode: http.StatusNotFound,
+				ResponseBody: someBucketResponse,
+			},
+			http.MethodPut: {
+				ResponseCode: http.StatusOK,
+				ResponseBody: someBucketResponse,
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		data := []byte("{}")
+
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Upsert(ctx, "bucket name", data)
+		assert.NoError(t, err, "expected err to be nil")
+		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+	})
+
+	t.Run("bucket exists, update - OK", func(t *testing.T) {
+		responses := testutils.ServerResponses{
+			http.MethodPost: {
+				ResponseCode: http.StatusConflict,
+				ResponseBody: "Bucket exists",
 			},
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
@@ -302,11 +303,39 @@ func TestUpsert(t *testing.T) {
 		assert.Equal(t, "bucket name", m["bucketName"])
 	})
 
-	t.Run("Update fails with conflict", func(t *testing.T) {
+	t.Run("bucket exists, update fails", func(t *testing.T) {
 		responses := testutils.ServerResponses{
 			http.MethodPost: {
+				ResponseCode: http.StatusConflict,
+				ResponseBody: "Bucket exists",
+			},
+			http.MethodGet: {
+				ResponseCode: http.StatusOK,
+				ResponseBody: someBucketResponse,
+			},
+			http.MethodPut: {
 				ResponseCode: http.StatusForbidden,
-				ResponseBody: "expected error, we don't want to create",
+				ResponseBody: "no write access message",
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		data := []byte("{}")
+
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Upsert(ctx, "bucket name", data)
+		assert.NoError(t, err, "expected err to be nil")
+		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+	})
+
+	t.Run("bucket exists, update fails with conflict", func(t *testing.T) {
+		responses := testutils.ServerResponses{
+			http.MethodPost: {
+				ResponseCode: http.StatusConflict,
+				ResponseBody: "Bucket exists",
 			},
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
@@ -330,14 +359,14 @@ func TestUpsert(t *testing.T) {
 		assert.Equal(t, http.StatusConflict, resp.StatusCode)
 	})
 
-	t.Run("Update fails because GET fails", func(t *testing.T) {
+	t.Run("bucket exists, update fails because GET fails", func(t *testing.T) {
 		responses := testutils.ServerResponses{
 			http.MethodPost: {
-				ResponseCode: http.StatusForbidden,
+				ResponseCode: http.StatusConflict,
 				ResponseBody: "expected error, we don't want to create",
 			},
 			http.MethodGet: {
-				ResponseCode: http.StatusForbidden,
+				ResponseCode: http.StatusNotFound,
 				ResponseBody: "expected error, we don't want to get",
 			},
 		}
@@ -351,16 +380,16 @@ func TestUpsert(t *testing.T) {
 
 		resp, err := client.Upsert(ctx, "bucket name", data)
 		assert.NoError(t, err, "expected err to be nil")
-		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 
 	})
 
-	t.Run("Update fails with conflict only once", func(t *testing.T) {
+	t.Run("bucket exists, update succeeds after initial conflict", func(t *testing.T) {
 		var firstTry = true
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			switch req.Method {
 			case http.MethodPost:
-				rw.WriteHeader(http.StatusForbidden)
+				rw.WriteHeader(http.StatusConflict)
 				rw.Write([]byte("no, this is an error"))
 			case http.MethodGet:
 				rw.Write([]byte(someBucketResponse))
@@ -557,10 +586,6 @@ func TestUpdate(t *testing.T) {
 }`
 	t.Run("update fails", func(t *testing.T) {
 		responses := testutils.ServerResponses{
-			http.MethodPost: {
-				ResponseCode: http.StatusBadRequest,
-				ResponseBody: "ERROR",
-			},
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
 				ResponseBody: someBucketResponse,
@@ -577,7 +602,7 @@ func TestUpdate(t *testing.T) {
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Upsert(ctx, "bucket name", data)
+		resp, err := client.Update(ctx, "bucket name", data)
 		assert.NoError(t, err, "expected err to be nil")
 		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 	})
