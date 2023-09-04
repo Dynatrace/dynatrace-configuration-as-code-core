@@ -55,8 +55,27 @@ type listResponse struct {
 	Buckets []json.RawMessage `json:"buckets"`
 }
 
+type retrySettings struct {
+	maxRetries   int
+	waitDuration time.Duration
+}
+
 type Client struct {
-	client *rest.Client
+	client        *rest.Client
+	retrySettings retrySettings
+}
+
+// Option represents a functional Option for the Client.
+type Option func(*Client)
+
+// WithUpdateRetrySettings sets the maximum number of retries as well as duration between retries for Update and Upsert HTTP requests
+func WithUpdateRetrySettings(maxRetries int, waitDuration time.Duration) Option {
+	return func(c *Client) {
+		c.retrySettings = retrySettings{
+			maxRetries:   maxRetries,
+			waitDuration: waitDuration,
+		}
+	}
 }
 
 // NewClient creates a new instance of a Client, which provides methods for interacting with the Grail bucket management API.
@@ -65,13 +84,24 @@ type Client struct {
 //
 // Parameters:
 //   - client: A pointer to a rest.Client instance used for making HTTP requests to the remote server.
+//   - option: A variadic slice of client Option. Each Option will be applied to the new Client and define options such as retry settings.
 //
 // Returns:
 //   - *Client: A pointer to a new Client instance initialized with the provided rest.Client and logger.
-func NewClient(client *rest.Client) *Client {
-	return &Client{
+func NewClient(client *rest.Client, option ...Option) *Client {
+	c := &Client{
 		client: client,
+		retrySettings: retrySettings{
+			maxRetries:   5,
+			waitDuration: time.Second,
+		},
 	}
+
+	for _, o := range option {
+		o(c)
+	}
+
+	return c
 }
 
 // Get retrieves a bucket definition based on the provided bucketName. The function sends a GET request
@@ -189,13 +219,10 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 
 	logger := logr.FromContextOrDiscard(ctx)
 
-	maxRetries := 5
-	waitDuration := time.Second
-
 	var resp rest.Response
 	var err error
-	for i := 0; i < maxRetries; i++ {
-		logger.V(1).Info(fmt.Sprintf("Trying to update bucket with bucket name %q (%d/%d retries)", bucketName, i+1, maxRetries))
+	for i := 0; i < c.retrySettings.maxRetries; i++ {
+		logger.V(1).Info(fmt.Sprintf("Trying to update bucket with bucket name %q (%d/%d retries)", bucketName, i+1, c.retrySettings.maxRetries))
 
 		resp, err = c.getAndUpdate(ctx, bucketName, data)
 		if err != nil {
@@ -223,7 +250,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 			logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
 			return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
 		}
-		time.Sleep(waitDuration)
+		time.Sleep(c.retrySettings.waitDuration)
 	}
 	return Response{
 		Response: api.Response{
