@@ -39,9 +39,10 @@ func Factory() factory {
 
 // factory represents a factory-like component for creating API client instances.
 type factory struct {
-	url         string                    // The base URL of the API
-	oauthConfig *clientcredentials.Config // Configuration for OAuth2 client credentials
-	userAgent   string                    // The User-Agent header to be set
+	url          string                    // The base URL of the API
+	oauthConfig  *clientcredentials.Config // Configuration for OAuth2 client credentials
+	userAgent    string                    // The User-Agent header to be set
+	httpListener *rest.HTTPListener        // The HTTP listener to be set
 }
 
 // WithOAuthCredentials sets the OAuth2 client credentials configuration for the factory.
@@ -62,6 +63,13 @@ func (f factory) WithUserAgent(userAgent string) factory {
 	return f
 }
 
+// WithHTTPListener sets the given HTTPListener to be used by the
+// underlying rest/http client
+func (f factory) WithHTTPListener(listener *rest.HTTPListener) factory {
+	f.httpListener = listener
+	return f
+}
+
 // BucketClient creates and returns a new instance of buckets.Client for interacting with the bucket API.
 func (f factory) BucketClient() (*buckets.Client, error) {
 	if f.url == "" {
@@ -77,7 +85,7 @@ func (f factory) BucketClient() (*buckets.Client, error) {
 		return nil, fmt.Errorf("failed to parse URL %q: %w", f.url, err)
 	}
 
-	restClient := rest.NewClient(parsedURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig))
+	restClient := rest.NewClient(parsedURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig), rest.WithHTTPListener(f.httpListener))
 	if f.userAgent != "" {
 		restClient.SetHeader("User-Agent", f.userAgent)
 	}

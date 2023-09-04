@@ -322,7 +322,7 @@ func TestClient_WithRetries(t *testing.T) {
 	assert.Equal(t, 2, apiHits)
 }
 
-func TestClient_WithRequestResponseRecorder(t *testing.T) {
+func TestClient_WithHTTPListener(t *testing.T) {
 
 	ctx := testutils.ContextWithLogger(t)
 
@@ -365,19 +365,19 @@ func TestClient_WithRequestResponseRecorder(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			recorder := NewRequestResponseRecorder()
+
 			server := httptest.NewServer(test.handler)
 			defer server.Close()
 			wg := sync.WaitGroup{}
 			wg.Add(test.expectedRecordsRecorded)
-			go func() {
-				for range recorder.Channel {
+			httpListener := &HTTPListener{
+				Callback: func(response RequestResponse) {
 					wg.Done()
-				}
-			}()
+				},
+			}
 
 			baseURL, _ := url.Parse(server.URL)
-			err := test.restClientCalls(NewClient(baseURL, test.httpClient, WithRequestResponseRecorder(recorder)))
+			err := test.restClientCalls(NewClient(baseURL, test.httpClient, WithHTTPListener(httpListener)))
 			wg.Wait()
 			if test.expectError {
 				assert.Error(t, err)

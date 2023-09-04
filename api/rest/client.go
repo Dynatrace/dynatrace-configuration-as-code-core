@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-logr/logr"
+	"github.com/google/uuid"
 	"io"
 	"net/http"
 	"net/url"
@@ -57,12 +58,10 @@ func WithRequestRetrier(retrier *RequestRetrier) Option {
 	}
 }
 
-// WithRequestResponseRecorder sets the RequestResponseRecorder for the Client.
-// Note, that this is happening sync. so there MUST be a listener gabbing the
-// recorded messages, to not block the client
-func WithRequestResponseRecorder(recorder *RequestResponseRecorder) Option {
+// WithHTTPListener sets the HTTPListener for the Client.
+func WithHTTPListener(listener *HTTPListener) Option {
 	return func(c *Client) {
-		c.requestResponseRecorder = recorder
+		c.httpListener = listener
 	}
 }
 
@@ -87,7 +86,7 @@ type Client struct {
 	concurrentRequestLimiter *ConcurrentRequestLimiter // Concurrent request limiter component (optional)
 	timeout                  time.Duration             // Request timeout (optional)
 	requestRetrier           *RequestRetrier           // HTTP request retrier component (optional)
-	requestResponseRecorder  *RequestResponseRecorder  // Request-response recorder component (optional)
+	httpListener             *HTTPListener             // HTTP listener component (optional)
 	rateLimiter              *RateLimiter              // Rate limiter component (optional)
 }
 
@@ -171,18 +170,20 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		}
 	}
 
-	if c.requestResponseRecorder != nil {
+	var reqID string
+	if c.httpListener != nil {
+		reqID = uuid.NewString()
 		// wrap the body so that it could be read again
 		if req.Body, err = ReusableReader(req.Body); err != nil {
 			return Response{}, err
 		}
-		c.requestResponseRecorder.RecordRequest(ctx, req)
+		c.httpListener.onRequest(reqID, req)
 	}
 
 	response, err := c.httpClient.Do(req)
 	if err != nil {
-		if c.requestResponseRecorder != nil {
-			c.requestResponseRecorder.RecordResponse(ctx, nil, err)
+		if c.httpListener != nil {
+			c.httpListener.onResponse(reqID, nil, err)
 		}
 
 		if isConnectionResetErr(err) {
@@ -192,12 +193,12 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		return Response{}, err
 	}
 
-	if c.requestResponseRecorder != nil {
+	if c.httpListener != nil {
 		// wrap the body so that it could be read again
 		if response.Body, err = ReusableReader(response.Body); err != nil {
 			return Response{}, err
 		}
-		c.requestResponseRecorder.RecordResponse(ctx, response, nil)
+		c.httpListener.onResponse(reqID, response, nil)
 	}
 
 	// Update the rate limiter with the response headers
