@@ -424,6 +424,32 @@ func TestUpsert(t *testing.T) {
 		assert.Equal(t, "bucket name", m["bucketName"])
 	})
 
+	t.Run("bucket exists, but is not modified, no update happens", func(t *testing.T) {
+		responses := testutils.ServerResponses{
+			http.MethodPost: {
+				ResponseCode: http.StatusConflict,
+				ResponseBody: "Bucket exists",
+			},
+			http.MethodGet: {
+				ResponseCode: http.StatusOK,
+				ResponseBody: someBucketResponse,
+				ValidateRequestFunc: func(req *http.Request) {
+					assert.Contains(t, req.URL.String(), url.PathEscape("bucket name"))
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		data := []byte(someBucketResponse)
+
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Upsert(ctx, "bucket name", data)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
 }
 
 func TestDelete(t *testing.T) {
