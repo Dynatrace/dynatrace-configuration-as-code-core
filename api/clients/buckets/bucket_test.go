@@ -637,7 +637,7 @@ func TestUpdate(t *testing.T) {
 		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 	})
 
-	t.Run("update new bucket - OK", func(t *testing.T) {
+	t.Run("update bucket - OK", func(t *testing.T) {
 		responses := testutils.ServerResponses{
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
@@ -676,6 +676,35 @@ func TestUpdate(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, "bucket name", m["bucketName"])
+	})
+
+	t.Run("unmodified bucket - nothing happens", func(t *testing.T) {
+		responses := testutils.ServerResponses{
+			http.MethodGet: {
+				ResponseCode: http.StatusOK,
+				ResponseBody: someBucketResponse,
+				ValidateRequestFunc: func(req *http.Request) {
+					assert.Contains(t, req.URL.String(), url.PathEscape("bucket name"))
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		data := []byte(`{
+  "bucketName": "bucket name",
+  "table": "metrics",
+  "displayName": "Default metrics (15 months)",
+  "retentionDays": 462,
+  "metricInterval": "PT1M"
+}`)
+
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Update(ctx, "bucket name", data)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
 	t.Run("Update fails with conflict", func(t *testing.T) {
