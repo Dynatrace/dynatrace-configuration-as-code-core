@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/google/go-cmp/cmp"
@@ -219,22 +218,25 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 
 	logger := logr.FromContextOrDiscard(ctx)
 
-	var resp rest.Response
-	var err error
+	// check if bucket needs to be updated at all
+	resp, err := c.get(ctx, bucketName)
+	if err != nil {
+		return Response{}, err
+	}
+	if bucketsEqual(resp.Payload, data) {
+		logger.Info(fmt.Sprintf("Configuration unmodified, no need to update bucket with bucket name %q", bucketName))
+
+		return Response{api.Response{
+			StatusCode: 200,
+		}}, nil
+	}
+
+	// attempt update
 	for i := 0; i < c.retrySettings.maxRetries; i++ {
 		logger.V(1).Info(fmt.Sprintf("Trying to update bucket with bucket name %q (%d/%d retries)", bucketName, i+1, c.retrySettings.maxRetries))
 
 		resp, err = c.getAndUpdate(ctx, bucketName, data)
 		if err != nil {
-
-			if errors.Is(err, unmodified) {
-				logger.Info(fmt.Sprintf("Configuration unmodified, no need to update bucket with bucket name %q", bucketName))
-
-				return Response{api.Response{
-					StatusCode: 200,
-				}}, nil
-			}
-
 			return Response{}, err
 		}
 
@@ -376,8 +378,6 @@ func (c Client) list(ctx context.Context) (listResponse, error) {
 	return l, nil
 }
 
-var unmodified = errors.New("unmodified bucket")
-
 func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte) (rest.Response, error) {
 	// try to get existing bucket definition
 	b, err := c.get(ctx, bucketName)
@@ -403,13 +403,8 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 		return rest.Response{}, fmt.Errorf("unable to unmarshal template: %w", err)
 	}
 	m["bucketName"] = res.BucketName
-	m["version"] = float64(res.Version) // interface{} marshals number to float, so set the version as float to be consistent with the GET data
+	m["version"] = res.Version
 	m["status"] = res.Status
-
-	// check if bucket needs to be updated at all
-	if bucketsEqual(res.Data, m) {
-		return rest.Response{}, unmodified
-	}
 
 	data, err = json.Marshal(m)
 	if err != nil {
@@ -428,14 +423,25 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 	})
 }
 
-func bucketsEqual(exists []byte, new map[string]interface{}) bool {
+// bucketsEqual checks whether two bucket JSONs are equal in terms of update API calls
+// this means that like for an update bucketName, version and status are assumed to be
+// those of the existing object, ignoring what ever may be defined in the supplied data.
+func bucketsEqual(exists, new []byte) bool {
 	var existsMap map[string]interface{}
-	err := json.Unmarshal(exists, &existsMap)
-	if err != nil {
+	if err := json.Unmarshal(exists, &existsMap); err != nil {
 		return false
 	}
 
-	return cmp.Equal(existsMap, new)
+	var newMap map[string]interface{}
+	if err := json.Unmarshal(new, &newMap); err != nil {
+		return false
+	}
+	// version and status are always taken from existing bucket on update
+	newMap["bucketName"] = existsMap["bucketName"]
+	newMap["version"] = existsMap["version"]
+	newMap["status"] = existsMap["status"]
+
+	return cmp.Equal(existsMap, newMap)
 }
 
 // setBucketName sets the bucket name in the provided JSON data.
