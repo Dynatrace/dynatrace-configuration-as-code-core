@@ -21,6 +21,7 @@ import (
 
 // RequestResponse represents a recorded HTTP request and response.
 type RequestResponse struct {
+	ID        string         // ID to identify and correlate requests to responses
 	Timestamp time.Time      // Timestamp of the recorded request/response
 	Request   *http.Request  // HTTP request
 	Response  *http.Response // HTTP response
@@ -57,17 +58,17 @@ type HTTPListener struct {
 
 // onRequest is a method of HTTPListener that is called when an HTTP request is received.
 // It invokes the user-defined callback function with the request information.
-func (r *HTTPListener) onRequest(req *http.Request) {
+func (r *HTTPListener) onRequest(id string, req *http.Request) {
 	if r != nil {
-		r.Callback(RequestResponse{Timestamp: time.Now(), Request: req})
+		r.Callback(RequestResponse{ID: id, Timestamp: time.Now(), Request: req})
 	}
 }
 
 // onResponse is a method of HTTPListener that is called when an HTTP response is received.
 // It invokes the user-defined callback function with the response information.
-func (r *HTTPListener) onResponse(resp *http.Response, err error) {
+func (r *HTTPListener) onResponse(id string, resp *http.Response, err error) {
 	if r != nil {
-		reqResp := RequestResponse{Timestamp: time.Now(), Response: resp, Error: err}
+		reqResp := RequestResponse{ID: id, Timestamp: time.Now(), Response: resp, Error: err}
 		r.Callback(reqResp)
 	}
 }
