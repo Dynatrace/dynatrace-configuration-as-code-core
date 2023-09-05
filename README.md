@@ -21,12 +21,15 @@ It is the responsibility of the user to check for success or failure of the actu
 `Response`. The user can expect `error` to be `!= nil` only for (technical) failures that
 happen either prior to making the actual HTTP calls or if the HTTP calls couldn't be carried out (e.g. due to network problems, etc.)
 
-| API Client         | Implemented |
-|--------------------|-------------|
-| grail buckets      | ✅           |
-| automation         | ❌           |
-| settings 2.0       | ❌           |
-| classic config API | ❌           |
+| API Client          | Implemented |
+|---------------------|-------------|
+| Classic config APIs | ❌           |
+| Settings 2.0        | ❌           |
+| Automation          | ❌           |
+| Grail buckets       | ✅           |
+
+
+
 
 ### Usage
 
