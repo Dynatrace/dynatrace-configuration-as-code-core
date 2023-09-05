@@ -38,7 +38,7 @@ factory := clients.Factory().
 	WithEnvironmentURL("https://dt-environment.com").
 	WithOAuthCredentials(credentials)
 
-// get the client
+// request any client from the factory, e.g. bucket api client
 bucketClient, err := factory.BucketClient()
 if err != nil {
 	// handle error
@@ -76,6 +76,25 @@ For example, if you wish to use [Logrus](https://github.com/sirupsen/logrus) for
 ```go
 ctx := logr.NewContext(context.TODO(), logrusr.New(logrus.New()))
 resp, err := ctx.Get(ctx,"...")
+```
+
+### Tracking and logging HTTP requests/responses
+If you want to keep track or just log all HTTP requests/responses that are happening as part of the execution of the clients you can attach an `HTTPListener` that can be used
+to register your custom callback function that gets the information about the HTTP request or response.
+For example, in order to just print out all HTTP requests that are happening under the hood you can do the following:
+
+```go
+requestPrinter := &rest.HTTPListener{Callback: func(r rest.RequestResponse) {
+	if req, ok := r.IsRequest(); ok {
+		fmt.Printf("There was an HTTP %s request to %s\n", req.Method, req.URL.String())
+	}
+}}
+
+factory := clients.Factory().WithEnvironmentURL("https://dt-environment.com").
+	WithOAuthCredentials(credentials).
+	WithHTTPListener(requestPrinter)
+
+// request a client from the factory and use it
 ```
 
 ## Forms of Dynatrace Configuration as Code
