@@ -82,7 +82,7 @@ resp, err := ctx.Get(ctx,"...")
 ```
 
 ### Tracking and logging HTTP requests/responses
-If you want to keep track or just log all HTTP requests/responses that are happening as part of the execution of the clients you can attach an `HTTPListener` that can be used
+If you want to keep track or just log all HTTP requests/responses happening as part of the execution of the clients, you can implement an `HTTPListener` and attach it to the client.
 to register your custom callback function that gets the information about the HTTP request or response.
 For example, in order to just print out all HTTP requests that are happening under the hood you can do the following:
 
