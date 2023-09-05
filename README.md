@@ -21,12 +21,15 @@ It is the responsibility of the user to check for success or failure of the actu
 `Response`. The user can expect `error` to be `!= nil` only for (technical) failures that
 happen either prior to making the actual HTTP calls or if the HTTP calls couldn't be carried out (e.g. due to network problems, etc.)
 
-| API Client         | Implemented |
-|--------------------|-------------|
-| grail buckets      | ✅           |
-| automation         | ❌           |
-| settings 2.0       | ❌           |
-| classic config API | ❌           |
+| API Client          | Implemented |
+|---------------------|-------------|
+| Classic config APIs | ❌           |
+| Settings 2.0        | ❌           |
+| Automation          | ❌           |
+| Grail buckets       | ✅           |
+
+
+
 
 ### Usage
 
@@ -38,7 +41,7 @@ factory := clients.Factory().
 	WithEnvironmentURL("https://dt-environment.com").
 	WithOAuthCredentials(credentials)
 
-// get the client
+// request any client from the factory, e.g. bucket api client
 bucketClient, err := factory.BucketClient()
 if err != nil {
 	// handle error
@@ -76,6 +79,27 @@ For example, if you wish to use [Logrus](https://github.com/sirupsen/logrus) for
 ```go
 ctx := logr.NewContext(context.TODO(), logrusr.New(logrus.New()))
 resp, err := ctx.Get(ctx,"...")
+```
+
+### Tracking and logging HTTP requests/responses
+If you want to keep track or just log all HTTP requests/responses happening as part of the execution of the clients, you can implement an `HTTPListener` and attach it to the client.
+All you need to do is implement a custom callback function and pass the `HTTPListener` when constructing a client.
+The underlying `rest.Client` will then call your callback function with information about each HTTP request or response.
+
+For example, in order to just print out all HTTP requests that are happening under the hood you can do the following:
+
+```go
+requestPrinter := &rest.HTTPListener{Callback: func(r rest.RequestResponse) {
+	if req, ok := r.IsRequest(); ok {
+		fmt.Printf("There was an HTTP %s request to %s\n", req.Method, req.URL.String())
+	}
+}}
+
+factory := clients.Factory().WithEnvironmentURL("https://dt-environment.com").
+	WithOAuthCredentials(credentials).
+	WithHTTPListener(requestPrinter)
+
+// request a client from the factory and use it
 ```
 
 ## Forms of Dynatrace Configuration as Code
