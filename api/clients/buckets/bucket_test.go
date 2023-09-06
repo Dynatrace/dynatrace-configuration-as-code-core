@@ -184,7 +184,17 @@ func TestList(t *testing.T) {
 
 func TestUpsert(t *testing.T) {
 
-	const someBucketResponse = `{
+	const creatingBucketResponse = `{
+  "bucketName": "bucket name",
+  "table": "metrics",
+  "displayName": "Default metrics (15 months)",
+  "status": "creating",
+  "retentionDays": 462,
+  "metricInterval": "PT1M",
+  "version": 1
+}`
+
+	const activeBucketResponse = `{
   "bucketName": "bucket name",
   "table": "metrics",
   "displayName": "Default metrics (15 months)",
@@ -198,7 +208,7 @@ func TestUpsert(t *testing.T) {
 		responses := testutils.ServerResponses{
 			http.MethodPost: {
 				ResponseCode: http.StatusOK,
-				ResponseBody: someBucketResponse,
+				ResponseBody: creatingBucketResponse,
 				ValidateRequestFunc: func(req *http.Request) {
 					data, err := io.ReadAll(req.Body)
 					assert.NoError(t, err)
@@ -209,6 +219,10 @@ func TestUpsert(t *testing.T) {
 
 					assert.Equal(t, "bucket name", m["bucketName"])
 				},
+			},
+			http.MethodGet: {
+				ResponseCode: http.StatusOK,
+				ResponseBody: activeBucketResponse,
 			},
 		}
 		server := testutils.NewHTTPTestServer(t, responses)
@@ -229,6 +243,42 @@ func TestUpsert(t *testing.T) {
 		assert.Equal(t, "bucket name", m["bucketName"])
 	})
 
+	t.Run("create bucket - awaits bucket becoming ready", func(t *testing.T) {
+		getRequests := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			switch req.Method {
+			case http.MethodPost:
+				rw.WriteHeader(http.StatusCreated)
+				rw.Write([]byte(creatingBucketResponse))
+			case http.MethodGet:
+				rw.WriteHeader(http.StatusOK)
+				if getRequests < 5 {
+					rw.Write([]byte(creatingBucketResponse))
+					getRequests++
+				} else {
+					rw.Write([]byte(activeBucketResponse))
+				}
+			default:
+				t.Fatalf("unexpected %s request", req.Method)
+
+			}
+		}))
+
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL) //nolint:errcheck
+
+		client := buckets.NewClient(rest.NewClient(url, server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Create(ctx, "bucket name", []byte("{}"))
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusCreated, resp.StatusCode)
+		assert.Equal(t, activeBucketResponse, string(resp.Data))
+		assert.Equal(t, 5, getRequests)
+	})
+
 	t.Run("create fails", func(t *testing.T) {
 		responses := testutils.ServerResponses{
 			http.MethodPost: {
@@ -237,11 +287,11 @@ func TestUpsert(t *testing.T) {
 			},
 			http.MethodGet: {
 				ResponseCode: http.StatusNotFound,
-				ResponseBody: someBucketResponse,
+				ResponseBody: "{}",
 			},
 			http.MethodPut: {
 				ResponseCode: http.StatusOK,
-				ResponseBody: someBucketResponse,
+				ResponseBody: activeBucketResponse,
 			},
 		}
 		server := testutils.NewHTTPTestServer(t, responses)
@@ -265,14 +315,14 @@ func TestUpsert(t *testing.T) {
 			},
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
-				ResponseBody: someBucketResponse,
+				ResponseBody: activeBucketResponse,
 				ValidateRequestFunc: func(req *http.Request) {
 					assert.Contains(t, req.URL.String(), url.PathEscape("bucket name"))
 				},
 			},
 			http.MethodPut: {
 				ResponseCode: http.StatusOK,
-				ResponseBody: someBucketResponse,
+				ResponseBody: activeBucketResponse,
 				ValidateRequestFunc: func(req *http.Request) {
 					data, err := io.ReadAll(req.Body)
 					assert.NoError(t, err)
@@ -311,7 +361,7 @@ func TestUpsert(t *testing.T) {
 			},
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
-				ResponseBody: someBucketResponse,
+				ResponseBody: activeBucketResponse,
 			},
 			http.MethodPut: {
 				ResponseCode: http.StatusForbidden,
@@ -339,7 +389,7 @@ func TestUpsert(t *testing.T) {
 			},
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
-				ResponseBody: someBucketResponse,
+				ResponseBody: activeBucketResponse,
 			},
 			http.MethodPut: {
 				ResponseCode: http.StatusConflict,
@@ -396,7 +446,7 @@ func TestUpsert(t *testing.T) {
 				rw.WriteHeader(http.StatusConflict)
 				rw.Write([]byte("no, this is an error"))
 			case http.MethodGet:
-				rw.Write([]byte(someBucketResponse))
+				rw.Write([]byte(activeBucketResponse))
 			case http.MethodPut:
 				if firstTry {
 					rw.WriteHeader(http.StatusConflict)
@@ -404,7 +454,7 @@ func TestUpsert(t *testing.T) {
 					firstTry = false
 				} else {
 					rw.WriteHeader(http.StatusOK)
-					rw.Write([]byte(someBucketResponse))
+					rw.Write([]byte(activeBucketResponse))
 				}
 			default:
 				assert.Failf(t, "unexpected method %q", req.Method)
@@ -436,7 +486,7 @@ func TestUpsert(t *testing.T) {
 			},
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
-				ResponseBody: someBucketResponse,
+				ResponseBody: activeBucketResponse,
 				ValidateRequestFunc: func(req *http.Request) {
 					assert.Contains(t, req.URL.String(), url.PathEscape("bucket name"))
 				},
@@ -446,7 +496,7 @@ func TestUpsert(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
-		data := []byte(someBucketResponse)
+		data := []byte(activeBucketResponse)
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -536,7 +586,7 @@ func TestCreate(t *testing.T) {
   "version": 1
 }`
 
-	const someBucketResponse = `{
+	const creatingBucketResponse = `{
   "bucketName": "bucket name",
   "table": "metrics",
   "displayName": "Default metrics (15 months)",
@@ -546,11 +596,25 @@ func TestCreate(t *testing.T) {
   "version": 1
 }`
 
+	const activeBucketResponse = `{
+  "bucketName": "bucket name",
+  "table": "metrics",
+  "displayName": "Default metrics (15 months)",
+  "status": "active",
+  "retentionDays": 462,
+  "metricInterval": "PT1M",
+  "version": 1
+}`
+
 	t.Run("create bucket - OK", func(t *testing.T) {
 		responses := testutils.ServerResponses{
 			http.MethodPost: {
 				ResponseCode: http.StatusCreated,
-				ResponseBody: someBucketResponse,
+				ResponseBody: creatingBucketResponse,
+			},
+			http.MethodGet: {
+				ResponseCode: http.StatusOK,
+				ResponseBody: activeBucketResponse,
 			},
 		}
 		server := testutils.NewHTTPTestServer(t, responses)
@@ -563,14 +627,48 @@ func TestCreate(t *testing.T) {
 		resp, err := client.Create(ctx, "bucket name", []byte(someBucketData))
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusCreated, resp.StatusCode)
-		assert.Equal(t, someBucketResponse, string(resp.Data))
+		assert.Equal(t, activeBucketResponse, string(resp.Data))
+	})
+
+	t.Run("create bucket - awaits bucket becoming ready", func(t *testing.T) {
+		getRequests := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			switch req.Method {
+			case http.MethodPost:
+				rw.WriteHeader(http.StatusCreated)
+				rw.Write([]byte(creatingBucketResponse))
+			case http.MethodGet:
+				rw.WriteHeader(http.StatusOK)
+				if getRequests < 5 {
+					rw.Write([]byte(creatingBucketResponse))
+					getRequests++
+				} else {
+					rw.Write([]byte(activeBucketResponse))
+				}
+			default:
+				t.Fatalf("unexpected %s request", req.Method)
+
+			}
+		}))
+
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL) //nolint:errcheck
+
+		client := buckets.NewClient(rest.NewClient(url, server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Create(ctx, "bucket name", []byte(someBucketData))
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusCreated, resp.StatusCode)
+		assert.Equal(t, activeBucketResponse, string(resp.Data))
+		assert.Equal(t, 5, getRequests)
 	})
 
 	t.Run("create bucket - network error", func(t *testing.T) {
 		responses := testutils.ServerResponses{
-			http.MethodDelete: {
-				ResponseCode: http.StatusNotFound,
-			},
+			// no request should reach test server
 		}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
@@ -586,9 +684,7 @@ func TestCreate(t *testing.T) {
 
 	t.Run("create bucket - invalid data", func(t *testing.T) {
 		responses := testutils.ServerResponses{
-			http.MethodDelete: {
-				ResponseCode: http.StatusNotFound,
-			},
+			// no request should reach test server
 		}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
