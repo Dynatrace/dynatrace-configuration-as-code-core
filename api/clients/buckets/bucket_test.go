@@ -15,6 +15,7 @@
 package buckets_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
@@ -26,7 +27,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestGet(t *testing.T) {
@@ -401,7 +404,7 @@ func TestUpsert(t *testing.T) {
 
 		client := buckets.NewClient(
 			rest.NewClient(server.URL(), server.Client()),
-			buckets.WithUpdateRetrySettings(5, 0))
+			buckets.WithRetrySettings(5, 0, time.Minute))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -427,7 +430,7 @@ func TestUpsert(t *testing.T) {
 
 		client := buckets.NewClient(
 			rest.NewClient(server.URL(), server.Client()),
-			buckets.WithUpdateRetrySettings(5, 0))
+			buckets.WithRetrySettings(5, 0, time.Minute))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -819,7 +822,7 @@ func TestUpdate(t *testing.T) {
 
 		client := buckets.NewClient(
 			rest.NewClient(server.URL(), server.Client()),
-			buckets.WithUpdateRetrySettings(5, 0))
+			buckets.WithRetrySettings(5, 0, time.Minute))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -853,7 +856,7 @@ func TestUpdate(t *testing.T) {
 
 	})
 
-	t.Run("Update fails with conflict only once", func(t *testing.T) {
+	t.Run("Update fails at first, but succeeds after retry", func(t *testing.T) {
 		var firstTry = true
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			switch req.Method {
@@ -891,6 +894,83 @@ func TestUpdate(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, "bucket name", m["bucketName"])
+	})
+
+	t.Run("Update honors context timeout", func(t *testing.T) {
+		var firstTry = true
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			switch req.Method {
+			case http.MethodPost:
+				rw.WriteHeader(http.StatusForbidden)
+				rw.Write([]byte("no, this is an error"))
+			case http.MethodGet:
+				rw.Write([]byte(someBucketResponse))
+			case http.MethodPut:
+				if firstTry {
+					rw.WriteHeader(http.StatusConflict)
+					rw.Write([]byte("conflict"))
+					firstTry = false
+				} else {
+					rw.WriteHeader(http.StatusOK)
+					rw.Write([]byte(someBucketResponse))
+				}
+			default:
+				assert.Failf(t, "unexpected method %q", req.Method)
+			}
+		}))
+		defer server.Close()
+
+		u, _ := url.Parse(server.URL)
+		client := buckets.NewClient(rest.NewClient(u, &http.Client{}),
+			buckets.WithRetrySettings(5, 0, time.Minute)) // maxWaitDuration would allow 1 min
+		data := []byte("{}")
+
+		ctx := testutils.ContextWithLogger(t)
+		ctx, cancel := context.WithTimeout(ctx, 800*time.Microsecond) // context "should" time out after initial GET
+		defer cancel()
+		_, err := client.Update(ctx, "bucket name", data)
+		assert.Error(t, err)
+
+		// if GET happens to be cancelled already we'll get a 'deadline exceeded' from the http client. That's ok too, no need to fail the test.
+		if strings.Contains(err.Error(), "deadline exceeded") {
+			t.Log("context timed out before our logic and http request returned error")
+			return
+		}
+		assert.ErrorContains(t, err, "cancelled")
+	})
+
+	t.Run("Update honors retrySettings maxWaitDuration", func(t *testing.T) {
+		var firstTry = true
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			switch req.Method {
+			case http.MethodPost:
+				rw.WriteHeader(http.StatusForbidden)
+				rw.Write([]byte("no, this is an error"))
+			case http.MethodGet:
+				rw.Write([]byte(someBucketResponse))
+			case http.MethodPut:
+				if firstTry {
+					rw.WriteHeader(http.StatusConflict)
+					rw.Write([]byte("conflict"))
+					firstTry = false
+				} else {
+					rw.WriteHeader(http.StatusOK)
+					rw.Write([]byte(someBucketResponse))
+				}
+			default:
+				assert.Failf(t, "unexpected method %q", req.Method)
+			}
+		}))
+		defer server.Close()
+
+		u, _ := url.Parse(server.URL)
+		client := buckets.NewClient(rest.NewClient(u, &http.Client{}),
+			buckets.WithRetrySettings(5, 0, 0)) // maxWaitDuration should time out immediatly
+		data := []byte("{}")
+
+		ctx := testutils.ContextWithLogger(t)
+		_, err := client.Update(ctx, "bucket name", data)
+		assert.ErrorContains(t, err, "cancelled")
 	})
 }
 
