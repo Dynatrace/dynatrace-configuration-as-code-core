@@ -55,8 +55,9 @@ type listResponse struct {
 }
 
 type retrySettings struct {
-	maxRetries   int
-	waitDuration time.Duration
+	maxRetries           int
+	durationBetweenTries time.Duration
+	maxWaitDuration      time.Duration
 }
 
 type Client struct {
@@ -67,12 +68,20 @@ type Client struct {
 // Option represents a functional Option for the Client.
 type Option func(*Client)
 
-// WithUpdateRetrySettings sets the maximum number of retries as well as duration between retries for Update and Upsert HTTP requests
-func WithUpdateRetrySettings(maxRetries int, waitDuration time.Duration) Option {
+// WithRetrySettings sets the maximum number of retries as well as duration between retries.
+// These settings are honored wherever retries are used in the Client - most notably in Client.Update and Client.Upsert,
+// as well as Client.Create when waiting for a bucket to become available after creation.
+//
+// Parameters:
+//   - maxRetries: maximum amount actions may be retries. (Some actions may ignore this and only honor maxWaitDuration)
+//   - durationBetweenTries: time.Duration to wait between tries.
+//   - maxWaitDuration: maximum time.Duration to wait before retrying is cancelled. If you supply a context.Context with a timeout, the shorter of the two will be honored.
+func WithRetrySettings(maxRetries int, durationBetweenTries time.Duration, maxWaitDuration time.Duration) Option {
 	return func(c *Client) {
 		c.retrySettings = retrySettings{
-			maxRetries:   maxRetries,
-			waitDuration: waitDuration,
+			maxRetries:           maxRetries,
+			durationBetweenTries: durationBetweenTries,
+			maxWaitDuration:      maxWaitDuration,
 		}
 	}
 }
@@ -91,8 +100,9 @@ func NewClient(client *rest.Client, option ...Option) *Client {
 	c := &Client{
 		client: client,
 		retrySettings: retrySettings{
-			maxRetries:   5,
-			waitDuration: time.Second,
+			maxRetries:           5,
+			durationBetweenTries: time.Second,
+			maxWaitDuration:      2 * time.Minute,
 		},
 	}
 
@@ -232,27 +242,34 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	}
 
 	// attempt update
+	ctx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
+	defer cancel()
 	for i := 0; i < c.retrySettings.maxRetries; i++ {
-		logger.V(1).Info(fmt.Sprintf("Trying to update bucket with bucket name %q (%d/%d retries)", bucketName, i+1, c.retrySettings.maxRetries))
+		select {
+		case <-ctx.Done():
+			return Response{}, fmt.Errorf("context cancelled before bucket with bucktName %q became available", bucketName)
+		default:
+			logger.V(1).Info(fmt.Sprintf("Trying to update bucket with bucket name %q (%d/%d retries)", bucketName, i+1, c.retrySettings.maxRetries))
 
-		resp, err = c.getAndUpdate(ctx, bucketName, data)
-		if err != nil {
-			return Response{}, err
-		}
+			resp, err = c.getAndUpdate(ctx, bucketName, data)
+			if err != nil {
+				return Response{}, err
+			}
 
-		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusBadRequest {
-			return Response{api.Response{
-				StatusCode: resp.StatusCode,
-				Data:       resp.Payload,
-				Request:    resp.RequestInfo,
-			}}, nil
-		}
+			if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusBadRequest {
+				return Response{api.Response{
+					StatusCode: resp.StatusCode,
+					Data:       resp.Payload,
+					Request:    resp.RequestInfo,
+				}}, nil
+			}
 
-		if resp.IsSuccess() {
-			logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
-			return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
+			if resp.IsSuccess() {
+				logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
+				return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
+			}
+			time.Sleep(c.retrySettings.durationBetweenTries)
 		}
-		time.Sleep(c.retrySettings.waitDuration)
 	}
 	return Response{
 		Response: api.Response{
@@ -358,7 +375,7 @@ func (c Client) create(ctx context.Context, bucketName string, data []byte) (res
 		return r, nil
 	}
 
-	timoutCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	timoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
 	defer cancel() // cancel deadline if awaitBucketReady returns before deadline
 	return c.awaitBucketReady(timoutCtx, bucketName)
 }
@@ -393,7 +410,7 @@ func (c Client) awaitBucketReady(ctx context.Context, bucketName string) (rest.R
 			}
 
 			logger.V(1).Info("Waiting for bucket to become active after creation...")
-			time.Sleep(c.retrySettings.waitDuration)
+			time.Sleep(c.retrySettings.durationBetweenTries)
 		}
 	}
 }
