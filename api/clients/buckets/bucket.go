@@ -354,7 +354,48 @@ func (c Client) create(ctx context.Context, bucketName string, data []byte) (res
 	if err != nil {
 		return rest.Response{}, fmt.Errorf("failed to create object with bucketName %q: %w", bucketName, err)
 	}
-	return r, nil
+	if !r.IsSuccess() {
+		return r, nil
+	}
+
+	timoutCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel() // cancel deadline if awaitBucketReady returns before deadline
+	return c.awaitBucketReady(timoutCtx, bucketName)
+}
+
+func (c Client) awaitBucketReady(ctx context.Context, bucketName string) (rest.Response, error) {
+	logger := logr.FromContextOrDiscard(ctx)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return rest.Response{}, fmt.Errorf("context cancelled before bucket with bucktName %q became available", bucketName)
+		default:
+			// query bucket
+			r, err := c.get(ctx, bucketName)
+			if err != nil {
+				return rest.Response{}, err
+			}
+			if !r.IsSuccess() && r.StatusCode != http.StatusNotFound { // if API returns 404 right after creation we want to wait
+				return r, nil
+			}
+
+			// try to unmarshal into internal struct
+			res, err := unmarshalJSON(&r)
+			if err != nil {
+				return r, err
+			}
+
+			if res.Status == "active" {
+				logger.V(1).Info("Created bucket became active and ready to use")
+				r.StatusCode = http.StatusCreated // return 'created' instead of the GET APIs 'ok'
+				return r, nil
+			}
+
+			logger.V(1).Info("Waiting for bucket to become active after creation...")
+			time.Sleep(c.retrySettings.waitDuration)
+		}
+	}
 }
 
 func (c Client) get(ctx context.Context, bucketName string) (rest.Response, error) {
