@@ -75,7 +75,7 @@ type Option func(*Client)
 // Parameters:
 //   - maxRetries: maximum amount actions may be retries. (Some actions may ignore this and only honor maxWaitDuration)
 //   - durationBetweenTries: time.Duration to wait between tries.
-//   - maxWaitDuration: maximum time.Duration to wait before retrying is cancelled. If you supply a context.Context with a timeout, the shorter of the two will be honored.
+//   - maxWaitDuration: maximum time.Duration to wait before retrying is canceled. If you supply a context.Context with a timeout, the shorter of the two will be honored.
 func WithRetrySettings(maxRetries int, durationBetweenTries time.Duration, maxWaitDuration time.Duration) Option {
 	return func(c *Client) {
 		c.retrySettings = retrySettings{
@@ -247,7 +247,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	for i := 0; i < c.retrySettings.maxRetries; i++ {
 		select {
 		case <-ctx.Done():
-			return Response{}, fmt.Errorf("context cancelled before bucket with bucktName %q became available", bucketName)
+			return Response{}, fmt.Errorf("context canceled before bucket with bucktName %q became available", bucketName)
 		default:
 			logger.V(1).Info(fmt.Sprintf("Trying to update bucket with bucket name %q (%d/%d retries)", bucketName, i+1, c.retrySettings.maxRetries))
 
@@ -386,7 +386,7 @@ func (c Client) awaitBucketReady(ctx context.Context, bucketName string) (rest.R
 	for {
 		select {
 		case <-ctx.Done():
-			return rest.Response{}, fmt.Errorf("context cancelled before bucket with bucktName %q became available", bucketName)
+			return rest.Response{}, fmt.Errorf("context canceled before bucket with bucktName %q became available", bucketName)
 		default:
 			// query bucket
 			r, err := c.get(ctx, bucketName)

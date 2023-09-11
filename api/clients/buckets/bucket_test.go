@@ -925,7 +925,7 @@ func TestUpdate(t *testing.T) {
 
 		ctx := testutils.ContextWithLogger(t)
 		_, err := client.Update(ctx, "bucket name", data)
-		assert.ErrorContains(t, err, "cancelled")
+		assert.ErrorContains(t, err, "canceled")
 	})
 }
 
