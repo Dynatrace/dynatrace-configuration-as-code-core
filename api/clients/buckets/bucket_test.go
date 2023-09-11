@@ -920,7 +920,7 @@ func TestUpdate(t *testing.T) {
 
 		u, _ := url.Parse(server.URL)
 		client := buckets.NewClient(rest.NewClient(u, &http.Client{}),
-			buckets.WithRetrySettings(5, 0, 0)) // maxWaitDuration should time out immediatly
+			buckets.WithRetrySettings(5, 0, 0)) // maxWaitDuration should time out immediately
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
