@@ -59,7 +59,7 @@ if !resp.IsSuccess() {
 }
 
 // unmarshal payload
-bucketDefinition, err := api.DecodeJSON[BucketDefninition](resp.Response)
+bucketDefinition, err := api.DecodeJSON[BucketDefinition](resp.Response)
 if err != nil {
 	// handle error
 }
