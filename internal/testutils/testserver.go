@@ -24,6 +24,7 @@ import (
 
 // TestServer is a wrapper around httptest.Server that provides utility methods for testing.
 type TestServer struct {
+	calls            int
 	*httptest.Server // Embedded httptest.Server for underlying server functionality.
 }
 
@@ -31,6 +32,11 @@ type TestServer struct {
 func (t TestServer) URL() *url.URL {
 	u, _ := url.Parse(t.Server.URL) //nolint:errcheck
 	return u
+}
+
+// Calls returns the number of calls invoked on the test server
+func (t TestServer) Calls() int {
+	return t.calls
 }
 
 // Client returns an HTTP client associated with the test server.
@@ -56,9 +62,31 @@ type ServerResponses map[HTTPMethod]struct {
 }
 
 // NewHTTPTestServer creates a new HTTP test server with the specified responses for each HTTP method.
-func NewHTTPTestServer(t *testing.T, arg ServerResponses) *TestServer {
-	return &TestServer{Server: httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		if res, found := arg[req.Method]; found {
+func NewHTTPTestServer(t *testing.T, responses []ServerResponses) *TestServer {
+	testServer := &TestServer{}
+	handler := func(rw http.ResponseWriter, req *http.Request) {
+		testServer.calls++
+		// Special case: if only one response is specified, this will be reused
+		// for each and every call
+		if len(responses) == 1 {
+			if res, found := responses[0][req.Method]; found {
+				if res.ValidateRequestFunc != nil {
+					res.ValidateRequestFunc(req)
+				}
+				rw.WriteHeader(res.ResponseCode)
+				_, _ = rw.Write([]byte(res.ResponseBody)) // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
+			} else {
+				t.Errorf("unexpected HTTP method call: %s", req.Method)
+			}
+			return
+		}
+
+		if len(responses) <= testServer.calls-1 {
+			t.Fail()
+			t.Fatalf("Exceeded number of calls to test server (expected: %d)", len(responses))
+		}
+
+		if res, found := responses[testServer.calls-1][req.Method]; found {
 			if res.ValidateRequestFunc != nil {
 				res.ValidateRequestFunc(req)
 			}
@@ -67,7 +95,9 @@ func NewHTTPTestServer(t *testing.T, arg ServerResponses) *TestServer {
 		} else {
 			t.Errorf("unexpected HTTP method call: %s", req.Method)
 		}
-	}))}
+	}
+	testServer.Server = httptest.NewServer(http.HandlerFunc(handler))
+	return testServer
 }
 
 // ErrorTransport is custom transport that always produces a simulated network error.

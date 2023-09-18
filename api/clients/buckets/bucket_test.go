@@ -42,12 +42,12 @@ func TestGet(t *testing.T) {
  "version": 1
 }`
 
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
 				ResponseBody: payload,
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -61,12 +61,12 @@ func TestGet(t *testing.T) {
 	})
 
 	t.Run("correctly create the error in case of a server issue", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodGet: {
 				ResponseCode: http.StatusNotFound,
 				ResponseBody: "{}",
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -107,12 +107,12 @@ func TestList(t *testing.T) {
 	]
 }`, bucket1, bucket2)
 
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
 				ResponseBody: payload,
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -128,12 +128,12 @@ func TestList(t *testing.T) {
 
 	t.Run("successfully returns empty response if no buckets exist", func(t *testing.T) {
 		const payload = `{ "buckets": [] }`
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
 				ResponseBody: payload,
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -148,12 +148,12 @@ func TestList(t *testing.T) {
 	})
 
 	t.Run("successfully returns response in case of HTTP error", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodGet: {
 				ResponseCode: http.StatusNotFound,
 				ResponseBody: "{}",
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -206,7 +206,7 @@ func TestUpsert(t *testing.T) {
 }`
 
 	t.Run("create new bucket - OK", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodPost: {
 				ResponseCode: http.StatusOK,
 				ResponseBody: creatingBucketResponse,
@@ -225,7 +225,7 @@ func TestUpsert(t *testing.T) {
 				ResponseCode: http.StatusOK,
 				ResponseBody: activeBucketResponse,
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -281,7 +281,7 @@ func TestUpsert(t *testing.T) {
 	})
 
 	t.Run("create fails", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodPost: {
 				ResponseCode: http.StatusForbidden,
 				ResponseBody: "Bucket exists",
@@ -294,7 +294,7 @@ func TestUpsert(t *testing.T) {
 				ResponseCode: http.StatusOK,
 				ResponseBody: activeBucketResponse,
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -309,7 +309,7 @@ func TestUpsert(t *testing.T) {
 	})
 
 	t.Run("bucket exists, update - OK", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodPost: {
 				ResponseCode: http.StatusConflict,
 				ResponseBody: "Bucket exists",
@@ -335,7 +335,7 @@ func TestUpsert(t *testing.T) {
 					assert.Equal(t, "bucket name", m["bucketName"])
 				},
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -355,7 +355,7 @@ func TestUpsert(t *testing.T) {
 	})
 
 	t.Run("bucket exists, update fails", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodPost: {
 				ResponseCode: http.StatusConflict,
 				ResponseBody: "Bucket exists",
@@ -368,7 +368,7 @@ func TestUpsert(t *testing.T) {
 				ResponseCode: http.StatusForbidden,
 				ResponseBody: "no write access message",
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -383,7 +383,7 @@ func TestUpsert(t *testing.T) {
 	})
 
 	t.Run("bucket exists, update fails with conflict", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodPost: {
 				ResponseCode: http.StatusConflict,
 				ResponseBody: "Bucket exists",
@@ -396,7 +396,7 @@ func TestUpsert(t *testing.T) {
 				ResponseCode: http.StatusConflict,
 				ResponseBody: `some conflicting error'`,
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -413,7 +413,7 @@ func TestUpsert(t *testing.T) {
 	})
 
 	t.Run("bucket exists, update fails because GET fails", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodPost: {
 				ResponseCode: http.StatusConflict,
 				ResponseBody: "expected error, we don't want to create",
@@ -422,7 +422,7 @@ func TestUpsert(t *testing.T) {
 				ResponseCode: http.StatusNotFound,
 				ResponseBody: "expected error, we don't want to get",
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -480,7 +480,7 @@ func TestUpsert(t *testing.T) {
 	})
 
 	t.Run("bucket exists, but is not modified, no update happens", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodPost: {
 				ResponseCode: http.StatusConflict,
 				ResponseBody: "Bucket exists",
@@ -492,7 +492,7 @@ func TestUpsert(t *testing.T) {
 					assert.Contains(t, req.URL.String(), url.PathEscape("bucket name"))
 				},
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -520,12 +520,12 @@ func TestDelete(t *testing.T) {
 }`
 
 	t.Run("delete bucket - OK", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodDelete: {
 				ResponseCode: http.StatusAccepted,
 				ResponseBody: someBucketResponse,
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -540,11 +540,11 @@ func TestDelete(t *testing.T) {
 	})
 
 	t.Run("delete bucket - not found", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodDelete: {
 				ResponseCode: http.StatusNotFound,
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -559,11 +559,11 @@ func TestDelete(t *testing.T) {
 	})
 
 	t.Run("delete bucket - network error", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodDelete: {
 				ResponseCode: http.StatusNotFound,
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -608,7 +608,7 @@ func TestCreate(t *testing.T) {
 }`
 
 	t.Run("create bucket - OK", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodPost: {
 				ResponseCode: http.StatusCreated,
 				ResponseBody: creatingBucketResponse,
@@ -617,7 +617,7 @@ func TestCreate(t *testing.T) {
 				ResponseCode: http.StatusOK,
 				ResponseBody: activeBucketResponse,
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -668,9 +668,9 @@ func TestCreate(t *testing.T) {
 	})
 
 	t.Run("create bucket - network error", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			// no request should reach test server
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -684,9 +684,9 @@ func TestCreate(t *testing.T) {
 	})
 
 	t.Run("create bucket - invalid data", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			// no request should reach test server
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -712,7 +712,7 @@ func TestUpdate(t *testing.T) {
   "version": 1
 }`
 	t.Run("update fails", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
 				ResponseBody: someBucketResponse,
@@ -721,7 +721,7 @@ func TestUpdate(t *testing.T) {
 				ResponseCode: http.StatusForbidden,
 				ResponseBody: "no write access message",
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -735,7 +735,7 @@ func TestUpdate(t *testing.T) {
 	})
 
 	t.Run("update bucket - OK", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
 				ResponseBody: someBucketResponse,
@@ -757,7 +757,7 @@ func TestUpdate(t *testing.T) {
 					assert.Equal(t, "bucket name", m["bucketName"])
 				},
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -776,7 +776,7 @@ func TestUpdate(t *testing.T) {
 	})
 
 	t.Run("unmodified bucket - nothing happens", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
 				ResponseBody: someBucketResponse,
@@ -784,7 +784,7 @@ func TestUpdate(t *testing.T) {
 					assert.Contains(t, req.URL.String(), url.PathEscape("bucket name"))
 				},
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -805,7 +805,7 @@ func TestUpdate(t *testing.T) {
 	})
 
 	t.Run("Update fails with conflict", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
 				ResponseBody: someBucketResponse,
@@ -814,7 +814,7 @@ func TestUpdate(t *testing.T) {
 				ResponseCode: http.StatusConflict,
 				ResponseBody: `some conflicting error'`,
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -830,7 +830,7 @@ func TestUpdate(t *testing.T) {
 	})
 
 	t.Run("Update fails because GET fails", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodPost: {
 				ResponseCode: http.StatusForbidden,
 				ResponseBody: "expected error, we don't want to create",
@@ -839,7 +839,7 @@ func TestUpdate(t *testing.T) {
 				ResponseCode: http.StatusForbidden,
 				ResponseBody: "expected error, we don't want to get",
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -956,12 +956,12 @@ func TestDecodingBucketResponses(t *testing.T) {
 	}
 
 	t.Run("Get single bucket", func(t *testing.T) {
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
 				ResponseBody: bucket1,
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -988,12 +988,12 @@ func TestDecodingBucketResponses(t *testing.T) {
 	]
 }`, bucket1, bucket2)
 
-		responses := testutils.ServerResponses{
+		responses := []testutils.ServerResponses{{
 			http.MethodGet: {
 				ResponseCode: http.StatusOK,
 				ResponseBody: payload,
 			},
-		}
+		}}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
