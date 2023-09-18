@@ -134,6 +134,11 @@ func (c *Client) SetHeader(key, value string) {
 	c.headers[key] = value
 }
 
+// BaseURL returns the base url configured fpr this client
+func (c *Client) BaseURL() *url.URL {
+	return c.baseURL
+}
+
 // sendRequestWithRetries sends an HTTP request with custom headers and modified request body, with retries if configured.
 func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endpoint string, body io.Reader, retryCount int, options RequestOptions) (Response, error) {
 
