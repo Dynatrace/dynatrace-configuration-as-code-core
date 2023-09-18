@@ -15,6 +15,8 @@
 package clients
 
 import (
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/automation"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/buckets"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2/clientcredentials"
 	"testing"
@@ -32,9 +34,17 @@ func TestClientCreation(t *testing.T) {
 		}).
 		WithUserAgent("MyUserAgent")
 
-	client, err := f.BucketClient()
+	var clientInstance interface{}
+	clientInstance, err := f.BucketClient()
 	assert.NoError(t, err)
-	assert.NotNil(t, client)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &buckets.Client{}, clientInstance)
+
+	clientInstance, err = f.AutomationClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &automation.Client{}, clientInstance)
+
 	//... other clients
 }
 
@@ -49,10 +59,17 @@ func TestClientMissingEnvironmentURL(t *testing.T) {
 		}).
 		WithUserAgent("MyUserAgent")
 
-	client, err := f.BucketClient()
+	var clientInstance interface{}
+	clientInstance, err := f.BucketClient()
 	assert.Error(t, err)
-	assert.Nil(t, client)
+	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrEnvironmentURLMissing)
+
+	clientInstance, err = f.AutomationClient()
+	assert.Error(t, err)
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrEnvironmentURLMissing)
+
 	//... other clients
 }
 
@@ -63,10 +80,17 @@ func TestClientMissingOAuthCredentials(t *testing.T) {
 		WithEnvironmentURL("https://example.com/api").
 		WithUserAgent("MyUserAgent")
 
-	client, err := f.BucketClient()
+	var clientInstance interface{}
+	clientInstance, err := f.BucketClient()
 	assert.Error(t, err)
-	assert.Nil(t, client)
+	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
+
+	clientInstance, err = f.AutomationClient()
+	assert.Error(t, err)
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
+
 	//... other clients
 }
 
@@ -82,9 +106,16 @@ func TestClientURLParsingError(t *testing.T) {
 		}).
 		WithUserAgent("MyUserAgent")
 
-	client, err := f.BucketClient()
+	var clientInstance interface{}
+	clientInstance, err := f.BucketClient()
 	assert.Error(t, err)
-	assert.Nil(t, client)
+	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, "failed to parse URL")
+
+	clientInstance, err = f.AutomationClient()
+	assert.Error(t, err)
+	assert.Nil(t, clientInstance)
+	assert.ErrorContains(t, err, "failed to parse URL")
+
 	//... other clients
 }
