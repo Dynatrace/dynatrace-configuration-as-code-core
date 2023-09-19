@@ -32,23 +32,7 @@ type Response struct {
 	api.Response
 }
 
-// PagedListResponse contains multiple ListResponse values
-type PagedListResponse []ListResponse
-
-// Objects returns all objects of a PagedListResponse
-func (p *PagedListResponse) Objects() [][]byte {
-	var ret [][]byte
-	for _, l := range []ListResponse(*p) {
-		for _, o := range l.Objects {
-			ret = append(ret, o)
-		}
-	}
-	return ret
-}
-
-type ListResponse struct {
-	api.ListResponse
-}
+type ListResponse = api.PagedListResponse
 
 type listResponse struct {
 	api.Response
@@ -153,13 +137,13 @@ func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (
 //
 //	(Response, error): A Response object containing information about the HTTP response
 //	and an error, if any.
-func (a Client) List(ctx context.Context, resourceType ResourceType) (PagedListResponse, error) {
+func (a Client) List(ctx context.Context, resourceType ResourceType) (ListResponse, error) {
 
-	var retVal []ListResponse
+	var retVal ListResponse
 	var result listResponse
 	result.Count = 1
 
-	getCount := func(l []ListResponse) int {
+	getCount := func(l ListResponse) int {
 		var count int
 		for _, r := range l {
 			count += len(r.Objects)
@@ -173,26 +157,25 @@ func (a Client) List(ctx context.Context, resourceType ResourceType) (PagedListR
 		)
 
 		if err != nil {
-			return []ListResponse{}, fmt.Errorf("failed to list buckets:%w", err)
+			return ListResponse{}, fmt.Errorf("failed to list buckets:%w", err)
 		}
 
 		// if one of the response has code != 2xx return empty list with response info
 		if !resp.IsSuccess() {
-			return []ListResponse{{
+			return ListResponse{
 				api.ListResponse{
 					Response: api.Response{
 						StatusCode: resp.StatusCode,
 						Data:       resp.Payload,
 						Request:    resp.RequestInfo,
 					},
-					Objects: nil,
 				},
-			}}, nil
+			}, nil
 		}
 
 		result, err = unmarshalJSONList(&resp)
 		if err != nil {
-			return []ListResponse{}, fmt.Errorf("failed to parse list response:%w", err)
+			return ListResponse{}, fmt.Errorf("failed to parse list response:%w", err)
 		}
 
 		b := make([][]byte, len(result.Objects))
@@ -200,14 +183,14 @@ func (a Client) List(ctx context.Context, resourceType ResourceType) (PagedListR
 			b[i], _ = v.MarshalJSON() // marshalling the JSON back to JSON will not fail
 		}
 
-		retVal = append(retVal, ListResponse{api.ListResponse{
+		retVal = append(retVal, api.ListResponse{
 			Response: api.Response{
 				StatusCode: result.StatusCode,
 				Data:       result.Data,
 				Request:    result.Request,
 			},
 			Objects: b,
-		}})
+		})
 
 	}
 

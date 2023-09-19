@@ -509,32 +509,28 @@ func TestAutomationClient_List(t *testing.T) {
 		client := automation.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.List(ctx, automation.Workflows)
-		assert.Equal(t, automation.PagedListResponse{}, resp)
+		assert.Equal(t, api.PagedListResponse{}, resp)
 		assert.NotNil(t, err)
 	})
 }
 
 func TestPagedListResponse(t *testing.T) {
-	pr := automation.PagedListResponse{
-		automation.ListResponse{
-			api.ListResponse{
-				Response: api.Response{},
-				Objects: [][]byte{
-					{'1'},
-					{'2'},
-				},
+	pr := api.PagedListResponse{
+		api.ListResponse{
+			Response: api.Response{},
+			Objects: [][]byte{
+				{'1'},
+				{'2'},
 			},
 		},
-		automation.ListResponse{
-			api.ListResponse{
-				Response: api.Response{},
-				Objects: [][]byte{
-					{'3'},
-					{'4'},
-				},
+		api.ListResponse{
+			Response: api.Response{},
+			Objects: [][]byte{
+				{'3'},
+				{'4'},
 			},
 		},
 	}
 
-	assert.Equal(t, [][]byte{{'1'}, {'2'}, {'3'}, {'4'}}, pr.Objects())
+	assert.Equal(t, [][]byte{{'1'}, {'2'}, {'3'}, {'4'}}, pr.All())
 }
