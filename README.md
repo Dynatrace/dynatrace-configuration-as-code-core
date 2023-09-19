@@ -25,7 +25,7 @@ happen either prior to making the actual HTTP calls or if the HTTP calls couldn'
 |---------------------|-------------|
 | Classic config APIs | ❌           |
 | Settings 2.0        | ❌           |
-| Automation          | ❌           |
+| Automation          | ✅           |
 | Grail buckets       | ✅           |
 
 
