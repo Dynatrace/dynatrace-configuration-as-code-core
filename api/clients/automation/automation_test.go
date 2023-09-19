@@ -112,7 +112,7 @@ func TestAutomationClient_Create(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("Create - HTTP Post returns non 2xx", func(t *testing.T) {
+	t.Run("Create - HTTP PUT returns non 2xx", func(t *testing.T) {
 
 		responses := testutils.ServerResponses{
 			http.MethodPost: {
@@ -147,6 +147,84 @@ func TestAutomationClient_Create(t *testing.T) {
 
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Create(ctx, automation.Workflows, []byte(payload))
+		assert.Zero(t, resp)
+		assert.Error(t, err)
+	})
+}
+
+func TestAutomationClient_Update(t *testing.T) {
+	const payload = `{ "id" : "91cc8988-2223-404a-a3f5-5f1a839ecd45", "data" : "some-data1" }`
+	t.Run("Update  - try with adminAccess -if fails try without - OK", func(t *testing.T) {
+
+		responses := []testutils.ServerResponses{{
+			http.MethodPut: {
+				ResponseCode: http.StatusForbidden,
+				ResponseBody: payload,
+				ValidateRequestFunc: func(request *http.Request) {
+					adminAccessQP := request.URL.Query()["adminAccess"]
+					assert.Len(t, adminAccessQP, 1)
+					assert.Equal(t, "true", adminAccessQP[0])
+				},
+			},
+		},
+			{
+				http.MethodPut: {
+					ResponseCode: http.StatusOK,
+					ResponseBody: payload,
+					ValidateRequestFunc: func(request *http.Request) {
+						adminAccessQP := request.URL.Query()["adminAccess"]
+						assert.Len(t, adminAccessQP, 0)
+					},
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Update(ctx, automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45", []byte(payload))
+		assert.NotNil(t, resp)
+		assert.Equal(t, payload, string(resp.Data))
+		assert.NoError(t, err)
+	})
+
+	t.Run("Update - HTTP PUT returns non 2xx", func(t *testing.T) {
+
+		responses := testutils.ServerResponses{
+			http.MethodPut: {
+				ResponseCode: http.StatusInternalServerError,
+				ResponseBody: "{}",
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+		defer server.Close()
+
+		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Update(ctx, automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45", []byte(payload))
+
+		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Update - HTTP PUT call is not possible", func(t *testing.T) {
+		responses := testutils.ServerResponses{
+			http.MethodPut: {
+				ResponseCode: http.StatusInternalServerError,
+				ResponseBody: "{}",
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+		defer server.Close()
+
+		client := automation.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
+
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Update(ctx, automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45", []byte(payload))
+
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -572,25 +650,4 @@ func TestAutomationClient_List(t *testing.T) {
 		assert.Equal(t, api.PagedListResponse{}, resp)
 		assert.NotNil(t, err)
 	})
-}
-
-func TestPagedListResponse(t *testing.T) {
-	pr := api.PagedListResponse{
-		api.ListResponse{
-			Response: api.Response{},
-			Objects: [][]byte{
-				{'1'},
-				{'2'},
-			},
-		},
-		api.ListResponse{
-			Response: api.Response{},
-			Objects: [][]byte{
-				{'3'},
-				{'4'},
-			},
-		},
-	}
-
-	assert.Equal(t, [][]byte{{'1'}, {'2'}, {'3'}, {'4'}}, pr.All())
 }

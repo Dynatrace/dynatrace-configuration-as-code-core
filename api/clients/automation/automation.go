@@ -136,6 +136,23 @@ func (a Client) Create(ctx context.Context, resourceType ResourceType, data []by
 	return a.create(ctx, data, resourceType)
 }
 
+// Update updates an automation object based on the specified resource type and id
+//
+// Parameters:
+//
+//   - ctx (context.Context): The context for the HTTP request.
+//   - resourceType (ResourceType): The type of the resource to retrieve.
+//   - id (string): the id of the resource to be updated
+//   - data ([]byte): the updated data
+//
+// Returns:
+//
+//	(Response, error): A Response object containing information about the HTTP response
+//	and an error, if any.
+func (a Client) Update(ctx context.Context, resourceType ResourceType, id string, data []byte) (Response, error) {
+	return a.update(ctx, resourceType, id, data)
+}
+
 // List retrieves a list of automation objects of the specified resource
 //
 // The function sends multiple HTTP GET requests to fetch paginated data. It continues making requests
@@ -228,34 +245,13 @@ func (a Client) Upsert(ctx context.Context, resourceType ResourceType, id string
 	if id == "" {
 		return Response{}, fmt.Errorf("id must be non empty")
 	}
-	if err := rmIDField(&data); err != nil {
-		return Response{}, fmt.Errorf("unable to remove id field from payload in order to update object with ID %s: %w", id, err)
-	}
-
-	path, err := url.JoinPath(a.resources[resourceType].Path, id)
+	resp, err := a.update(ctx, resourceType, id, data)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to create URL: %w", err)
-	}
-
-	workflowsAdminAccess := resourceType == Workflows
-
-	resp, err := a.client.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{
-		QueryParams: url.Values{"adminAccess": []string{strconv.FormatBool(workflowsAdminAccess)}},
-	})
-	if err != nil {
-		return Response{}, fmt.Errorf("unable to update object with ID %s: %w", id, err)
-	}
-
-	if workflowsAdminAccess && resp.StatusCode == http.StatusForbidden {
-
-		resp, err = a.client.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{})
-		if err != nil {
-			return Response{}, fmt.Errorf("unable to update object with ID %s: %w", id, err)
-		}
+		return Response{}, err
 	}
 
 	if resp.IsSuccess() {
-		return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
+		return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Data, Request: resp.Request}}, nil
 	}
 
 	// at this point we need to create a new object using HTTP POST
@@ -321,6 +317,35 @@ func (a Client) createWithID(ctx context.Context, resourceType ResourceType, id 
 		return Response{}, err
 	}
 
+	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
+}
+
+func (a Client) update(ctx context.Context, resourceType ResourceType, id string, data []byte) (Response, error) {
+	if err := rmIDField(&data); err != nil {
+		return Response{}, fmt.Errorf("unable to remove id field from payload in order to update object with ID %s: %w", id, err)
+	}
+
+	path, err := url.JoinPath(a.resources[resourceType].Path, id)
+	if err != nil {
+		return Response{}, fmt.Errorf("failed to create URL: %w", err)
+	}
+
+	workflowsAdminAccess := resourceType == Workflows
+
+	resp, err := a.client.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{
+		QueryParams: url.Values{"adminAccess": []string{strconv.FormatBool(workflowsAdminAccess)}},
+	})
+	if err != nil {
+		return Response{}, fmt.Errorf("unable to update object with ID %s: %w", id, err)
+	}
+
+	if workflowsAdminAccess && resp.StatusCode == http.StatusForbidden {
+
+		resp, err = a.client.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{})
+		if err != nil {
+			return Response{}, fmt.Errorf("unable to update object with ID %s: %w", id, err)
+		}
+	}
 	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
 }
 
