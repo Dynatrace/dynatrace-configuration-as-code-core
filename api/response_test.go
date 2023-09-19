@@ -100,6 +100,47 @@ func TestDecodeJSONObjects(t *testing.T) {
 	assert.Equal(t, "three", res[2].Key)
 }
 
+func TestDecodePaginatedJSONObjects(t *testing.T) {
+	response := PagedListResponse{
+		ListResponse{
+			Objects: [][]byte{
+				[]byte(`{ "key": "one" }`),
+				[]byte(`{ "key": "two" }`),
+				[]byte(`{ "key": "three" }`),
+			},
+		},
+		ListResponse{
+			Objects: [][]byte{
+				[]byte(`{ "key": "four" }`),
+			},
+		},
+		ListResponse{
+			Objects: [][]byte{
+				[]byte(`{ "key": "five" }`),
+			},
+		},
+		ListResponse{
+			Objects: [][]byte{
+				[]byte(`{ "key": "six" }`),
+			},
+		},
+	}
+	type val struct {
+		Key string `json:"key"`
+	}
+
+	res, err := DecodePaginatedJSONObjects[val](response)
+
+	assert.NoError(t, err)
+	assert.Len(t, res, 6)
+	assert.Equal(t, "one", res[0].Key)
+	assert.Equal(t, "two", res[1].Key)
+	assert.Equal(t, "three", res[2].Key)
+	assert.Equal(t, "four", res[3].Key)
+	assert.Equal(t, "five", res[4].Key)
+	assert.Equal(t, "six", res[5].Key)
+}
+
 func TestAsAPIError(t *testing.T) {
 	testCases := []struct {
 		name       string
@@ -183,4 +224,85 @@ func TestPagedListResponse(t *testing.T) {
 	}
 
 	assert.Equal(t, [][]byte{{'1'}, {'2'}, {'3'}, {'4'}}, pr.All())
+}
+
+func TestPagedListResponse_AsAPIError(t *testing.T) {
+	testCases := []struct {
+		name       string
+		given      PagedListResponse
+		expected   APIError
+		expectedOK bool
+	}{
+		{
+			"empty list is not an error",
+			PagedListResponse{},
+			APIError{},
+			false,
+		},
+		{
+			"single entry 4xx is an error",
+			PagedListResponse{
+				ListResponse{
+					Response: Response{
+						StatusCode: 403,
+					},
+				},
+			},
+			APIError{
+				StatusCode: 403,
+			},
+			true,
+		},
+		{
+			"single entry 5xx is an error",
+			PagedListResponse{
+				ListResponse{
+					Response: Response{
+						StatusCode: 500,
+					},
+				},
+			},
+			APIError{
+				StatusCode: 500,
+			},
+			true,
+		},
+		{
+			"several entries is not an error",
+			PagedListResponse{
+				ListResponse{
+					Response: Response{
+						StatusCode: 403,
+					},
+				},
+				ListResponse{
+					Response: Response{
+						StatusCode: 200,
+					},
+				},
+			},
+			APIError{},
+			false,
+		},
+		{
+			"single entry 2xx is not an error",
+			PagedListResponse{
+				ListResponse{
+					Response: Response{
+						StatusCode: 201,
+					},
+				},
+			},
+			APIError{},
+			false,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotOK := tt.given.AsAPIError()
+			assert.Equal(t, tt.expected, got)
+			assert.Equal(t, tt.expectedOK, gotOK)
+		})
+	}
 }
