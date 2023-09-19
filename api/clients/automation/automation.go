@@ -66,11 +66,11 @@ var resources = map[ResourceType]Resource{
 //
 // Parameters:
 //
-//   - client (*rest.Client): A REST client used for making HTTP requests to interact with automation resources.
+//   - client: A REST client used for making HTTP requests to interact with automation resources.
 //
 // Returns:
 //
-//   - c (*Client): A new instance of the Client type initialized with the provided REST client and resources.
+//   - *Client: A new instance of the Client type initialized with the provided REST client and resources.
 func NewClient(client *rest.Client) *Client {
 	c := &Client{
 		client:    client,
@@ -96,15 +96,15 @@ type ClientOption func(*Client)
 //
 // Parameters:
 //
-//   - ctx (context.Context): The context for the HTTP request.
-//   - resourceType (ResourceType): The type of the resource to retrieve.
-//   - id (string): The unique identifier of the object to retrieve.
+//   - ctx: The context for the HTTP request.
+//   - resourceType: The type of the resource to retrieve.
+//   - id: The unique identifier of the object to retrieve.
 //
 // Returns:
 //
-//	(Response, error): A Response object containing information about the HTTP response
-//	and an error, if any.
-func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (result Response, err error) {
+//   - Response: A Response containing the result of the HTTP operation, including status code and data.
+//   - error: An error if the HTTP call fails or another error happened.
+func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (Response, error) {
 	if id == "" {
 		return Response{}, fmt.Errorf("id must be non empty")
 	}
@@ -124,14 +124,14 @@ func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (
 //
 // Parameters:
 //
-//   - ctx (context.Context): The context for the HTTP request.
-//   - resourceType (ResourceType): The type of the resource to retrieve.
-//   - data ([]byte): the data of the resource
+//   - ctx: The context for the HTTP request.
+//   - resourceType: The type of the resource to retrieve.
+//   - data: the data of the resource
 //
 // Returns:
 //
-//	(Response, error): A Response object containing information about the HTTP response
-//	and an error, if any.
+//   - Response: A Response containing the result of the HTTP operation, including status code and data.
+//   - error: An error if the HTTP call fails or another error happened.
 func (a Client) Create(ctx context.Context, resourceType ResourceType, data []byte) (result Response, err error) {
 	return a.create(ctx, data, resourceType)
 }
@@ -140,15 +140,15 @@ func (a Client) Create(ctx context.Context, resourceType ResourceType, data []by
 //
 // Parameters:
 //
-//   - ctx (context.Context): The context for the HTTP request.
-//   - resourceType (ResourceType): The type of the resource to retrieve.
-//   - id (string): the id of the resource to be updated
-//   - data ([]byte): the updated data
+//   - ctx: The context for the HTTP request.
+//   - resourceType: The type of the resource to retrieve.
+//   - id: the id of the resource to be updated
+//   - data: the updated data
 //
 // Returns:
 //
-//	(Response, error): A Response object containing information about the HTTP response
-//	and an error, if any.
+//   - Response: A Response containing the result of the HTTP operation, including status code and data.
+//   - error: An error if the HTTP call fails or another error happened.
 func (a Client) Update(ctx context.Context, resourceType ResourceType, id string, data []byte) (Response, error) {
 	return a.update(ctx, resourceType, id, data)
 }
@@ -163,13 +163,13 @@ func (a Client) Update(ctx context.Context, resourceType ResourceType, id string
 // from each paginated request are stored as byte slices within the ListResponse.
 //
 // Parameters:
-//   - ctx (context.Context): A context.Context for controlling the request lifecycle.
-//   - resourceType (ResourceType): The type of resource to list.
+//   - ctx: A context.Context for controlling the request lifecycle.
+//   - resourceType: The type of resource to list.
 //
 // Returns:
 //
-//	(Response, error): A Response object containing information about the HTTP response
-//	and an error, if any.
+//   - ListResponse: A ListResponse which is an api.PagedListResponse containing all objects fetched from the api
+//   - error: An error if the HTTP call fails or another error happened.
 func (a Client) List(ctx context.Context, resourceType ResourceType) (ListResponse, error) {
 	var retVal ListResponse
 	var result listResponse
@@ -232,15 +232,15 @@ func (a Client) List(ctx context.Context, resourceType ResourceType) (ListRespon
 // Upsert creates or updates an object of a specified resource type with the given ID and data.
 //
 // Parameters:
-//   - ctx (context.Context): The context for the HTTP request.
-//   - resourceType (ResourceType): The type of the resource to upsert.
-//   - id (string): The unique identifier for the object.
-//   - data ([]byte): The data payload representing the object.
+//   - ctx: The context for the HTTP request.
+//   - resourceType: The type of the resource to upsert.
+//   - id: The unique identifier for the object.
+//   - data: The data payload representing the object.
 //
 // Returns:
 //
-//	(Response, error): A Response object containing information about the HTTP response
-//	and an error, if any.
+//   - Response: A Response containing the result of the HTTP operation, including status code and data.
+//   - error: An error if the HTTP call fails or another error happened.
 func (a Client) Upsert(ctx context.Context, resourceType ResourceType, id string, data []byte) (result Response, err error) {
 	if id == "" {
 		return Response{}, fmt.Errorf("id must be non empty")
@@ -264,13 +264,14 @@ func (a Client) Upsert(ctx context.Context, resourceType ResourceType, id string
 // the request without the "adminAccess" parameter.
 //
 // Parameters:
-//   - ctx (context.Context): A context.Context for controlling the request lifecycle.
-//   - resourceType (ResourceType): The type of resource from which to delete the object.
-//   - id (string): The unique identifier (ID) of the object to delete.
+//   - ctx: A context.Context for controlling the request lifecycle.
+//   - resourceType: The type of resource from which to delete the object.
+//   - id: The unique identifier (ID) of the object to delete.
 //
 // Returns:
 //
-//	(Response, error): A Response object containing information about the HTTP response and an error, if any.
+//   - Response: A Response containing the result of the HTTP operation, including status code and data.
+//   - error: An error if the HTTP call fails or another error happened.
 func (a Client) Delete(ctx context.Context, resourceType ResourceType, id string) (Response, error) {
 	if id == "" {
 		return Response{}, fmt.Errorf("id must be non empty")
