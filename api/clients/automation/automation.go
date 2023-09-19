@@ -96,14 +96,14 @@ type ClientOption func(*Client)
 //
 // Parameters:
 //
-//	ctx (context.Context): The context for the HTTP request.
-//	resourceType (ResourceType): The type of the resource to retrieve.
-//	id (string): The unique identifier of the object to retrieve.
+//   - ctx (context.Context): The context for the HTTP request.
+//   - resourceType (ResourceType): The type of the resource to retrieve.
+//   - id (string): The unique identifier of the object to retrieve.
 //
 // Returns:
 //
-//	result (Response): A Response object containing the retrieved object and its metadata.
-//	err (error): An error if the retrieval operation fails or if the ID is empty.
+//	(Response, error): A Response object containing information about the HTTP response
+//	and an error, if any.
 func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (result Response, err error) {
 	if id == "" {
 		return Response{}, fmt.Errorf("id must be non empty")
@@ -118,6 +118,22 @@ func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (
 	}
 
 	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
+}
+
+// Create creates a new automation object based on the specified resource type.
+//
+// Parameters:
+//
+//   - ctx (context.Context): The context for the HTTP request.
+//   - resourceType (ResourceType): The type of the resource to retrieve.
+//   - data ([]byte): the data of the resource
+//
+// Returns:
+//
+//	(Response, error): A Response object containing information about the HTTP response
+//	and an error, if any.
+func (a Client) Create(ctx context.Context, resourceType ResourceType, data []byte) (result Response, err error) {
+	return a.create(ctx, data, resourceType)
 }
 
 // List retrieves a list of automation objects of the specified resource
@@ -138,7 +154,6 @@ func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (
 //	(Response, error): A Response object containing information about the HTTP response
 //	and an error, if any.
 func (a Client) List(ctx context.Context, resourceType ResourceType) (ListResponse, error) {
-
 	var retVal ListResponse
 	var result listResponse
 	result.Count = 1
@@ -195,7 +210,6 @@ func (a Client) List(ctx context.Context, resourceType ResourceType) (ListRespon
 	}
 
 	return retVal, nil
-
 }
 
 // Upsert creates or updates an object of a specified resource type with the given ID and data.
@@ -245,21 +259,7 @@ func (a Client) Upsert(ctx context.Context, resourceType ResourceType, id string
 	}
 
 	// at this point we need to create a new object using HTTP POST
-	return a.create(ctx, id, data, resourceType)
-}
-
-func (a Client) create(ctx context.Context, id string, data []byte, resourceType ResourceType) (Response, error) {
-	// make sure actual "id" field is set in payload
-	if err := setIDField(id, &data); err != nil {
-		return Response{}, fmt.Errorf("unable to set the id field in order to crate object with id %s: %w", id, err)
-	}
-
-	resp, err := a.client.POST(ctx, a.resources[resourceType].Path, bytes.NewReader(data), rest.RequestOptions{})
-	if err != nil {
-		return Response{}, err
-	}
-
-	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
+	return a.createWithID(ctx, resourceType, id, data)
 }
 
 // Delete removes an automation object of the specified resource type by its unique identifier (ID).
@@ -302,7 +302,28 @@ func (a Client) Delete(ctx context.Context, resourceType ResourceType, id string
 	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
 }
 
-// unmarshalJSONList unmarshals JSON data into a listResponse struct.
+func (a Client) create(ctx context.Context, data []byte, resourceType ResourceType) (Response, error) {
+	resp, err := a.client.POST(ctx, a.resources[resourceType].Path, bytes.NewReader(data), rest.RequestOptions{})
+	if err != nil {
+		return Response{}, err
+	}
+
+	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
+}
+func (a Client) createWithID(ctx context.Context, resourceType ResourceType, id string, data []byte) (Response, error) {
+	// make sure actual "id" field is set in payload
+	if err := setIDField(id, &data); err != nil {
+		return Response{}, fmt.Errorf("unable to set the id field in order to crate object with id %s: %w", id, err)
+	}
+
+	resp, err := a.client.POST(ctx, a.resources[resourceType].Path, bytes.NewReader(data), rest.RequestOptions{})
+	if err != nil {
+		return Response{}, err
+	}
+
+	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
+}
+
 func unmarshalJSONList(raw *rest.Response) (listResponse, error) {
 	var r listResponse
 	err := json.Unmarshal(raw.Payload, &r)

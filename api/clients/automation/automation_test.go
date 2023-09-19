@@ -90,9 +90,69 @@ func TestAutomationClient_Get(t *testing.T) {
 	})
 }
 
-func TestAutomationClient_Upsert(t *testing.T) {
+func TestAutomationClient_Create(t *testing.T) {
+	const payload = `{ "id" : "91cc8988-2223-404a-a3f5-5f1a839ecd45", "data" : "some-data1" }`
+	t.Run("Create  - OK", func(t *testing.T) {
 
-	_ = `{"id" : "91cc8988-2223-404a-a3f5-5f1a839ecd45", "data" : "some-data"}`
+		responses := testutils.ServerResponses{
+			http.MethodPost: {
+				ResponseCode: http.StatusCreated,
+				ResponseBody: payload,
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+		defer server.Close()
+
+		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Create(ctx, automation.Workflows, []byte(payload))
+		assert.NotNil(t, resp)
+		assert.Equal(t, payload, string(resp.Data))
+		assert.NoError(t, err)
+	})
+
+	t.Run("Create - HTTP Post returns non 2xx", func(t *testing.T) {
+
+		responses := testutils.ServerResponses{
+			http.MethodPost: {
+				ResponseCode: http.StatusInternalServerError,
+				ResponseBody: "{}",
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+		defer server.Close()
+
+		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Create(ctx, automation.Workflows, []byte(payload))
+
+		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Create - Unable to make HTTP POST call", func(t *testing.T) {
+
+		responses := testutils.ServerResponses{
+			http.MethodPost: {
+				ResponseCode: http.StatusCreated,
+				ResponseBody: payload,
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+		defer server.Close()
+
+		client := automation.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
+
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Create(ctx, automation.Workflows, []byte(payload))
+		assert.Zero(t, resp)
+		assert.Error(t, err)
+	})
+}
+
+func TestAutomationClient_Upsert(t *testing.T) {
 
 	t.Run("Upsert - no ID given", func(t *testing.T) {
 		responses := testutils.ServerResponses{}
