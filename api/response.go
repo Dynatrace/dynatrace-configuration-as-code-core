@@ -27,6 +27,23 @@ type Response struct {
 	Request    rest.RequestInfo `json:"-"`
 }
 
+// PagedListResponse is a list of ListResponse values.
+// It is used by return values of APIs that support pagination.
+// Each ListResponse entry possibly contains multiple objects of the fetched resource type.
+// To get all response objects in a single slice you can call All()
+type PagedListResponse []ListResponse
+
+// All returns all objects of a PagedListResponse in one slice
+func (p PagedListResponse) All() [][]byte {
+	var ret [][]byte
+	for _, l := range []ListResponse(p) {
+		for _, o := range l.Objects {
+			ret = append(ret, o)
+		}
+	}
+	return ret
+}
+
 // ListResponse represents a multi-object API response
 // It contains both the full JSON Data, and a slice of Objects for more convenient access
 type ListResponse struct {
@@ -97,7 +114,7 @@ func DecodeJSON[T any](r Response) (T, error) {
 	return t, nil
 }
 
-// DecodeJSONObjects unmarshalls the Objects contained in the given ListResponse into a slice of T.
+// DecodeJSONObjects unmarshalls Objects contained in the given ListResponse into a slice of T.
 // To decode the full JSON response contained in ListResponse use Response.DecodeJSON.
 func DecodeJSONObjects[T any](r ListResponse) ([]T, error) {
 	res := make([]T, len(r.Objects))

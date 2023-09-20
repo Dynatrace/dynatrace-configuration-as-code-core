@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/auth"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/buckets"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"net/url"
@@ -70,8 +71,25 @@ func (f factory) WithHTTPListener(listener *rest.HTTPListener) factory {
 	return f
 }
 
+// AutomationClient creates and returns a new instance of automation.Client for interacting with the automation API.
+func (f factory) AutomationClient() (*automation.Client, error) {
+	restClient, err := f.createClient()
+	if err != nil {
+		return nil, err
+	}
+	return automation.NewClient(restClient), nil
+}
+
 // BucketClient creates and returns a new instance of buckets.Client for interacting with the bucket API.
 func (f factory) BucketClient() (*buckets.Client, error) {
+	restClient, err := f.createClient()
+	if err != nil {
+		return nil, err
+	}
+	return buckets.NewClient(restClient), nil
+}
+
+func (f factory) createClient() (*rest.Client, error) {
 	if f.url == "" {
 		return nil, ErrEnvironmentURLMissing
 	}
@@ -90,5 +108,5 @@ func (f factory) BucketClient() (*buckets.Client, error) {
 		restClient.SetHeader("User-Agent", f.userAgent)
 	}
 
-	return buckets.NewClient(restClient), nil
+	return restClient, nil
 }

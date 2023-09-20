@@ -163,3 +163,24 @@ func TestAsAPIError(t *testing.T) {
 		})
 	}
 }
+
+func TestPagedListResponse(t *testing.T) {
+	pr := PagedListResponse{
+		ListResponse{
+			Response: Response{},
+			Objects: [][]byte{
+				{'1'},
+				{'2'},
+			},
+		},
+		ListResponse{
+			Response: Response{},
+			Objects: [][]byte{
+				{'3'},
+				{'4'},
+			},
+		},
+	}
+
+	assert.Equal(t, [][]byte{{'1'}, {'2'}, {'3'}, {'4'}}, pr.All())
+}
