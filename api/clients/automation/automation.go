@@ -171,25 +171,33 @@ func (a Client) Update(ctx context.Context, resourceType ResourceType, id string
 //   - ListResponse: A ListResponse which is an api.PagedListResponse containing all objects fetched from the api
 //   - error: An error if the HTTP call fails or another error happened.
 func (a Client) List(ctx context.Context, resourceType ResourceType) (ListResponse, error) {
+	// retVal are the collected paginated API responses
 	var retVal ListResponse
+
+	// result is the latest API response received
 	var result listResponse
-	result.Count = 1
+	result.Count = 1 // ensure starting condition is met, after the first API call this will be actual total count of objects
 
-	getCount := func(l ListResponse) int {
-		var count int
-		for _, r := range l {
-			count += len(r.Objects)
-		}
-		return count
-	}
+	retrieved := 0
 
-	for getCount(retVal) < result.Count {
+	adminAccess := true
+
+	for retrieved < result.Count {
 		resp, err := a.client.GET(ctx, a.resources[resourceType].Path, rest.RequestOptions{
-			QueryParams: url.Values{"offset": []string{strconv.Itoa(len(retVal))}}},
-		)
+			QueryParams: url.Values{
+				"offset":      []string{strconv.Itoa(retrieved)},
+				"adminAccess": []string{strconv.FormatBool(adminAccess)},
+			},
+		})
 
 		if err != nil {
 			return ListResponse{}, fmt.Errorf("failed to list buckets:%w", err)
+		}
+
+		// if Workflow API rejected the initial request with admin permissions -> continue without
+		if resourceType == Workflows && resp.StatusCode == http.StatusForbidden {
+			adminAccess = false
+			continue
 		}
 
 		// if one of the response has code != 2xx return empty list with response info
@@ -209,6 +217,8 @@ func (a Client) List(ctx context.Context, resourceType ResourceType) (ListRespon
 		if err != nil {
 			return ListResponse{}, fmt.Errorf("failed to parse list response:%w", err)
 		}
+
+		retrieved += len(result.Objects)
 
 		b := make([][]byte, len(result.Objects))
 		for i, v := range result.Objects {
@@ -281,39 +291,37 @@ func (a Client) Delete(ctx context.Context, resourceType ResourceType, id string
 		return Response{}, fmt.Errorf("failed to create URL: %w", err)
 	}
 
-	workflowsAdminAccess := resourceType == Workflows
-
-	resp, err := a.client.DELETE(ctx, path, rest.RequestOptions{
-		QueryParams: url.Values{"adminAccess": []string{strconv.FormatBool(workflowsAdminAccess)}},
+	resp, err := a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
+		return a.client.DELETE(ctx, path, options)
 	})
+
 	if err != nil {
 		return Response{}, fmt.Errorf("unable to delete object with ID %s: %w", id, err)
 	}
 
-	if workflowsAdminAccess && resp.StatusCode == http.StatusForbidden {
-		resp, err = a.client.DELETE(ctx, path, rest.RequestOptions{})
-		if err != nil {
-			return Response{}, fmt.Errorf("unable to delete object with ID %s: %w", id, err)
-		}
-	}
 	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
 }
 
 func (a Client) create(ctx context.Context, data []byte, resourceType ResourceType) (Response, error) {
-	resp, err := a.client.POST(ctx, a.resources[resourceType].Path, bytes.NewReader(data), rest.RequestOptions{})
+	resp, err := a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
+		return a.client.POST(ctx, a.resources[resourceType].Path, bytes.NewReader(data), options)
+	})
 	if err != nil {
 		return Response{}, err
 	}
 
 	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
 }
+
 func (a Client) createWithID(ctx context.Context, resourceType ResourceType, id string, data []byte) (Response, error) {
 	// make sure actual "id" field is set in payload
 	if err := setIDField(id, &data); err != nil {
 		return Response{}, fmt.Errorf("unable to set the id field in order to crate object with id %s: %w", id, err)
 	}
 
-	resp, err := a.client.POST(ctx, a.resources[resourceType].Path, bytes.NewReader(data), rest.RequestOptions{})
+	resp, err := a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
+		return a.client.POST(ctx, a.resources[resourceType].Path, bytes.NewReader(data), options)
+	})
 	if err != nil {
 		return Response{}, err
 	}
@@ -331,23 +339,30 @@ func (a Client) update(ctx context.Context, resourceType ResourceType, id string
 		return Response{}, fmt.Errorf("failed to create URL: %w", err)
 	}
 
-	workflowsAdminAccess := resourceType == Workflows
-
-	resp, err := a.client.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{
-		QueryParams: url.Values{"adminAccess": []string{strconv.FormatBool(workflowsAdminAccess)}},
+	resp, err := a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
+		return a.client.PUT(ctx, path, bytes.NewReader(data), options)
 	})
+
 	if err != nil {
 		return Response{}, fmt.Errorf("unable to update object with ID %s: %w", id, err)
 	}
 
-	if workflowsAdminAccess && resp.StatusCode == http.StatusForbidden {
-
-		resp, err = a.client.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{})
-		if err != nil {
-			return Response{}, fmt.Errorf("unable to update object with ID %s: %w", id, err)
-		}
-	}
 	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
+}
+
+func (a Client) makeRequestWithAdminAccess(resourceType ResourceType, request func(options rest.RequestOptions) (rest.Response, error)) (rest.Response, error) {
+	opt := rest.RequestOptions{
+		QueryParams: url.Values{"adminAccess": []string{"true"}},
+	}
+
+	resp, err := request(opt)
+
+	// if Workflow API rejected the initial request with admin permissions -> retry without
+	if resourceType == Workflows && resp.StatusCode == http.StatusForbidden {
+		return request(rest.RequestOptions{})
+	}
+
+	return resp, err
 }
 
 func unmarshalJSONList(raw *rest.Response) (listResponse, error) {
