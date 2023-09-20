@@ -301,7 +301,7 @@ func TestAutomationClient_Upsert(t *testing.T) {
 					ValidateRequestFunc: func(request *http.Request) {
 						adminAccessQP := request.URL.Query()["adminAccess"]
 						assert.Len(t, adminAccessQP, 1)
-						assert.Equal(t, "false", adminAccessQP[0])
+						assert.Equal(t, "true", adminAccessQP[0])
 					},
 				},
 			}}
@@ -434,7 +434,7 @@ func TestAutomationClient_Delete(t *testing.T) {
 		assert.NotNil(t, err)
 	})
 
-	t.Run("Delete - adminAccess query parameter set for workflows", func(t *testing.T) {
+	t.Run("Delete - adminAccess query parameter set", func(t *testing.T) {
 		responses := []testutils.ServerResponses{{
 			http.MethodDelete: {
 				ResponseCode: http.StatusOK,
@@ -454,7 +454,7 @@ func TestAutomationClient_Delete(t *testing.T) {
 					ValidateRequestFunc: func(request *http.Request) {
 						adminAccessQP := request.URL.Query()["adminAccess"]
 						assert.Len(t, adminAccessQP, 1)
-						assert.Equal(t, "false", adminAccessQP[0])
+						assert.Equal(t, "true", adminAccessQP[0])
 					},
 				},
 			}}
@@ -463,8 +463,8 @@ func TestAutomationClient_Delete(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
-		client.Delete(testutils.ContextWithLogger(t), automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
-		client.Delete(testutils.ContextWithLogger(t), automation.BusinessCalendars, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
+		_, _ = client.Delete(testutils.ContextWithLogger(t), automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
+		_, _ = client.Delete(testutils.ContextWithLogger(t), automation.BusinessCalendars, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
 	})
 
 	t.Run("Delete - adminAccess forbidden", func(t *testing.T) {
@@ -587,6 +587,50 @@ func TestAutomationClient_List(t *testing.T) {
 		resp, err := client.List(ctx, automation.Workflows)
 		assert.Len(t, resp, 2)
 		assert.Len(t, resp[0].Objects, 2)
+		assert.Len(t, resp[1].Objects, 1)
+		assert.Nil(t, err)
+	})
+
+	t.Run("List - Paginated - With Admin Permissions Missing", func(t *testing.T) {
+		responses := []testutils.ServerResponses{
+			{
+				http.MethodGet: {
+					ResponseCode: http.StatusForbidden,
+					ResponseBody: "{}",
+					ValidateRequestFunc: func(request *http.Request) {
+						assert.Equal(t, []string{"true"}, request.URL.Query()["adminAccess"])
+					},
+				},
+			},
+			{
+				http.MethodGet: {
+					ResponseCode: http.StatusOK,
+					ResponseBody: `{ "count": 2,"results": [ {"id": "82e7e7a4-dc69-4a7f-b0ad-7123f579ddf6","title": "Workflow1"} ] }`,
+					ValidateRequestFunc: func(request *http.Request) {
+						assert.Equal(t, []string{"false"}, request.URL.Query()["adminAccess"])
+						assert.Equal(t, []string{"0"}, request.URL.Query()["offset"])
+					},
+				},
+			},
+			{
+				http.MethodGet: {
+					ResponseCode: http.StatusOK,
+					ResponseBody: `{ "count": 2,"results": [ {"id": "da105889-3817-435a-8b15-ec9777374b99","title": "Workflow2"} ] }`,
+					ValidateRequestFunc: func(request *http.Request) {
+						assert.Equal(t, []string{"false"}, request.URL.Query()["adminAccess"])
+						assert.Equal(t, []string{"1"}, request.URL.Query()["offset"])
+					},
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.List(ctx, automation.Workflows)
+		assert.Len(t, resp, 2)
+		assert.Len(t, resp[0].Objects, 1)
 		assert.Len(t, resp[1].Objects, 1)
 		assert.Nil(t, err)
 	})
