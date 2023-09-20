@@ -36,8 +36,8 @@ func TestAutomationClient_Get(t *testing.T) {
 	const payload = `{ "id" : "91cc8988-2223-404a-a3f5-5f1a839ecd45", "data" : "some-data1" }`
 
 	t.Run("Get - no ID given", func(t *testing.T) {
-		responses := testutils.ServerResponses{}
-		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+		responses := []testutils.ResponseDef{}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
@@ -49,13 +49,18 @@ func TestAutomationClient_Get(t *testing.T) {
 
 	t.Run("GET - OK", func(t *testing.T) {
 
-		responses := testutils.ServerResponses{
-			http.MethodGet: {
-				ResponseCode: http.StatusOK,
-				ResponseBody: payload,
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payload,
+					}
+				},
 			},
 		}
-		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
@@ -68,8 +73,9 @@ func TestAutomationClient_Get(t *testing.T) {
 	})
 
 	t.Run("GET - Unable to make HTTP call", func(t *testing.T) {
-		responses := testutils.ServerResponses{}
-		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+
+		responses := []testutils.ResponseDef{}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
@@ -80,12 +86,17 @@ func TestAutomationClient_Get(t *testing.T) {
 	})
 
 	t.Run("GET - API Call returned with != 2xx", func(t *testing.T) {
-		responses := testutils.ServerResponses{
-			http.MethodGet: {
-				ResponseCode: http.StatusBadRequest,
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusBadRequest,
+					}
+				},
 			},
 		}
-		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
@@ -98,15 +109,20 @@ func TestAutomationClient_Get(t *testing.T) {
 
 func TestAutomationClient_Create(t *testing.T) {
 	const payload = `{ "id" : "91cc8988-2223-404a-a3f5-5f1a839ecd45", "data" : "some-data1" }`
-	t.Run("Create  - OK", func(t *testing.T) {
 
-		responses := testutils.ServerResponses{
-			http.MethodPost: {
-				ResponseCode: http.StatusCreated,
-				ResponseBody: payload,
+	t.Run("Create  - OK", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				POST: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusCreated,
+						ResponseBody: payload,
+					}
+				},
 			},
 		}
-		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
@@ -120,13 +136,17 @@ func TestAutomationClient_Create(t *testing.T) {
 
 	t.Run("Create - HTTP PUT returns non 2xx", func(t *testing.T) {
 
-		responses := testutils.ServerResponses{
-			http.MethodPost: {
-				ResponseCode: http.StatusInternalServerError,
-				ResponseBody: "{}",
+		responses := []testutils.ResponseDef{
+			{
+				POST: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusInternalServerError,
+						ResponseBody: "{}"}
+				},
 			},
 		}
-		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
@@ -140,13 +160,18 @@ func TestAutomationClient_Create(t *testing.T) {
 
 	t.Run("Create - Unable to make HTTP POST call", func(t *testing.T) {
 
-		responses := testutils.ServerResponses{
-			http.MethodPost: {
-				ResponseCode: http.StatusCreated,
-				ResponseBody: payload,
+		responses := []testutils.ResponseDef{
+			{
+				POST: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusCreated,
+						ResponseBody: payload,
+					}
+				},
 			},
 		}
-		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
@@ -162,28 +187,34 @@ func TestAutomationClient_Update(t *testing.T) {
 	const payload = `{ "id" : "91cc8988-2223-404a-a3f5-5f1a839ecd45", "data" : "some-data1" }`
 	t.Run("Update  - try with adminAccess -if fails try without - OK", func(t *testing.T) {
 
-		responses := []testutils.ServerResponses{{
-			http.MethodPut: {
-				ResponseCode: http.StatusForbidden,
-				ResponseBody: payload,
-				ValidateRequestFunc: func(request *http.Request) {
-					adminAccessQP := request.URL.Query()["adminAccess"]
+		responses := []testutils.ResponseDef{
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusForbidden,
+						ResponseBody: payload,
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					adminAccessQP := req.URL.Query()["adminAccess"]
 					assert.Len(t, adminAccessQP, 1)
 					assert.Equal(t, "true", adminAccessQP[0])
 				},
 			},
-		},
 			{
-				http.MethodPut: {
-					ResponseCode: http.StatusOK,
-					ResponseBody: payload,
-					ValidateRequestFunc: func(request *http.Request) {
-						adminAccessQP := request.URL.Query()["adminAccess"]
-						assert.Len(t, adminAccessQP, 0)
-					},
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payload,
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					adminAccessQP := req.URL.Query()["adminAccess"]
+					assert.Len(t, adminAccessQP, 0)
 				},
 			},
 		}
+
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -198,13 +229,18 @@ func TestAutomationClient_Update(t *testing.T) {
 
 	t.Run("Update - HTTP PUT returns non 2xx", func(t *testing.T) {
 
-		responses := testutils.ServerResponses{
-			http.MethodPut: {
-				ResponseCode: http.StatusInternalServerError,
-				ResponseBody: "{}",
+		responses := []testutils.ResponseDef{
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusInternalServerError,
+						ResponseBody: "{}",
+					}
+				},
 			},
 		}
-		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
@@ -217,13 +253,19 @@ func TestAutomationClient_Update(t *testing.T) {
 	})
 
 	t.Run("Update - HTTP PUT call is not possible", func(t *testing.T) {
-		responses := testutils.ServerResponses{
-			http.MethodPut: {
-				ResponseCode: http.StatusInternalServerError,
-				ResponseBody: "{}",
+
+		responses := []testutils.ResponseDef{
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusInternalServerError,
+						ResponseBody: "{}",
+					}
+				},
 			},
 		}
-		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
@@ -239,8 +281,9 @@ func TestAutomationClient_Update(t *testing.T) {
 func TestAutomationClient_Upsert(t *testing.T) {
 
 	t.Run("Upsert - no ID given", func(t *testing.T) {
-		responses := testutils.ServerResponses{}
-		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+
+		responses := []testutils.ResponseDef{}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
@@ -251,8 +294,8 @@ func TestAutomationClient_Upsert(t *testing.T) {
 	})
 
 	t.Run("Upsert - invalid data", func(t *testing.T) {
-		responses := testutils.ServerResponses{}
-		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+		responses := []testutils.ResponseDef{}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
@@ -263,14 +306,19 @@ func TestAutomationClient_Upsert(t *testing.T) {
 	})
 
 	t.Run("Upsert - not able to make HTTP PUT call", func(t *testing.T) {
-		responses := testutils.ServerResponses{
-			http.MethodPut: {
-				ResponseCode: http.StatusBadRequest,
-				ResponseBody: "{}",
+
+		responses := []testutils.ResponseDef{
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusBadRequest,
+						ResponseBody: "{}",
+					}
+				},
 			},
 		}
 
-		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
@@ -282,29 +330,36 @@ func TestAutomationClient_Upsert(t *testing.T) {
 	})
 
 	t.Run("Upsert - adminAccess query parameter set for workflows", func(t *testing.T) {
-		responses := []testutils.ServerResponses{{
-			http.MethodPut: {
-				ResponseCode: http.StatusOK,
-				ResponseBody: "{}",
-				ValidateRequestFunc: func(request *http.Request) {
-					adminAccessQP := request.URL.Query()["adminAccess"]
+
+		responses := []testutils.ResponseDef{
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: "{}",
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					adminAccessQP := req.URL.Query()["adminAccess"]
 					assert.Len(t, adminAccessQP, 1)
 					assert.Equal(t, "true", adminAccessQP[0])
 
 				},
 			},
-		},
 			{
-				http.MethodPut: {
-					ResponseCode: http.StatusOK,
-					ResponseBody: "{}",
-					ValidateRequestFunc: func(request *http.Request) {
-						adminAccessQP := request.URL.Query()["adminAccess"]
-						assert.Len(t, adminAccessQP, 1)
-						assert.Equal(t, "true", adminAccessQP[0])
-					},
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: "{}",
+					}
 				},
-			}}
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					adminAccessQP := req.URL.Query()["adminAccess"]
+					assert.Len(t, adminAccessQP, 1)
+					assert.Equal(t, "true", adminAccessQP[0])
+				},
+			},
+		}
 
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
@@ -315,26 +370,34 @@ func TestAutomationClient_Upsert(t *testing.T) {
 	})
 
 	t.Run("Upsert - adminAccess forbidden", func(t *testing.T) {
-		responses := []testutils.ServerResponses{{
-			http.MethodPut: {
-				ResponseCode: http.StatusForbidden,
-				ResponseBody: "{}",
-				ValidateRequestFunc: func(request *http.Request) {
-					adminAccessQP := request.URL.Query()["adminAccess"]
+
+		responses := []testutils.ResponseDef{
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusForbidden,
+						ResponseBody: "{}",
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					adminAccessQP := req.URL.Query()["adminAccess"]
 					assert.Len(t, adminAccessQP, 1)
 					assert.Equal(t, "true", adminAccessQP[0])
 				},
 			},
-		}, {
-			http.MethodPut: {
-				ResponseCode: http.StatusOK,
-				ResponseBody: "{}",
-				ValidateRequestFunc: func(request *http.Request) {
-					adminAccessQP := request.URL.Query()["adminAccess"]
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: "{}",
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					adminAccessQP := req.URL.Query()["adminAccess"]
 					assert.Len(t, adminAccessQP, 0)
 				},
 			},
-		}}
+		}
 
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
@@ -349,22 +412,33 @@ func TestAutomationClient_Upsert(t *testing.T) {
 	})
 
 	t.Run("Upsert - Direct update using HTTP PUT API Call returned with != 2xx- creation via POST fails", func(t *testing.T) {
-		responses := []testutils.ServerResponses{{
-			http.MethodPut: {
-				ResponseCode: http.StatusForbidden,
-				ResponseBody: "{}",
+
+		responses := []testutils.ResponseDef{
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusForbidden,
+						ResponseBody: "{}",
+					}
+				},
 			},
-		}, {
-			http.MethodPut: {
-				ResponseCode: http.StatusNotFound,
-				ResponseBody: "{}",
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusNotFound,
+						ResponseBody: "{}",
+					}
+				},
 			},
-		}, {
-			http.MethodPost: {
-				ResponseCode: http.StatusInternalServerError,
-				ResponseBody: "{}",
+			{
+				POST: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusInternalServerError,
+						ResponseBody: "{}",
+					}
+				},
 			},
-		}}
+		}
 
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
@@ -379,22 +453,32 @@ func TestAutomationClient_Upsert(t *testing.T) {
 	})
 
 	t.Run("Upsert - Direct update using HTTP PUT API Call returned with != 2xx - creation via POST OK", func(t *testing.T) {
-		responses := []testutils.ServerResponses{{
-			http.MethodPut: {
-				ResponseCode: http.StatusForbidden,
-				ResponseBody: "{}",
+		responses := []testutils.ResponseDef{
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusForbidden,
+						ResponseBody: "{}",
+					}
+				},
 			},
-		}, {
-			http.MethodPut: {
-				ResponseCode: http.StatusNotFound,
-				ResponseBody: "{}",
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusNotFound,
+						ResponseBody: "{}",
+					}
+				},
 			},
-		}, {
-			http.MethodPost: {
-				ResponseCode: http.StatusCreated,
-				ResponseBody: "{}",
+			{
+				POST: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusCreated,
+						ResponseBody: "{}",
+					}
+				},
 			},
-		}}
+		}
 
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
@@ -411,8 +495,8 @@ func TestAutomationClient_Upsert(t *testing.T) {
 
 func TestAutomationClient_Delete(t *testing.T) {
 	t.Run("Delete - no ID given", func(t *testing.T) {
-		responses := testutils.ServerResponses{}
-		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+		responses := []testutils.ResponseDef{}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
@@ -423,8 +507,8 @@ func TestAutomationClient_Delete(t *testing.T) {
 	})
 
 	t.Run("Delete - HTTP Call fails", func(t *testing.T) {
-		responses := testutils.ServerResponses{}
-		server := testutils.NewHTTPTestServer(t, []testutils.ServerResponses{responses})
+		responses := []testutils.ResponseDef{}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
@@ -435,29 +519,36 @@ func TestAutomationClient_Delete(t *testing.T) {
 	})
 
 	t.Run("Delete - adminAccess query parameter set", func(t *testing.T) {
-		responses := []testutils.ServerResponses{{
-			http.MethodDelete: {
-				ResponseCode: http.StatusOK,
-				ResponseBody: "{}",
-				ValidateRequestFunc: func(request *http.Request) {
-					adminAccessQP := request.URL.Query()["adminAccess"]
+
+		responses := []testutils.ResponseDef{
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: "{}",
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					adminAccessQP := req.URL.Query()["adminAccess"]
 					assert.Len(t, adminAccessQP, 1)
 					assert.Equal(t, "true", adminAccessQP[0])
 
 				},
 			},
-		},
 			{
-				http.MethodDelete: {
-					ResponseCode: http.StatusOK,
-					ResponseBody: "{}",
-					ValidateRequestFunc: func(request *http.Request) {
-						adminAccessQP := request.URL.Query()["adminAccess"]
-						assert.Len(t, adminAccessQP, 1)
-						assert.Equal(t, "true", adminAccessQP[0])
-					},
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: "{}",
+					}
 				},
-			}}
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					adminAccessQP := req.URL.Query()["adminAccess"]
+					assert.Len(t, adminAccessQP, 1)
+					assert.Equal(t, "true", adminAccessQP[0])
+				},
+			},
+		}
 
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
@@ -468,26 +559,34 @@ func TestAutomationClient_Delete(t *testing.T) {
 	})
 
 	t.Run("Delete - adminAccess forbidden", func(t *testing.T) {
-		responses := []testutils.ServerResponses{{
-			http.MethodDelete: {
-				ResponseCode: http.StatusForbidden,
-				ResponseBody: "{}",
-				ValidateRequestFunc: func(request *http.Request) {
-					adminAccessQP := request.URL.Query()["adminAccess"]
+
+		responses := []testutils.ResponseDef{
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusForbidden,
+						ResponseBody: "{}",
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					adminAccessQP := req.URL.Query()["adminAccess"]
 					assert.Len(t, adminAccessQP, 1)
 					assert.Equal(t, "true", adminAccessQP[0])
 				},
 			},
-		}, {
-			http.MethodDelete: {
-				ResponseCode: http.StatusOK,
-				ResponseBody: "{}",
-				ValidateRequestFunc: func(request *http.Request) {
-					adminAccessQP := request.URL.Query()["adminAccess"]
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: "{}",
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					adminAccessQP := req.URL.Query()["adminAccess"]
 					assert.Len(t, adminAccessQP, 0)
 				},
 			},
-		}}
+		}
 
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
@@ -501,17 +600,25 @@ func TestAutomationClient_Delete(t *testing.T) {
 	})
 
 	t.Run("Delete - adminAccess forbidden - DELETE API Call returned with != 2xx", func(t *testing.T) {
-		responses := []testutils.ServerResponses{{
-			http.MethodDelete: {
-				ResponseCode: http.StatusForbidden,
-				ResponseBody: "{}",
+
+		responses := []testutils.ResponseDef{
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusForbidden,
+						ResponseBody: "{}",
+					}
+				},
 			},
-		}, {
-			http.MethodDelete: {
-				ResponseCode: http.StatusInternalServerError,
-				ResponseBody: "{}",
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusInternalServerError,
+						ResponseBody: "{}",
+					}
+				},
 			},
-		}}
+		}
 
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
@@ -525,12 +632,17 @@ func TestAutomationClient_Delete(t *testing.T) {
 	})
 
 	t.Run("Delete - adminAccess forbidden - resource not found", func(t *testing.T) {
-		responses := []testutils.ServerResponses{{
-			http.MethodDelete: {
-				ResponseCode: http.StatusNotFound,
-				ResponseBody: "{}",
+
+		responses := []testutils.ResponseDef{
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusNotFound,
+						ResponseBody: "{}",
+					}
+				},
 			},
-		}}
+		}
 
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
@@ -560,25 +672,31 @@ func TestAutomationClient_List(t *testing.T) {
 	}
 
 	t.Run("List - Paginated - OK", func(t *testing.T) {
-		responses := []testutils.ServerResponses{{
-			http.MethodGet: {
-				ResponseCode: http.StatusOK,
-				ResponseBody: payloadePages[0],
-				ValidateRequestFunc: func(request *http.Request) {
-					assert.Equal(t, []string{"0"}, request.URL.Query()["offset"])
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payloadePages[0],
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					assert.Equal(t, []string{"0"}, req.URL.Query()["offset"])
 				},
 			},
-		},
 			{
-				http.MethodGet: {
-					ResponseCode: http.StatusOK,
-					ResponseBody: payloadePages[1],
-					ValidateRequestFunc: func(request *http.Request) {
-						assert.Equal(t, []string{"2"}, request.URL.Query()["offset"])
-					},
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payloadePages[1],
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					assert.Equal(t, []string{"2"}, req.URL.Query()["offset"])
 				},
 			},
 		}
+
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -592,37 +710,45 @@ func TestAutomationClient_List(t *testing.T) {
 	})
 
 	t.Run("List - Paginated - With Admin Permissions Missing", func(t *testing.T) {
-		responses := []testutils.ServerResponses{
+
+		responses := []testutils.ResponseDef{
 			{
-				http.MethodGet: {
-					ResponseCode: http.StatusForbidden,
-					ResponseBody: "{}",
-					ValidateRequestFunc: func(request *http.Request) {
-						assert.Equal(t, []string{"true"}, request.URL.Query()["adminAccess"])
-					},
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusForbidden,
+						ResponseBody: "{}",
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					assert.Equal(t, []string{"true"}, req.URL.Query()["adminAccess"])
 				},
 			},
 			{
-				http.MethodGet: {
-					ResponseCode: http.StatusOK,
-					ResponseBody: `{ "count": 2,"results": [ {"id": "82e7e7a4-dc69-4a7f-b0ad-7123f579ddf6","title": "Workflow1"} ] }`,
-					ValidateRequestFunc: func(request *http.Request) {
-						assert.Equal(t, []string{"false"}, request.URL.Query()["adminAccess"])
-						assert.Equal(t, []string{"0"}, request.URL.Query()["offset"])
-					},
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: `{ "count": 2,"results": [ {"id": "82e7e7a4-dc69-4a7f-b0ad-7123f579ddf6","title": "Workflow1"} ] }`,
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					assert.Equal(t, []string{"false"}, req.URL.Query()["adminAccess"])
+					assert.Equal(t, []string{"0"}, req.URL.Query()["offset"])
 				},
 			},
 			{
-				http.MethodGet: {
-					ResponseCode: http.StatusOK,
-					ResponseBody: `{ "count": 2,"results": [ {"id": "da105889-3817-435a-8b15-ec9777374b99","title": "Workflow2"} ] }`,
-					ValidateRequestFunc: func(request *http.Request) {
-						assert.Equal(t, []string{"false"}, request.URL.Query()["adminAccess"])
-						assert.Equal(t, []string{"1"}, request.URL.Query()["offset"])
-					},
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: `{ "count": 2,"results": [ {"id": "da105889-3817-435a-8b15-ec9777374b99","title": "Workflow2"} ] }`,
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					assert.Equal(t, []string{"false"}, req.URL.Query()["adminAccess"])
+					assert.Equal(t, []string{"1"}, req.URL.Query()["offset"])
 				},
 			},
 		}
+
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -636,25 +762,32 @@ func TestAutomationClient_List(t *testing.T) {
 	})
 
 	t.Run("List - Paginated - Getting one page fails", func(t *testing.T) {
-		responses := []testutils.ServerResponses{{
-			http.MethodGet: {
-				ResponseCode: http.StatusOK,
-				ResponseBody: payloadePages[0],
-				ValidateRequestFunc: func(request *http.Request) {
-					assert.Equal(t, []string{"0"}, request.URL.Query()["offset"])
+
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payloadePages[0],
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					assert.Equal(t, []string{"0"}, req.URL.Query()["offset"])
 				},
 			},
-		},
 			{
-				http.MethodGet: {
-					ResponseCode: http.StatusInternalServerError,
-					ResponseBody: "{}",
-					ValidateRequestFunc: func(request *http.Request) {
-						assert.Equal(t, []string{"2"}, request.URL.Query()["offset"])
-					},
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusInternalServerError,
+						ResponseBody: `{}`,
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					assert.Equal(t, []string{"2"}, req.URL.Query()["offset"])
 				},
 			},
 		}
+
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -667,13 +800,17 @@ func TestAutomationClient_List(t *testing.T) {
 	})
 
 	t.Run("List - API Call returned with != 2xx", func(t *testing.T) {
-		responses := []testutils.ServerResponses{{
-			http.MethodGet: {
-				ResponseCode: http.StatusBadRequest,
-				ResponseBody: "{}",
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusBadRequest,
+						ResponseBody: "{}",
+					}
+				},
 			},
-		},
 		}
+
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
@@ -687,10 +824,7 @@ func TestAutomationClient_List(t *testing.T) {
 	})
 
 	t.Run("List - API Call failed", func(t *testing.T) {
-		responses := []testutils.ServerResponses{{
-			http.MethodGet: {},
-		},
-		}
+		responses := []testutils.ResponseDef{}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
