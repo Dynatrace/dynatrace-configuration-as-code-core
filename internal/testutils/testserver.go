@@ -16,6 +16,7 @@ package testutils
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -51,53 +52,85 @@ func (t TestServer) FaultyClient() *http.Client {
 	return client
 }
 
-// HTTPMethod is an alias for string, representing an HTTP method.
-type HTTPMethod = string
-
-// ServerResponses is a map of HTTP methods to expected responses for testing.
-type ServerResponses map[HTTPMethod]struct {
-	ResponseCode        int                 // HTTP response status code.
-	ResponseBody        string              // HTTP response body.
-	ValidateRequestFunc func(*http.Request) // Function to validate incoming requests.
-}
-
 // NewHTTPTestServer creates a new HTTP test server with the specified responses for each HTTP method.
-func NewHTTPTestServer(t *testing.T, responses []ServerResponses) *TestServer {
+func NewHTTPTestServer(t *testing.T, responses []ResponseDef) *TestServer {
+	for i, r := range responses {
+		// it's only allowed to set ONE handler per response
+		if !checkExactlyOneHandlerSet(r) {
+			panic(fmt.Sprintf("Response nr. %d has more than one handler defined", i))
+		}
+	}
+
 	testServer := &TestServer{}
 	handler := func(rw http.ResponseWriter, req *http.Request) {
 		testServer.calls++
-		// Special case: if only one response is specified, this will be reused
-		// for each and every call
-		if len(responses) == 1 {
-			if res, found := responses[0][req.Method]; found {
-				if res.ValidateRequestFunc != nil {
-					res.ValidateRequestFunc(req)
-				}
-				rw.WriteHeader(res.ResponseCode)
-				_, _ = rw.Write([]byte(res.ResponseBody)) // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
-			} else {
-				t.Errorf("unexpected HTTP method call: %s", req.Method)
-			}
-			return
-		}
-
 		if len(responses) <= testServer.calls-1 {
-			t.Fail()
-			t.Fatalf("Exceeded number of calls to test server (expected: %d)", len(responses))
+			t.Errorf("Exceeded number of calls to test server (expected: %d)", len(responses))
 		}
 
-		if res, found := responses[testServer.calls-1][req.Method]; found {
-			if res.ValidateRequestFunc != nil {
-				res.ValidateRequestFunc(req)
-			}
-			rw.WriteHeader(res.ResponseCode)
-			_, _ = rw.Write([]byte(res.ResponseBody)) // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
-		} else {
-			t.Errorf("unexpected HTTP method call: %s", req.Method)
+		responseDef := responses[testServer.calls-1]
+		handlers := map[string]func(*testing.T, *http.Request) Response{
+			http.MethodGet:    responseDef.Get,
+			http.MethodPost:   responseDef.Post,
+			http.MethodPut:    responseDef.Put,
+			http.MethodDelete: responseDef.Delete,
 		}
+
+		handlerFunc, found := handlers[req.Method]
+		if !found {
+			panic(fmt.Sprintf("No %s method defined for server call nr. %d", req.Method, testServer.calls))
+		}
+		response := handlerFunc(t, req)
+		rw.WriteHeader(response.ResponseCode)
+		_, _ = rw.Write([]byte(response.ResponseBody)) // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
+		responseDef.Validate(t, req)
 	}
 	testServer.Server = httptest.NewServer(http.HandlerFunc(handler))
 	return testServer
+}
+
+type Response struct {
+	ResponseCode int
+	ResponseBody string
+}
+
+type ResponseDef struct {
+	GET             func(*testing.T, *http.Request) Response
+	PUT             func(*testing.T, *http.Request) Response
+	POST            func(*testing.T, *http.Request) Response
+	DELETE          func(*testing.T, *http.Request) Response
+	ValidateRequest func(*testing.T, *http.Request)
+}
+
+func (r ResponseDef) Get(t *testing.T, req *http.Request) Response {
+	if r.GET == nil {
+		panic("GET() function not defined")
+	}
+	return r.GET(t, req)
+}
+func (r ResponseDef) Put(t *testing.T, req *http.Request) Response {
+	if r.PUT == nil {
+		panic("PUT() function not defined")
+	}
+	return r.PUT(t, req)
+}
+func (r ResponseDef) Post(t *testing.T, req *http.Request) Response {
+	if r.POST == nil {
+		panic("POST() function not defined")
+	}
+	return r.POST(t, req)
+}
+func (r ResponseDef) Delete(t *testing.T, req *http.Request) Response {
+	if r.DELETE == nil {
+		panic("DELETE() function not defined")
+	}
+	return r.DELETE(t, req)
+}
+
+func (r ResponseDef) Validate(t *testing.T, req *http.Request) {
+	if r.ValidateRequest != nil {
+		r.ValidateRequest(t, req)
+	}
 }
 
 // ErrorTransport is custom transport that always produces a simulated network error.
@@ -106,4 +139,21 @@ type ErrorTransport struct{}
 // RoundTrip implements the RoundTripper interface and returns a simulated network error.
 func (t *ErrorTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
 	return nil, errors.New("simulated network error")
+}
+
+func checkExactlyOneHandlerSet(def ResponseDef) bool {
+	var count int
+	if def.GET != nil {
+		count++
+	}
+	if def.POST != nil {
+		count++
+	}
+	if def.PUT != nil {
+		count++
+	}
+	if def.DELETE != nil {
+		count++
+	}
+	return count == 1
 }
