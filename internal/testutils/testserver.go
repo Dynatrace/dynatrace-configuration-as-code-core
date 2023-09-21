@@ -16,6 +16,7 @@ package testutils
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -53,6 +54,13 @@ func (t TestServer) FaultyClient() *http.Client {
 
 // NewHTTPTestServer creates a new HTTP test server with the specified responses for each HTTP method.
 func NewHTTPTestServer(t *testing.T, responses []ResponseDef) *TestServer {
+	for i, r := range responses {
+		// it's only allowed to set ONE handler per response
+		if !checkExactlyOneHandlerSet(r) {
+			panic(fmt.Sprintf("Response nr. %d has more than one handler defined", i))
+		}
+	}
+
 	testServer := &TestServer{}
 	handler := func(rw http.ResponseWriter, req *http.Request) {
 		testServer.calls++
@@ -61,11 +69,11 @@ func NewHTTPTestServer(t *testing.T, responses []ResponseDef) *TestServer {
 		}
 
 		responseDef := responses[testServer.calls-1]
-		methodFuncs := map[string]func(*testing.T, *http.Request) Response{
-			http.MethodGet:    responseDef.GET,
-			http.MethodPost:   responseDef.POST,
-			http.MethodPut:    responseDef.PUT,
-			http.MethodDelete: responseDef.DELETE,
+		handlers := map[string]func(*testing.T, *http.Request) Response{
+			http.MethodGet:    responseDef.Get,
+			http.MethodPost:   responseDef.Post,
+			http.MethodPut:    responseDef.Put,
+			http.MethodDelete: responseDef.Delete,
 		}
 
 		handlerFunc, found := methodFuncs[req.Method]
@@ -138,4 +146,21 @@ type ErrorTransport struct{}
 // RoundTrip implements the RoundTripper interface and returns a simulated network error.
 func (t *ErrorTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
 	return nil, errors.New("simulated network error")
+}
+
+func checkExactlyOneHandlerSet(def ResponseDef) bool {
+	var count int
+	if def.GET != nil {
+		count++
+	}
+	if def.POST != nil {
+		count++
+	}
+	if def.PUT != nil {
+		count++
+	}
+	if def.DELETE != nil {
+		count++
+	}
+	return count == 1
 }
