@@ -76,17 +76,10 @@ func NewHTTPTestServer(t *testing.T, responses []ResponseDef) *TestServer {
 			http.MethodDelete: responseDef.Delete,
 		}
 
-		handlerFunc, found := methodFuncs[req.Method]
+		handlerFunc, found := handlers[req.Method]
 		if !found {
-			rw.WriteHeader(http.StatusMethodNotAllowed)
-			_, _ = rw.Write([]byte("Method not supported")) // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
-			return
+			panic(fmt.Sprintf("No %s method defined for server call nr. %d", req.Method, testServer.calls))
 		}
-		if handlerFunc == nil {
-			t.Errorf("No %s method defined for server call nr. %d", req.Method, testServer.calls)
-			return
-		}
-
 		response := handlerFunc(t, req)
 		rw.WriteHeader(response.ResponseCode)
 		_, _ = rw.Write([]byte(response.ResponseBody)) // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
