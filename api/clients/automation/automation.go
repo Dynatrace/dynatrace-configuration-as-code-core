@@ -191,7 +191,7 @@ func (a Client) List(ctx context.Context, resourceType ResourceType) (ListRespon
 		})
 
 		if err != nil {
-			return ListResponse{}, fmt.Errorf("failed to list buckets:%w", err)
+			return ListResponse{}, fmt.Errorf("failed to list automation resources: %w", err)
 		}
 
 		// if Workflow API rejected the initial request with admin permissions -> continue without
