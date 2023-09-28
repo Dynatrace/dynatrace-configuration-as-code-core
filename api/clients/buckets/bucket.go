@@ -43,9 +43,7 @@ type Response = api.Response
 
 // ListResponse is a Bucket API response containing multiple bucket objects.
 // For convenience, it contains a slice of Buckets in addition to the base api.Response data.
-type ListResponse struct {
-	api.ListResponse
-}
+type ListResponse = api.PagedListResponse
 
 type listResponse struct {
 	api.Response
@@ -160,7 +158,7 @@ func (c Client) List(ctx context.Context) (ListResponse, error) {
 	}
 
 	return ListResponse{
-		ListResponse: api.ListResponse{
+		api.ListResponse{
 			Response: resp.Response,
 			Objects:  b,
 		},

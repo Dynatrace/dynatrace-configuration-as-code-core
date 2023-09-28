@@ -137,8 +137,8 @@ func TestList(t *testing.T) {
 
 		resp, err := client.List(ctx)
 		assert.NoError(t, err)
-		assert.Equal(t, resp.Data, []byte(payload))
-		assert.ElementsMatch(t, resp.Objects, [][]byte{[]byte(bucket1), []byte(bucket2)})
+		assert.Equal(t, resp[0].Data, []byte(payload))
+		assert.ElementsMatch(t, resp.All(), [][]byte{[]byte(bucket1), []byte(bucket2)})
 	})
 
 	t.Run("successfully returns empty response if no buckets exist", func(t *testing.T) {
@@ -162,8 +162,8 @@ func TestList(t *testing.T) {
 
 		resp, err := client.List(ctx)
 		assert.NoError(t, err, "expected err to be nil")
-		assert.Equal(t, resp.Data, []byte(payload))
-		assert.Empty(t, resp.Objects)
+		assert.Equal(t, resp[0].Data, []byte(payload))
+		assert.Empty(t, resp.All())
 	})
 
 	t.Run("successfully returns response in case of HTTP error", func(t *testing.T) {
@@ -186,7 +186,7 @@ func TestList(t *testing.T) {
 
 		resp, err := client.List(ctx)
 		assert.NoError(t, err, "expected err to be nil")
-		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+		assert.Equal(t, http.StatusNotFound, resp[0].StatusCode)
 	})
 
 	t.Run("returns error in case of network error", func(t *testing.T) {
@@ -1238,7 +1238,7 @@ func TestDecodingBucketResponses(t *testing.T) {
 
 		resp, err := client.List(ctx)
 		assert.NoError(t, err)
-		b, err := api.DecodeJSON[bucket](resp.Response)
+		b, err := api.DecodeJSON[bucket](resp[0].Response)
 		assert.NoError(t, err)
 
 		assert.Equal(t, "bucket name", b.Name)
@@ -1275,7 +1275,7 @@ func TestDecodingBucketResponses(t *testing.T) {
 		resp, err := client.List(ctx)
 		assert.NoError(t, err)
 
-		list, err := api.DecodeJSONObjects[bucket](resp.ListResponse)
+		list, err := api.DecodeJSONObjects[bucket](resp[0])
 		assert.NoError(t, err)
 		assert.Len(t, list, 2)
 		assert.Equal(t, bucket{
