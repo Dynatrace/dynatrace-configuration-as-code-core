@@ -28,9 +28,7 @@ import (
 	"strconv"
 )
 
-type Response struct {
-	api.Response
-}
+type Response = api.Response
 
 type ListResponse = api.PagedListResponse
 
@@ -106,18 +104,18 @@ type ClientOption func(*Client)
 //   - error: An error if the HTTP call fails or another error happened.
 func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (Response, error) {
 	if id == "" {
-		return Response{}, fmt.Errorf("id must be non empty")
+		return api.Response{}, fmt.Errorf("id must be non empty")
 	}
 	path, err := url.JoinPath(a.resources[resourceType].Path, id)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to create URL: %w", err)
+		return api.Response{}, fmt.Errorf("failed to create URL: %w", err)
 	}
 	resp, err := a.client.GET(ctx, path, rest.RequestOptions{})
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to get automation resource of type %q with id %q: %w", resourceType, id, err)
+		return api.Response{}, fmt.Errorf("failed to get automation resource of type %q with id %q: %w", resourceType, id, err)
 	}
 
-	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
+	return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
 }
 
 // Create creates a new automation object based on the specified resource type.
@@ -253,15 +251,15 @@ func (a Client) List(ctx context.Context, resourceType ResourceType) (ListRespon
 //   - error: An error if the HTTP call fails or another error happened.
 func (a Client) Upsert(ctx context.Context, resourceType ResourceType, id string, data []byte) (result Response, err error) {
 	if id == "" {
-		return Response{}, fmt.Errorf("id must be non empty")
+		return api.Response{}, fmt.Errorf("id must be non empty")
 	}
 	resp, err := a.update(ctx, resourceType, id, data)
 	if err != nil {
-		return Response{}, err
+		return api.Response{}, err
 	}
 
 	if resp.IsSuccess() {
-		return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Data, Request: resp.Request}}, nil
+		return api.Response{StatusCode: resp.StatusCode, Data: resp.Data, Request: resp.Request}, nil
 	}
 
 	// at this point we need to create a new object using HTTP POST
@@ -284,11 +282,11 @@ func (a Client) Upsert(ctx context.Context, resourceType ResourceType, id string
 //   - error: An error if the HTTP call fails or another error happened.
 func (a Client) Delete(ctx context.Context, resourceType ResourceType, id string) (Response, error) {
 	if id == "" {
-		return Response{}, fmt.Errorf("id must be non empty")
+		return api.Response{}, fmt.Errorf("id must be non empty")
 	}
 	path, err := url.JoinPath(a.resources[resourceType].Path, id)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to create URL: %w", err)
+		return api.Response{}, fmt.Errorf("failed to create URL: %w", err)
 	}
 
 	resp, err := a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
@@ -296,10 +294,10 @@ func (a Client) Delete(ctx context.Context, resourceType ResourceType, id string
 	})
 
 	if err != nil {
-		return Response{}, fmt.Errorf("unable to delete object with ID %s: %w", id, err)
+		return api.Response{}, fmt.Errorf("unable to delete object with ID %s: %w", id, err)
 	}
 
-	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
+	return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
 }
 
 func (a Client) create(ctx context.Context, data []byte, resourceType ResourceType) (Response, error) {
@@ -307,36 +305,36 @@ func (a Client) create(ctx context.Context, data []byte, resourceType ResourceTy
 		return a.client.POST(ctx, a.resources[resourceType].Path, bytes.NewReader(data), options)
 	})
 	if err != nil {
-		return Response{}, err
+		return api.Response{}, err
 	}
 
-	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
+	return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
 }
 
 func (a Client) createWithID(ctx context.Context, resourceType ResourceType, id string, data []byte) (Response, error) {
 	// make sure actual "id" field is set in payload
 	if err := setIDField(id, &data); err != nil {
-		return Response{}, fmt.Errorf("unable to set the id field in order to crate object with id %s: %w", id, err)
+		return api.Response{}, fmt.Errorf("unable to set the id field in order to crate object with id %s: %w", id, err)
 	}
 
 	resp, err := a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
 		return a.client.POST(ctx, a.resources[resourceType].Path, bytes.NewReader(data), options)
 	})
 	if err != nil {
-		return Response{}, err
+		return api.Response{}, err
 	}
 
-	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
+	return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
 }
 
 func (a Client) update(ctx context.Context, resourceType ResourceType, id string, data []byte) (Response, error) {
 	if err := rmIDField(&data); err != nil {
-		return Response{}, fmt.Errorf("unable to remove id field from payload in order to update object with ID %s: %w", id, err)
+		return api.Response{}, fmt.Errorf("unable to remove id field from payload in order to update object with ID %s: %w", id, err)
 	}
 
 	path, err := url.JoinPath(a.resources[resourceType].Path, id)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to create URL: %w", err)
+		return api.Response{}, fmt.Errorf("failed to create URL: %w", err)
 	}
 
 	resp, err := a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
@@ -344,10 +342,10 @@ func (a Client) update(ctx context.Context, resourceType ResourceType, id string
 	})
 
 	if err != nil {
-		return Response{}, fmt.Errorf("unable to update object with ID %s: %w", id, err)
+		return api.Response{}, fmt.Errorf("unable to update object with ID %s: %w", id, err)
 	}
 
-	return Response{api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}}, nil
+	return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
 }
 
 func (a Client) makeRequestWithAdminAccess(resourceType ResourceType, request func(options rest.RequestOptions) (rest.Response, error)) (rest.Response, error) {
