@@ -105,7 +105,7 @@ func NewClient(client *rest.Client, option ...Option) *Client {
 	for _, o := range option {
 		o(c)
 	}
-	client.SetHeader("Cache-Control", "no-cache")
+
 	return c
 }
 
