@@ -65,7 +65,7 @@ func NewHTTPTestServer(t *testing.T, responses []ResponseDef) *TestServer {
 	handler := func(rw http.ResponseWriter, req *http.Request) {
 		testServer.calls++
 		if len(responses) <= testServer.calls-1 {
-			t.Errorf("Exceeded number of calls to test server (expected: %d)", len(responses))
+			t.Fatalf("Exceeded number of calls to test server (expected: %d), request: %s %s - %s", len(responses), req.Method, req.URL, req.Body)
 		}
 
 		responseDef := responses[testServer.calls-1]

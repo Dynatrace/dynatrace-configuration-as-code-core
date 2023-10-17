@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/google/go-cmp/cmp"
@@ -31,6 +32,13 @@ import (
 )
 
 const endpointPath = "platform/storage/management/v1/bucket-definitions"
+
+const (
+	stateActive   = "active"
+	stateCreating = "creating"
+	stateUpdating = "updating"
+	stateDeleting = "deleting"
+)
 
 type response struct {
 	api.Response
@@ -194,6 +202,9 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (Res
 	}, nil
 }
 
+var DeletingBucketErr = errors.New("cannot update bucket that is currently being deleted")
+var UpdateStepFailed = errors.New("failed ")
+
 // Update attempts to update a bucket's data using the provided client. It employs a retry mechanism
 // in case of transient errors. The function returns a Response along with an error indicating the
 // success or failure of its execution.
@@ -222,13 +233,35 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 
 	logger := logr.FromContextOrDiscard(ctx)
 
-	// check if bucket needs to be updated at all
+	ctx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
+	defer cancel()
+
+	// get current state of the bucket
 	resp, err := c.get(ctx, bucketName)
 	if err != nil {
 		return api.Response{}, err
 	}
-	currentState := resp.Payload
-	if bucketsEqual(currentState, data) {
+	if !resp.IsSuccess() {
+		r := api.Response{
+			StatusCode: resp.StatusCode,
+			Data:       resp.Payload,
+			Request: rest.RequestInfo{
+				Method: "GET",
+			},
+		}
+		return r, nil
+	}
+
+	current, err := unmarshalJSON(&resp)
+	if err != nil {
+		return api.Response{}, err
+	}
+
+	if current.Status == stateDeleting {
+		return api.Response{}, DeletingBucketErr
+	}
+
+	if bucketsEqual(resp.Payload, data) {
 		logger.Info(fmt.Sprintf("Configuration unmodified, no need to update bucket with bucket name %q", bucketName))
 
 		return api.Response{
@@ -237,47 +270,22 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	}
 
 	// attempt update
-	ctx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
-	defer cancel()
-	timeout := c.retrySettings.durationBetweenTries
-	for i := 0; i < c.retrySettings.maxRetries; i++ {
-		select {
-		case <-ctx.Done():
-			return api.Response{}, fmt.Errorf("context canceled before bucket with bucktName %q became available", bucketName)
-		default:
-			logger.V(1).Info(fmt.Sprintf("Trying to update bucket with bucket name %q (%d/%d retries)", bucketName, i+1, c.retrySettings.maxRetries))
-
-			resp, err = c.getAndUpdate(ctx, bucketName, data)
-			if err != nil {
-				return api.Response{}, err
-			}
-
-			if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusBadRequest {
-				return api.Response{
-					StatusCode: resp.StatusCode,
-					Data:       resp.Payload,
-					Request:    resp.RequestInfo,
-				}, nil
-			}
-
-			if resp.IsSuccess() {
-				logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
-				return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
-			}
-			logger.V(1).Info(fmt.Sprintf("Retrying failed update of bucket with bucket name %q: %s", bucketName, string(currentState)))
-			time.Sleep(timeout)
-
-			// backoff by doubling timeout, capped at operation timeout / number of retries
-			if timeout*2 < c.retrySettings.maxWaitDuration/time.Duration(c.retrySettings.maxRetries) {
-				timeout *= 2
-			}
+	if current.Status != stateActive {
+		logger.V(1).Info(fmt.Sprintf("Waiting for bucket with bucket name %q to reach updatable state - currently %s", bucketName, current.Status))
+		if _, err := c.awaitBucketState(ctx, bucketName, active); err != nil {
+			return api.Response{}, err
 		}
 	}
-	return api.Response{
-		StatusCode: resp.StatusCode,
-		Data:       resp.Payload,
-		Request:    resp.RequestInfo,
-	}, err
+
+	resp, err = c.getAndUpdate(ctx, bucketName, data)
+	if err != nil {
+		return api.Response{}, err
+	}
+
+	if resp.IsSuccess() {
+		logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
+	}
+	return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
 }
 
 // Upsert creates or updates a bucket definition using the provided client. The function first attempts
@@ -340,6 +348,8 @@ func (c Client) Delete(ctx context.Context, bucketName string) (Response, error)
 func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Response, error) {
 
 	logger := logr.FromContextOrDiscard(ctx)
+	ctx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
+	defer cancel()
 
 	// First, try to create a new bucket definition
 	resp, err := c.create(ctx, bucketName, data)
@@ -365,9 +375,18 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 		return c.upsert(ctx, bucketName, data)
 	}
 
-	// Otherwise, try to update an existing bucket definition
+	// Try to update an existing bucket definition
 	logger.V(1).Info(fmt.Sprintf("Failed to create new object with bucket name %q. Trying to update existing object. API Error (HTTP %d): %s", bucketName, resp.StatusCode, resp.Payload))
-	return c.Update(ctx, bucketName, data)
+	apiResp, err := c.Update(ctx, bucketName, data)
+
+	if errors.Is(err, DeletingBucketErr) {
+		logger.V(1).Info(fmt.Sprintf("Failed to upsert bucket with name %q as it was being deleted. Re-creating...", bucketName))
+		if _, err := c.awaitBucketState(ctx, bucketName, removed); err != nil {
+			return Response{}, err
+		}
+		return c.Create(ctx, bucketName, data)
+	}
+	return apiResp, err
 }
 
 func (c Client) create(ctx context.Context, bucketName string, data []byte) (rest.Response, error) {
@@ -383,11 +402,18 @@ func (c Client) create(ctx context.Context, bucketName string, data []byte) (res
 	}
 
 	timoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
-	defer cancel() // cancel deadline if awaitBucketReady returns before deadline
-	return c.awaitBucketReady(timoutCtx, bucketName)
+	defer cancel() // cancel deadline if awaitBucketState returns before deadline
+	return c.awaitBucketState(timoutCtx, bucketName, active)
 }
 
-func (c Client) awaitBucketReady(ctx context.Context, bucketName string) (rest.Response, error) {
+type bucketAvailability int
+
+const (
+	active bucketAvailability = iota
+	removed
+)
+
+func (c Client) awaitBucketState(ctx context.Context, bucketName string, desired bucketAvailability) (rest.Response, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 
 	for {
@@ -404,19 +430,27 @@ func (c Client) awaitBucketReady(ctx context.Context, bucketName string) (rest.R
 				return r, nil
 			}
 
-			// try to unmarshal into internal struct
-			res, err := unmarshalJSON(&r)
-			if err != nil {
-				return r, err
+			switch desired {
+			case active:
+				// try to unmarshal into internal struct
+				res, err := unmarshalJSON(&r)
+				if err != nil {
+					return r, err
+				}
+
+				if res.Status == "active" {
+					logger.V(1).Info("Bucket became active and ready to use")
+					r.StatusCode = http.StatusCreated // return 'created' instead of the GET APIs 'ok'
+					return r, nil
+				}
+			case removed:
+				if r.StatusCode == http.StatusNotFound {
+					logger.V(1).Info("Bucket was removed")
+					return rest.Response{}, nil
+				}
 			}
 
-			if res.Status == "active" {
-				logger.V(1).Info("Created bucket became active and ready to use")
-				r.StatusCode = http.StatusCreated // return 'created' instead of the GET APIs 'ok'
-				return r, nil
-			}
-
-			logger.V(1).Info("Waiting for bucket to become active after creation...")
+			logger.V(1).Info("Waiting for bucket to reach desired state...")
 			time.Sleep(c.retrySettings.durationBetweenTries)
 		}
 	}
