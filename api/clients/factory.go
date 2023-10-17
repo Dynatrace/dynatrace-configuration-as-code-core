@@ -22,9 +22,9 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/buckets"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
-	"net/url"
-
 	"golang.org/x/oauth2/clientcredentials"
+	"net/url"
+	"time"
 )
 
 // ErrOAuthCredentialsMissing indicates that no OAuth2 client credentials were provided.
@@ -87,6 +87,16 @@ func (f factory) BucketClient() (*buckets.Client, error) {
 		return nil, err
 	}
 	return buckets.NewClient(restClient), nil
+}
+
+// BucketClientWithRetrySettings creates and returns a new instance of buckets.Client with non-default retry settings.
+// For details about how retry settings are used, see buckets.WithRetrySettings.
+func (f factory) BucketClientWithRetrySettings(maxRetries int, durationBetweenTries time.Duration, maxWaitDuration time.Duration) (*buckets.Client, error) {
+	restClient, err := f.createClient()
+	if err != nil {
+		return nil, err
+	}
+	return buckets.NewClient(restClient, buckets.WithRetrySettings(maxRetries, durationBetweenTries, maxWaitDuration)), nil
 }
 
 func (f factory) createClient() (*rest.Client, error) {

@@ -96,7 +96,7 @@ func NewClient(client *rest.Client, option ...Option) *Client {
 	c := &Client{
 		client: client,
 		retrySettings: retrySettings{
-			maxRetries:           5,
+			maxRetries:           15,
 			durationBetweenTries: time.Second,
 			maxWaitDuration:      2 * time.Minute,
 		},
