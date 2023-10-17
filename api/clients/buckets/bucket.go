@@ -227,7 +227,8 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	if err != nil {
 		return api.Response{}, err
 	}
-	if bucketsEqual(resp.Payload, data) {
+	currentState := resp.Payload
+	if bucketsEqual(currentState, data) {
 		logger.Info(fmt.Sprintf("Configuration unmodified, no need to update bucket with bucket name %q", bucketName))
 
 		return api.Response{
@@ -238,6 +239,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	// attempt update
 	ctx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
 	defer cancel()
+	timeout := c.retrySettings.durationBetweenTries
 	for i := 0; i < c.retrySettings.maxRetries; i++ {
 		select {
 		case <-ctx.Done():
@@ -262,7 +264,13 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 				logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
 				return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
 			}
-			time.Sleep(c.retrySettings.durationBetweenTries)
+			logger.V(1).Info(fmt.Sprintf("Retrying failed update of bucket with bucket name %q: %s", bucketName, string(currentState)))
+			time.Sleep(timeout)
+
+			// backoff by doubling timeout, capped at operation timeout / number of retries
+			if timeout*2 < c.retrySettings.maxWaitDuration/time.Duration(c.retrySettings.maxRetries) {
+				timeout *= 2
+			}
 		}
 	}
 	return api.Response{
@@ -348,6 +356,13 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	// Return if creation failed, but the errors was not 409 Conflict - Bucket already exists
 	if resp.StatusCode != http.StatusConflict {
 		return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, err
+	}
+
+	// If bucket is currently being deleted, retry upserts to re-create it once it's gone
+	if b, err := unmarshalJSON(&resp); err != nil && b.Status == "deleting" {
+		logger.V(1).Info(fmt.Sprintf("Bucket %q is being deleted. Waiting before re-creation...", b.BucketName))
+		time.Sleep(c.retrySettings.durationBetweenTries)
+		return c.upsert(ctx, bucketName, data)
 	}
 
 	// Otherwise, try to update an existing bucket definition
