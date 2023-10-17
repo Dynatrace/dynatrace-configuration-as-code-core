@@ -30,9 +30,8 @@ import (
 	"time"
 )
 
-func TestGet(t *testing.T) {
-	t.Run("successfully fetch a bucket", func(t *testing.T) {
-		const payload = `{
+const (
+	activeBucketResponse = `{
  "bucketName": "bucket name",
  "table": "metrics",
  "displayName": "Default metrics (15 months)",
@@ -42,12 +41,45 @@ func TestGet(t *testing.T) {
  "version": 1
 }`
 
+	creatingBucketResponse = `{
+ "bucketName": "bucket name",
+ "table": "metrics",
+ "displayName": "Default metrics (15 months)",
+ "status": "creating",
+ "retentionDays": 462,
+ "metricInterval": "PT1M",
+ "version": 1
+}`
+	updatingBucketResponse = `{
+ "bucketName": "bucket name",
+ "table": "metrics",
+ "displayName": "Default metrics (15 months)",
+ "status": "updating",
+ "retentionDays": 462,
+ "metricInterval": "PT1M",
+ "version": 1
+}`
+
+	deletingBucketResponse = `{
+ "bucketName": "bucket name",
+ "table": "metrics",
+ "displayName": "Default metrics (15 months)",
+ "status": "deleting",
+ "retentionDays": 462,
+ "metricInterval": "PT1M",
+ "version": 1
+}`
+)
+
+func TestGet(t *testing.T) {
+	t.Run("successfully fetch a bucket", func(t *testing.T) {
+
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
-						ResponseBody: payload,
+						ResponseBody: activeBucketResponse,
 					}
 				},
 			},
@@ -56,13 +88,14 @@ func TestGet(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
 		resp, err := client.Get(ctx, "bucket name")
 		assert.NoError(t, err)
-		assert.Equal(t, resp.Data, []byte(payload))
+		assert.Equal(t, resp.Data, []byte(activeBucketResponse))
 	})
 
 	t.Run("correctly create the error in case of a server issue", func(t *testing.T) {
@@ -80,7 +113,8 @@ func TestGet(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -131,7 +165,8 @@ func TestList(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -156,7 +191,8 @@ func TestList(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -180,7 +216,8 @@ func TestList(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -207,26 +244,6 @@ func TestList(t *testing.T) {
 }
 
 func TestUpsert(t *testing.T) {
-
-	const creatingBucketResponse = `{
- "bucketName": "bucket name",
- "table": "metrics",
- "displayName": "Default metrics (15 months)",
- "status": "creating",
- "retentionDays": 462,
- "metricInterval": "PT1M",
- "version": 1
-}`
-
-	const activeBucketResponse = `{
- "bucketName": "bucket name",
- "table": "metrics",
- "displayName": "Default metrics (15 months)",
- "status": "active",
- "retentionDays": 462,
- "metricInterval": "PT1M",
- "version": 1
-}`
 
 	t.Run("create new bucket - OK", func(t *testing.T) {
 
@@ -261,7 +278,8 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -301,7 +319,8 @@ func TestUpsert(t *testing.T) {
 
 		url, _ := url.Parse(server.URL) //nolint:errcheck
 
-		client := buckets.NewClient(rest.NewClient(url, server.Client()))
+		client := buckets.NewClient(rest.NewClient(url, server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -344,7 +363,8 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -385,7 +405,7 @@ func TestUpsert(t *testing.T) {
 				PUT: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
-						ResponseBody: activeBucketResponse,
+						ResponseBody: updatingBucketResponse,
 					}
 				},
 				ValidateRequest: func(t *testing.T, req *http.Request) {
@@ -399,12 +419,29 @@ func TestUpsert(t *testing.T) {
 					assert.Equal(t, "bucket name", m["bucketName"])
 				},
 			},
+			{
+				GET: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: updatingBucketResponse,
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: activeBucketResponse,
+					}
+				},
+			},
 		}
 
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -459,7 +496,8 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -640,7 +678,8 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 		data := []byte(activeBucketResponse)
 
 		ctx := testutils.ContextWithLogger(t)
@@ -734,7 +773,8 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -753,23 +793,29 @@ func TestUpsert(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 
-	const someBucketResponse = `{
- "bucketName": "bucket name",
- "table": "metrics",
- "displayName": "Default metrics (15 months)",
- "status": "deleting",
- "retentionDays": 462,
- "metricInterval": "PT1M",
- "version": 1
-}`
-
 	t.Run("delete bucket - OK", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				DELETE: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusAccepted,
-						ResponseBody: someBucketResponse,
+						ResponseBody: deletingBucketResponse,
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: deletingBucketResponse,
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusNotFound,
+						ResponseBody: "",
 					}
 				},
 			},
@@ -777,14 +823,15 @@ func TestDelete(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
 		resp, err := client.Delete(ctx, "bucket name")
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
-		assert.Equal(t, someBucketResponse, string(resp.Data))
+		assert.Equal(t, deletingBucketResponse, string(resp.Data))
 	})
 
 	t.Run("delete bucket - not found", func(t *testing.T) {
@@ -802,7 +849,8 @@ func TestDelete(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -846,26 +894,6 @@ func TestCreate(t *testing.T) {
  "version": 1
 }`
 
-	const creatingBucketResponse = `{
- "bucketName": "bucket name",
- "table": "metrics",
- "displayName": "Default metrics (15 months)",
- "status": "creating",
- "retentionDays": 462,
- "metricInterval": "PT1M",
- "version": 1
-}`
-
-	const activeBucketResponse = `{
- "bucketName": "bucket name",
- "table": "metrics",
- "displayName": "Default metrics (15 months)",
- "status": "active",
- "retentionDays": 462,
- "metricInterval": "PT1M",
- "version": 1
-}`
-
 	t.Run("create bucket - OK", func(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
@@ -890,7 +918,8 @@ func TestCreate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -925,7 +954,8 @@ func TestCreate(t *testing.T) {
 
 		url, _ := url.Parse(server.URL) //nolint:errcheck
 
-		client := buckets.NewClient(rest.NewClient(url, server.Client()))
+		client := buckets.NewClient(rest.NewClient(url, server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -962,7 +992,8 @@ func TestCreate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -974,15 +1005,6 @@ func TestCreate(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 
-	const someBucketResponse = `{
- "bucketName": "bucket name",
- "table": "metrics",
- "displayName": "Default metrics (15 months)",
- "status": "active",
- "retentionDays": 462,
- "metricInterval": "PT1M",
- "version": 1
-}`
 	t.Run("update fails", func(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
@@ -990,7 +1012,7 @@ func TestUpdate(t *testing.T) {
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
-						ResponseBody: someBucketResponse,
+						ResponseBody: activeBucketResponse,
 					}
 				},
 			},
@@ -998,7 +1020,7 @@ func TestUpdate(t *testing.T) {
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
-						ResponseBody: someBucketResponse,
+						ResponseBody: activeBucketResponse,
 					}
 				},
 			},
@@ -1015,7 +1037,8 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1030,7 +1053,7 @@ func TestUpdate(t *testing.T) {
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
-						ResponseBody: someBucketResponse,
+						ResponseBody: activeBucketResponse,
 					}
 				},
 				ValidateRequest: func(t *testing.T, req *http.Request) {
@@ -1041,7 +1064,7 @@ func TestUpdate(t *testing.T) {
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
-						ResponseBody: someBucketResponse,
+						ResponseBody: activeBucketResponse,
 					}
 				},
 				ValidateRequest: func(t *testing.T, req *http.Request) {
@@ -1052,7 +1075,7 @@ func TestUpdate(t *testing.T) {
 				PUT: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
-						ResponseBody: someBucketResponse,
+						ResponseBody: updatingBucketResponse,
 					}
 				},
 				ValidateRequest: func(t *testing.T, req *http.Request) {
@@ -1066,12 +1089,21 @@ func TestUpdate(t *testing.T) {
 					assert.Equal(t, "bucket name", m["bucketName"])
 				},
 			},
+			{
+				GET: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: activeBucketResponse,
+					}
+				},
+			},
 		}
 
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1092,7 +1124,7 @@ func TestUpdate(t *testing.T) {
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
-						ResponseBody: someBucketResponse,
+						ResponseBody: activeBucketResponse,
 					}
 				},
 				ValidateRequest: func(t *testing.T, req *http.Request) {
@@ -1104,7 +1136,8 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 		data := []byte(`{
 	 "bucketName": "bucket name",
 	 "table": "metrics",
@@ -1127,7 +1160,7 @@ func TestUpdate(t *testing.T) {
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
-						ResponseBody: someBucketResponse,
+						ResponseBody: activeBucketResponse,
 					}
 				},
 				ValidateRequest: func(t *testing.T, req *http.Request) {
@@ -1141,7 +1174,7 @@ func TestUpdate(t *testing.T) {
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
-						ResponseBody: someBucketResponse,
+						ResponseBody: activeBucketResponse,
 					}
 				},
 			}
@@ -1187,7 +1220,8 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1221,7 +1255,8 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1252,11 +1287,11 @@ func TestUpdate(t *testing.T) {
 					rw.Write([]byte(creatingResponse))
 					tries++
 				} else {
-					rw.Write([]byte(someBucketResponse))
+					rw.Write([]byte(activeBucketResponse))
 				}
 			case http.MethodPut:
 				rw.WriteHeader(http.StatusOK)
-				rw.Write([]byte(someBucketResponse))
+				rw.Write([]byte(updatingBucketResponse))
 			default:
 				assert.Failf(t, "unexpected method %q", req.Method)
 			}
@@ -1288,7 +1323,7 @@ func TestUpdate(t *testing.T) {
 				rw.WriteHeader(http.StatusForbidden)
 				rw.Write([]byte("no, this is an error"))
 			case http.MethodGet:
-				rw.Write([]byte(someBucketResponse))
+				rw.Write([]byte(activeBucketResponse))
 			case http.MethodPut:
 				if firstTry {
 					rw.WriteHeader(http.StatusConflict)
@@ -1296,7 +1331,7 @@ func TestUpdate(t *testing.T) {
 					firstTry = false
 				} else {
 					rw.WriteHeader(http.StatusOK)
-					rw.Write([]byte(someBucketResponse))
+					rw.Write([]byte(updatingBucketResponse))
 				}
 			default:
 				assert.Failf(t, "unexpected method %q", req.Method)
@@ -1357,7 +1392,8 @@ func TestDecodingBucketResponses(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -1393,7 +1429,8 @@ func TestDecodingBucketResponses(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
