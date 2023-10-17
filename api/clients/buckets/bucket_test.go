@@ -583,16 +583,15 @@ func TestUpsert(t *testing.T) {
 				rw.WriteHeader(http.StatusConflict)
 				rw.Write([]byte("no, this is an error"))
 			case http.MethodGet:
-				rw.Write([]byte(activeBucketResponse))
-			case http.MethodPut:
 				if firstTry {
-					rw.WriteHeader(http.StatusConflict)
-					rw.Write([]byte("conflict"))
+					rw.Write([]byte(creatingBucketResponse))
 					firstTry = false
 				} else {
-					rw.WriteHeader(http.StatusOK)
 					rw.Write([]byte(activeBucketResponse))
 				}
+			case http.MethodPut:
+				rw.WriteHeader(http.StatusOK)
+				rw.Write([]byte(activeBucketResponse))
 			default:
 				assert.Failf(t, "unexpected method %q", req.Method)
 			}
@@ -650,6 +649,106 @@ func TestUpsert(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
+
+	t.Run("bucket exists, but is being deleted - upsert re-creates after it's gone", func(t *testing.T) {
+
+		const deletingBucketResponse = `{
+ "bucketName": "bucket name",
+ "table": "metrics",
+ "displayName": "Default metrics (15 months)",
+ "status": "deleting",
+ "retentionDays": 462,
+ "metricInterval": "PT1M",
+ "version": 1
+}`
+
+		responses := []testutils.ResponseDef{
+			{
+				POST: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusConflict,
+						ResponseBody: "Bucket exists",
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: deletingBucketResponse,
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: deletingBucketResponse,
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: deletingBucketResponse,
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusNotFound,
+						ResponseBody: "{}",
+					}
+				},
+			},
+			{
+				POST: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: creatingBucketResponse,
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					data, err := io.ReadAll(req.Body)
+					assert.NoError(t, err)
+
+					m := map[string]any{}
+					err = json.Unmarshal(data, &m)
+					assert.NoError(t, err)
+
+					assert.Equal(t, "bucket name", m["bucketName"])
+				},
+			},
+			{
+				GET: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: activeBucketResponse,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+		data := []byte("{}")
+
+		ctx := testutils.ContextWithLogger(t)
+
+		resp, err := client.Upsert(ctx, "bucket name", data)
+		assert.NoError(t, err)
+
+		m := map[string]any{}
+		err = json.Unmarshal(resp.Data, &m)
+		assert.NoError(t, err)
+
+		assert.Equal(t, "bucket name", m["bucketName"])
+	})
+
 }
 
 func TestDelete(t *testing.T) {
@@ -1084,22 +1183,6 @@ func TestUpdate(t *testing.T) {
 					}
 				},
 			},
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusForbidden,
-						ResponseBody: "expected error, we don't want to get",
-					}
-				},
-			},
-			{
-				POST: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusForbidden,
-						ResponseBody: "expected error, we don't want to create",
-					}
-				},
-			},
 		}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
@@ -1115,24 +1198,65 @@ func TestUpdate(t *testing.T) {
 
 	})
 
+	t.Run("Update fails because bucket is being deleted already", func(t *testing.T) {
+
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: `{
+ "bucketName": "bucket name",
+ "table": "metrics",
+ "displayName": "Default metrics (15 months)",
+ "status": "deleting",
+ "retentionDays": 462,
+ "metricInterval": "PT1M",
+ "version": 1
+}`,
+					}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
+		data := []byte("{}")
+
+		ctx := testutils.ContextWithLogger(t)
+
+		_, err := client.Update(ctx, "bucket name", data)
+		assert.ErrorIs(t, err, buckets.DeletingBucketErr)
+
+	})
+
 	t.Run("Update fails at first, but succeeds after retry", func(t *testing.T) {
-		var firstTry = true
+		tries := 0
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			switch req.Method {
 			case http.MethodPost:
 				rw.WriteHeader(http.StatusForbidden)
 				rw.Write([]byte("no, this is an error"))
 			case http.MethodGet:
-				rw.Write([]byte(someBucketResponse))
-			case http.MethodPut:
-				if firstTry {
-					rw.WriteHeader(http.StatusConflict)
-					rw.Write([]byte("conflict"))
-					firstTry = false
+				if tries < 5 {
+					creatingResponse := `{
+ "bucketName": "bucket name",
+ "table": "metrics",
+ "displayName": "Default metrics (15 months)",
+ "status": "creating",
+ "retentionDays": 462,
+ "metricInterval": "PT1M",
+ "version": 1
+}`
+					rw.Write([]byte(creatingResponse))
+					tries++
 				} else {
-					rw.WriteHeader(http.StatusOK)
 					rw.Write([]byte(someBucketResponse))
 				}
+			case http.MethodPut:
+				rw.WriteHeader(http.StatusOK)
+				rw.Write([]byte(someBucketResponse))
 			default:
 				assert.Failf(t, "unexpected method %q", req.Method)
 			}
@@ -1140,7 +1264,8 @@ func TestUpdate(t *testing.T) {
 		defer server.Close()
 
 		u, _ := url.Parse(server.URL)
-		client := buckets.NewClient(rest.NewClient(u, &http.Client{}))
+		client := buckets.NewClient(rest.NewClient(u, &http.Client{}),
+			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1186,7 +1311,7 @@ func TestUpdate(t *testing.T) {
 
 		ctx := testutils.ContextWithLogger(t)
 		_, err := client.Update(ctx, "bucket name", data)
-		assert.ErrorContains(t, err, "canceled")
+		assert.ErrorContains(t, err, "deadline")
 	})
 }
 
