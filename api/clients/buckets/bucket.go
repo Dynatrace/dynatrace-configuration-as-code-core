@@ -341,7 +341,19 @@ func (c Client) Delete(ctx context.Context, bucketName string) (Response, error)
 	if err != nil {
 		return api.Response{}, fmt.Errorf("unable to delete object with bucket name %q: %w", bucketName, err)
 	}
-	return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, err
+	if !resp.IsSuccess() {
+		return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
+	}
+
+	// await bucket being successfully deleted
+	timoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
+	defer cancel() // cancel deadline if awaitBucketState returns before deadline
+	_, err = c.awaitBucketState(timoutCtx, bucketName, removed)
+	if err != nil {
+		return api.Response{}, fmt.Errorf("unable to delete object with bucket name %q: %w", bucketName, err)
+	}
+
+	return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
 }
 
 // upsert is an internal function used by Upsert to perform the create or update logic.
@@ -446,7 +458,7 @@ func (c Client) awaitBucketState(ctx context.Context, bucketName string, desired
 			case removed:
 				if r.StatusCode == http.StatusNotFound {
 					logger.V(1).Info("Bucket was removed")
-					return rest.Response{}, nil
+					return r, nil
 				}
 			}
 
@@ -517,9 +529,18 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 	}
 
 	// make PUT request
-	return c.client.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{
+	resp, err := c.client.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{
 		QueryParams: url.Values{"optimistic-locking-version": []string{strconv.Itoa(res.Version)}},
 	})
+	if err != nil {
+		return rest.Response{}, err
+	}
+	if !resp.IsSuccess() {
+		return resp, nil
+	}
+	timoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
+	defer cancel() // cancel deadline if awaitBucketState returns before deadline
+	return c.awaitBucketState(timoutCtx, bucketName, active)
 }
 
 // bucketsEqual checks whether two bucket JSONs are equal in terms of update API calls
