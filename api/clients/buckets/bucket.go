@@ -205,7 +205,6 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (Res
 }
 
 var DeletingBucketErr = errors.New("cannot update bucket that is currently being deleted")
-var UpdateStepFailed = errors.New("failed ")
 
 // Update attempts to update a bucket's data using the provided client. It employs a retry mechanism
 // in case of transient errors. The function returns a Response along with an error indicating the
