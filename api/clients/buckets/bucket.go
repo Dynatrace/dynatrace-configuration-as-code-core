@@ -101,6 +101,8 @@ func WithRetrySettings(maxRetries int, durationBetweenTries time.Duration, maxWa
 // Returns:
 //   - *Client: A pointer to a new Client instance initialized with the provided rest.Client and logger.
 func NewClient(client *rest.Client, option ...Option) *Client {
+	client.SetHeader("Cache-Control", "no-cache")
+
 	c := &Client{
 		client: client,
 		retrySettings: retrySettings{
