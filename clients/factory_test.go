@@ -15,8 +15,8 @@
 package clients
 
 import (
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/automation"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/buckets"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2/clientcredentials"
 	"testing"
