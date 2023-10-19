@@ -19,24 +19,13 @@ package automation
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"net/http"
 	"net/url"
 	"strconv"
 )
-
-type Response = api.Response
-
-type ListResponse = api.PagedListResponse
-
-type listResponse struct {
-	api.Response
-	Count   int               `json:"count"`
-	Objects []json.RawMessage `json:"results"`
-}
 
 // Resource specifies information about a specific resource
 type Resource struct {
@@ -53,7 +42,7 @@ const (
 	SchedulingRules
 )
 
-var resources = map[ResourceType]Resource{
+var Resources = map[ResourceType]Resource{
 	Workflows:         {Path: "/platform/automation/v1/workflows"},
 	BusinessCalendars: {Path: "/platform/automation/v1/business-calendars"},
 	SchedulingRules:   {Path: "/platform/automation/v1/scheduling-rules"},
@@ -71,8 +60,7 @@ var resources = map[ResourceType]Resource{
 //   - *Client: A new instance of the Client type initialized with the provided REST client and resources.
 func NewClient(client *rest.Client) *Client {
 	c := &Client{
-		client:    client,
-		resources: resources,
+		client: client,
 	}
 
 	return c
@@ -80,8 +68,7 @@ func NewClient(client *rest.Client) *Client {
 
 // Client can be used to interact with the Automation API
 type Client struct {
-	client    *rest.Client
-	resources map[ResourceType]Resource
+	client *rest.Client
 }
 
 // ClientOption are (optional) additional parameter passed to the creation of
@@ -89,6 +76,7 @@ type Client struct {
 type ClientOption func(*Client)
 
 // Get retrieves a single automation object based on the specified resource type and ID.
+// It makes a HTTP GET <resourceType endpoint>/<id> request against the API.
 //
 // It checks if the ID is non-empty, and if not, returns an error.
 //
@@ -102,20 +90,16 @@ type ClientOption func(*Client)
 //
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (Response, error) {
+func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (rest.Response, error) {
 	if id == "" {
-		return api.Response{}, fmt.Errorf("id must be non empty")
+		return rest.Response{}, fmt.Errorf("id must be non empty")
 	}
-	path, err := url.JoinPath(a.resources[resourceType].Path, id)
+	path, err := url.JoinPath(Resources[resourceType].Path, id)
 	if err != nil {
-		return api.Response{}, fmt.Errorf("failed to create URL: %w", err)
-	}
-	resp, err := a.client.GET(ctx, path, rest.RequestOptions{})
-	if err != nil {
-		return api.Response{}, fmt.Errorf("failed to get automation resource of type %q with id %q: %w", resourceType, id, err)
+		return rest.Response{}, fmt.Errorf("failed to create URL: %w", err)
 	}
 
-	return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
+	return a.client.GET(ctx, path, rest.RequestOptions{})
 }
 
 // Create creates a new automation object based on the specified resource type.
@@ -130,8 +114,31 @@ func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (
 //
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (a Client) Create(ctx context.Context, resourceType ResourceType, data []byte) (result Response, err error) {
-	return a.create(ctx, data, resourceType)
+func (a Client) Create(ctx context.Context, resourceType ResourceType, data []byte) (result rest.Response, err error) {
+	return a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
+		return a.client.POST(ctx, Resources[resourceType].Path, bytes.NewReader(data), options)
+	})
+}
+
+// List retrieves makes a HTTP GET <resourceType endpoint>/ request against the API.
+// The Automations API implements offset based pagination, which can be controlled by passing the desired offset to this
+// method. Parsing responses and making several calls with the desired offset needs to be handled by the caller.
+// See the 'smart' client implemented in clients/automation/Client for a List implementation that follows pagination automatically.
+//
+// Parameters:
+//   - ctx: A context.Context for controlling the request lifecycle.
+//   - resourceType: The type of resource to list.
+//   - offset: The offset to start the paginated query from. This is passed directly to the API.
+//
+// Returns:
+//
+//   - ListResponse: A ListResponse which is an api.PagedListResponse containing all objects fetched from the api
+//   - error: An error if the HTTP call fails or another error happened.
+func (a Client) List(ctx context.Context, resourceType ResourceType, offset int) (rest.Response, error) {
+	return a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
+		options.QueryParams["offset"] = []string{strconv.Itoa(offset)}
+		return a.client.GET(ctx, Resources[resourceType].Path, options)
+	})
 }
 
 // Update updates an automation object based on the specified resource type and id
@@ -147,123 +154,18 @@ func (a Client) Create(ctx context.Context, resourceType ResourceType, data []by
 //
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (a Client) Update(ctx context.Context, resourceType ResourceType, id string, data []byte) (Response, error) {
-	return a.update(ctx, resourceType, id, data)
-}
-
-// List retrieves a list of automation objects of the specified resource
-//
-// The function sends multiple HTTP GET requests to fetch paginated data. It continues making requests
-// until the total number of objects retrieved matches the expected count provided by the server.
-//
-// The result is returned as a slice of ListResponse objects. Each ListResponse contains information about
-// the HTTP response, including the status code, response data, and request details. The objects retrieved
-// from each paginated request are stored as byte slices within the ListResponse.
-//
-// Parameters:
-//   - ctx: A context.Context for controlling the request lifecycle.
-//   - resourceType: The type of resource to list.
-//
-// Returns:
-//
-//   - ListResponse: A ListResponse which is an api.PagedListResponse containing all objects fetched from the api
-//   - error: An error if the HTTP call fails or another error happened.
-func (a Client) List(ctx context.Context, resourceType ResourceType) (ListResponse, error) {
-	// retVal are the collected paginated API responses
-	var retVal ListResponse
-
-	// result is the latest API response received
-	var result listResponse
-	result.Count = 1 // ensure starting condition is met, after the first API call this will be actual total count of objects
-
-	retrieved := 0
-
-	adminAccess := true
-
-	for retrieved < result.Count {
-		resp, err := a.client.GET(ctx, a.resources[resourceType].Path, rest.RequestOptions{
-			QueryParams: url.Values{
-				"offset":      []string{strconv.Itoa(retrieved)},
-				"adminAccess": []string{strconv.FormatBool(adminAccess)},
-			},
-		})
-
-		if err != nil {
-			return ListResponse{}, fmt.Errorf("failed to list automation resources: %w", err)
-		}
-
-		// if Workflow API rejected the initial request with admin permissions -> continue without
-		if resourceType == Workflows && resp.StatusCode == http.StatusForbidden {
-			adminAccess = false
-			continue
-		}
-
-		// if one of the response has code != 2xx return empty list with response info
-		if !resp.IsSuccess() {
-			return ListResponse{
-				api.ListResponse{
-					Response: api.Response{
-						StatusCode: resp.StatusCode,
-						Data:       resp.Payload,
-						Request:    resp.RequestInfo,
-					},
-				},
-			}, nil
-		}
-
-		result, err = unmarshalJSONList(&resp)
-		if err != nil {
-			return ListResponse{}, fmt.Errorf("failed to parse list response:%w", err)
-		}
-
-		retrieved += len(result.Objects)
-
-		b := make([][]byte, len(result.Objects))
-		for i, v := range result.Objects {
-			b[i], _ = v.MarshalJSON() // marshalling the JSON back to JSON will not fail
-		}
-
-		retVal = append(retVal, api.ListResponse{
-			Response: api.Response{
-				StatusCode: result.StatusCode,
-				Data:       result.Data,
-				Request:    result.Request,
-			},
-			Objects: b,
-		})
-
-	}
-
-	return retVal, nil
-}
-
-// Upsert creates or updates an object of a specified resource type with the given ID and data.
-//
-// Parameters:
-//   - ctx: The context for the HTTP request.
-//   - resourceType: The type of the resource to upsert.
-//   - id: The unique identifier for the object.
-//   - data: The data payload representing the object.
-//
-// Returns:
-//
-//   - Response: A Response containing the result of the HTTP operation, including status code and data.
-//   - error: An error if the HTTP call fails or another error happened.
-func (a Client) Upsert(ctx context.Context, resourceType ResourceType, id string, data []byte) (result Response, err error) {
+func (a Client) Update(ctx context.Context, resourceType ResourceType, id string, data []byte) (rest.Response, error) {
 	if id == "" {
-		return api.Response{}, fmt.Errorf("id must be non empty")
+		return rest.Response{}, errors.New("id must be non empty")
 	}
-	resp, err := a.update(ctx, resourceType, id, data)
+	path, err := url.JoinPath(Resources[resourceType].Path, id)
 	if err != nil {
-		return api.Response{}, err
+		return rest.Response{}, fmt.Errorf("failed to create URL: %w", err)
 	}
 
-	if resp.IsSuccess() {
-		return api.Response{StatusCode: resp.StatusCode, Data: resp.Data, Request: resp.Request}, nil
-	}
-
-	// at this point we need to create a new object using HTTP POST
-	return a.createWithID(ctx, resourceType, id, data)
+	return a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
+		return a.client.PUT(ctx, path, bytes.NewReader(data), options)
+	})
 }
 
 // Delete removes an automation object of the specified resource type by its unique identifier (ID).
@@ -280,72 +182,18 @@ func (a Client) Upsert(ctx context.Context, resourceType ResourceType, id string
 //
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (a Client) Delete(ctx context.Context, resourceType ResourceType, id string) (Response, error) {
+func (a Client) Delete(ctx context.Context, resourceType ResourceType, id string) (rest.Response, error) {
 	if id == "" {
-		return api.Response{}, fmt.Errorf("id must be non empty")
+		return rest.Response{}, errors.New("id must be non empty")
 	}
-	path, err := url.JoinPath(a.resources[resourceType].Path, id)
+	path, err := url.JoinPath(Resources[resourceType].Path, id)
 	if err != nil {
-		return api.Response{}, fmt.Errorf("failed to create URL: %w", err)
+		return rest.Response{}, fmt.Errorf("failed to create URL: %w", err)
 	}
 
-	resp, err := a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
+	return a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
 		return a.client.DELETE(ctx, path, options)
 	})
-
-	if err != nil {
-		return api.Response{}, fmt.Errorf("unable to delete object with ID %s: %w", id, err)
-	}
-
-	return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
-}
-
-func (a Client) create(ctx context.Context, data []byte, resourceType ResourceType) (Response, error) {
-	resp, err := a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
-		return a.client.POST(ctx, a.resources[resourceType].Path, bytes.NewReader(data), options)
-	})
-	if err != nil {
-		return api.Response{}, err
-	}
-
-	return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
-}
-
-func (a Client) createWithID(ctx context.Context, resourceType ResourceType, id string, data []byte) (Response, error) {
-	// make sure actual "id" field is set in payload
-	if err := setIDField(id, &data); err != nil {
-		return api.Response{}, fmt.Errorf("unable to set the id field in order to crate object with id %s: %w", id, err)
-	}
-
-	resp, err := a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
-		return a.client.POST(ctx, a.resources[resourceType].Path, bytes.NewReader(data), options)
-	})
-	if err != nil {
-		return api.Response{}, err
-	}
-
-	return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
-}
-
-func (a Client) update(ctx context.Context, resourceType ResourceType, id string, data []byte) (Response, error) {
-	if err := rmIDField(&data); err != nil {
-		return api.Response{}, fmt.Errorf("unable to remove id field from payload in order to update object with ID %s: %w", id, err)
-	}
-
-	path, err := url.JoinPath(a.resources[resourceType].Path, id)
-	if err != nil {
-		return api.Response{}, fmt.Errorf("failed to create URL: %w", err)
-	}
-
-	resp, err := a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
-		return a.client.PUT(ctx, path, bytes.NewReader(data), options)
-	})
-
-	if err != nil {
-		return api.Response{}, fmt.Errorf("unable to update object with ID %s: %w", id, err)
-	}
-
-	return api.Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
 }
 
 func (a Client) makeRequestWithAdminAccess(resourceType ResourceType, request func(options rest.RequestOptions) (rest.Response, error)) (rest.Response, error) {
@@ -361,44 +209,4 @@ func (a Client) makeRequestWithAdminAccess(resourceType ResourceType, request fu
 	}
 
 	return resp, err
-}
-
-func unmarshalJSONList(raw *rest.Response) (listResponse, error) {
-	var r listResponse
-	err := json.Unmarshal(raw.Payload, &r)
-	if err != nil {
-		return listResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
-	}
-	r.Data = raw.Payload
-	r.StatusCode = raw.StatusCode
-	r.Request = raw.RequestInfo
-	return r, nil
-}
-
-func setIDField(id string, data *[]byte) error {
-	var m map[string]interface{}
-	err := json.Unmarshal(*data, &m)
-	if err != nil {
-		return err
-	}
-	m["id"] = id
-	*data, err = json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func rmIDField(data *[]byte) error {
-	var m map[string]interface{}
-	err := json.Unmarshal(*data, &m)
-	if err != nil {
-		return err
-	}
-	delete(m, "id")
-	*data, err = json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	return nil
 }
