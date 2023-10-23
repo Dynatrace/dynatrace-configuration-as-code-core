@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package buckets (api/clients/buckets) provides a simple CRUD client for the Grail Bucket API.
+// For a 'smart' API client see package clients/buckets.
 package buckets
 
 import (

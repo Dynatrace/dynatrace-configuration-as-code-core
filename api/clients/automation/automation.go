@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// Package automation (api/clients/automation) provides a simple CRUD client for the Automations API.
+// For a 'smart' API client see package clients/automation.
 package automation
 
 import (

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package rest provides an extended rest.Client with optional behaviours like rate limiting, request/response logging, etc.
 package rest
 
 import (
