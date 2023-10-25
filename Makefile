@@ -6,6 +6,7 @@ setup:
 	@echo "Installing build tools..."
 	@go install github.com/google/addlicense@v1.1.1
 	@go install gotest.tools/gotestsum@v1.10.1
+	@go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest
 
 lint: setup
 ifeq ($(OS),Windows_NT)

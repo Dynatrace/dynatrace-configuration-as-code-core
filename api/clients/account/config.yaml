@@ -1,0 +1,15 @@
+package: account
+
+generate:
+  models: true
+  client: true
+
+output: account.gen.go
+
+output-options:
+  include-tags:
+  - User management
+  - Group management
+  - Permission management
+  - Policy management
+
