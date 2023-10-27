@@ -3,7 +3,7 @@ go 1.20
 module github.com/dynatrace/dynatrace-configuration-as-code-core
 
 require (
-	github.com/go-logr/logr v1.2.4
+	github.com/go-logr/logr v1.3.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.3.1
 	github.com/stretchr/testify v1.8.4
