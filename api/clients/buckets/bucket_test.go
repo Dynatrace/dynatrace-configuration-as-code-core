@@ -90,7 +90,9 @@ func TestGet(t *testing.T) {
 
 		resp, err := client.Get(ctx, "bucket name")
 		assert.NoError(t, err)
-		assert.Equal(t, resp.Payload, []byte(activeBucketResponse))
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		assert.Equal(t, body, []byte(activeBucketResponse))
 	})
 
 	t.Run("correctly create the error in case of a server issue", func(t *testing.T) {
@@ -165,7 +167,9 @@ func TestList(t *testing.T) {
 
 		resp, err := client.List(ctx)
 		assert.NoError(t, err)
-		assert.Equal(t, resp.Payload, []byte(payload))
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		assert.Equal(t, []byte(payload), body)
 	})
 
 	t.Run("successfully returns empty response if no buckets exist", func(t *testing.T) {
@@ -189,7 +193,9 @@ func TestList(t *testing.T) {
 
 		resp, err := client.List(ctx)
 		assert.NoError(t, err, "expected err to be nil")
-		assert.Equal(t, resp.Payload, []byte(payload))
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		assert.Equal(t, []byte(payload), body)
 	})
 
 	t.Run("successfully returns response in case of HTTP error", func(t *testing.T) {
@@ -271,7 +277,9 @@ func TestDelete(t *testing.T) {
 		resp, err := client.Delete(ctx, "bucket name")
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
-		assert.Equal(t, deletingBucketResponse, string(resp.Payload))
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		assert.Equal(t, deletingBucketResponse, string(body))
 	})
 
 	t.Run("delete bucket - not found", func(t *testing.T) {
@@ -296,7 +304,9 @@ func TestDelete(t *testing.T) {
 		resp, err := client.Delete(ctx, "bucket name")
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
-		assert.Equal(t, []byte{}, resp.Payload)
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		assert.Equal(t, []byte{}, body)
 	})
 
 	t.Run("delete bucket - network error", func(t *testing.T) {
@@ -356,7 +366,9 @@ func TestCreate(t *testing.T) {
 		resp, err := client.Create(ctx, []byte(someBucketData))
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusCreated, resp.StatusCode)
-		assert.Equal(t, creatingBucketResponse, string(resp.Payload))
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		assert.Equal(t, creatingBucketResponse, string(body))
 	})
 
 	t.Run("create bucket - network error", func(t *testing.T) {
@@ -435,8 +447,10 @@ func TestUpdate(t *testing.T) {
 		resp, err := client.Update(ctx, "bucket name", "1", data)
 		assert.NoError(t, err)
 
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
 		m := map[string]any{}
-		err = json.Unmarshal(resp.Payload, &m)
+		err = json.Unmarshal(body, &m)
 		assert.NoError(t, err)
 	})
 }
