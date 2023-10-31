@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/auth"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/accounts"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
@@ -71,6 +72,15 @@ func (f factory) WithHTTPListener(listener *rest.HTTPListener) factory {
 	return f
 }
 
+// AccountClient creates and reaturns a new instance of accounts.Client for interacting with the accounts API.
+func (f factory) AccountClient(accountManagementURL string) (*accounts.Client, error) {
+	restClient, err := f.createClientForAccount(accountManagementURL)
+	if err != nil {
+		return nil, err
+	}
+	return accounts.NewClient(restClient), nil
+}
+
 // AutomationClient creates and returns a new instance of automation.Client for interacting with the automation API.
 func (f factory) AutomationClient() (*automation.Client, error) {
 	restClient, err := f.createClient()
@@ -99,6 +109,23 @@ func (f factory) BucketClientWithRetrySettings(maxRetries int, durationBetweenTr
 	return buckets.NewClient(restClient, buckets.WithRetrySettings(maxRetries, durationBetweenTries, maxWaitDuration)), nil
 }
 
+func (f factory) createClientForAccount(accManagementURL string) (*rest.Client, error) {
+	if f.oauthConfig == nil {
+		return nil, ErrOAuthCredentialsMissing
+	}
+
+	parsedURL, err := url.Parse(accManagementURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse URL %q: %w", f.url, err)
+	}
+
+	restClient := rest.NewClient(parsedURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig), rest.WithHTTPListener(f.httpListener))
+	if f.userAgent != "" {
+		restClient.SetHeader("User-Agent", f.userAgent)
+	}
+
+	return restClient, nil
+}
 func (f factory) createClient() (*rest.Client, error) {
 	if f.url == "" {
 		return nil, ErrEnvironmentURLMissing
