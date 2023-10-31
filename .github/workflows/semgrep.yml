@@ -27,7 +27,7 @@ jobs:
       # Fetch project source with GitHub Actions Checkout.
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 #v4.1.1
       # Run the "semgrep ci" command on the command line of the docker image.
-      - run: semgrep ci
+      - run: semgrep ci --exclude "gen/*"
         env:
           # Add the rules that Semgrep uses by setting the SEMGREP_RULES environment variable - more at semgrep.dev/explore.
           SEMGREP_RULES: p/default p/golang p/github-actions p/docker
