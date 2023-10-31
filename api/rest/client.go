@@ -106,28 +106,38 @@ func NewClient(baseURL *url.URL, httpClient *http.Client, opts ...Option) *Clien
 	return client
 }
 
+// Do executes the given request and returns a raw *http.Response
+func (c *Client) Do(req *http.Request) (*http.Response, error) {
+	_, response, err := c.sendWithRetries(req.Context(), req, 0, RequestOptions{})
+	return response, err
+}
+
 // GET sends a GET request to the specified endpoint.
 // If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 func (c *Client) GET(ctx context.Context, endpoint string, options RequestOptions) (Response, error) {
-	return c.sendRequestWithRetries(ctx, http.MethodGet, endpoint, nil, 0, options)
+	resp, _, err := c.sendRequestWithRetries(ctx, http.MethodGet, endpoint, nil, 0, options)
+	return resp, err
 }
 
 // PUT sends a PUT request to the specified endpoint with the given body.
 // If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 func (c *Client) PUT(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (Response, error) {
-	return c.sendRequestWithRetries(ctx, http.MethodPut, endpoint, body, 0, options)
+	resp, _, err := c.sendRequestWithRetries(ctx, http.MethodPut, endpoint, body, 0, options)
+	return resp, err
 }
 
 // POST sends a POST request to the specified endpoint with the given body.
 // If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 func (c *Client) POST(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (Response, error) {
-	return c.sendRequestWithRetries(ctx, http.MethodPost, endpoint, body, 0, options)
+	resp, _, err := c.sendRequestWithRetries(ctx, http.MethodPost, endpoint, body, 0, options)
+	return resp, err
 }
 
 // DELETE sends a DELETE request to the specified endpoint.
 // If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 func (c *Client) DELETE(ctx context.Context, endpoint string, options RequestOptions) (Response, error) {
-	return c.sendRequestWithRetries(ctx, http.MethodDelete, endpoint, nil, 0, options)
+	resp, _, err := c.sendRequestWithRetries(ctx, http.MethodDelete, endpoint, nil, 0, options)
+	return resp, err
 }
 
 // SetHeader sets a custom header for the HTTP client.
@@ -140,9 +150,7 @@ func (c *Client) BaseURL() *url.URL {
 	return c.baseURL
 }
 
-// sendRequestWithRetries sends an HTTP request with custom headers and modified request body, with retries if configured.
-func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endpoint string, body io.Reader, retryCount int, options RequestOptions) (Response, error) {
-
+func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (Response, *http.Response, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 
 	if c.rateLimiter != nil {
@@ -153,16 +161,6 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 	if c.concurrentRequestLimiter != nil {
 		c.concurrentRequestLimiter.Acquire()
 		defer c.concurrentRequestLimiter.Release()
-	}
-
-	fullURL := c.baseURL.JoinPath(endpoint)
-	if options.QueryParams != nil {
-		fullURL.RawQuery = options.QueryParams.Encode()
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, fullURL.String(), body)
-	if err != nil {
-		return Response{}, err
 	}
 
 	req.Header.Set("Content-type", "application/json")
@@ -177,12 +175,13 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 	}
 
 	var reqID string
+	var err error
+	// wrap the body so that it could be read again
+	if req.Body, err = ReusableReader(req.Body); err != nil {
+		return Response{}, nil, err
+	}
 	if c.httpListener != nil {
 		reqID = uuid.NewString()
-		// wrap the body so that it could be read again
-		if req.Body, err = ReusableReader(req.Body); err != nil {
-			return Response{}, err
-		}
 		c.httpListener.onRequest(reqID, req)
 	}
 
@@ -193,17 +192,18 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		}
 
 		if isConnectionResetErr(err) {
-			return Response{}, fmt.Errorf("unable to connect to host %q, connection closed unexpectedly: %w", req.Host, err)
+			return Response{}, nil, fmt.Errorf("unable to connect to host %q, connection closed unexpectedly: %w", req.Host, err)
 		}
 
-		return Response{}, err
+		return Response{}, nil, err
+	}
+
+	// wrap the body so that it could be read again
+	if response.Body, err = ReusableReader(response.Body); err != nil {
+		return Response{}, nil, err
 	}
 
 	if c.httpListener != nil {
-		// wrap the body so that it could be read again
-		if response.Body, err = ReusableReader(response.Body); err != nil {
-			return Response{}, err
-		}
 		c.httpListener.onResponse(reqID, response, nil)
 	}
 
@@ -214,15 +214,15 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 
 	if c.requestRetrier != nil && retryCount < c.requestRetrier.MaxRetries &&
 		c.requestRetrier.ShouldRetryFunc != nil && c.requestRetrier.ShouldRetryFunc(response) {
-		logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", fullURL, response.Status, 100, retryCount+1, c.requestRetrier.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", c.requestRetrier.MaxRetries)
+		logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, 100, retryCount+1, c.requestRetrier.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", c.requestRetrier.MaxRetries)
 		time.Sleep(100 * time.Millisecond)
-		return c.sendRequestWithRetries(ctx, method, endpoint, body, retryCount+1, options)
+		return c.sendWithRetries(ctx, req, retryCount+1, options)
 	}
 
 	// Read payload
 	payload, err := io.ReadAll(response.Body)
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("Failed to read response body of failed request %q (HTTP %s)", fullURL, response.Status))
+		logger.Error(err, fmt.Sprintf("Failed to read response body of failed request %q (HTTP %s)", req.URL, response.Status))
 	}
 
 	if err := response.Body.Close(); err != nil {
@@ -235,7 +235,21 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		RequestInfo: RequestInfo{
 			Method: req.Method,
 			URL:    req.URL.String(),
-		}}, nil
+		}}, response, nil
+}
+
+// sendRequestWithRetries sends an HTTP request with custom headers and modified request body, with retries if configured.
+func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endpoint string, body io.Reader, retryCount int, options RequestOptions) (Response, *http.Response, error) {
+	fullURL := c.baseURL.JoinPath(endpoint)
+	if options.QueryParams != nil {
+		fullURL.RawQuery = options.QueryParams.Encode()
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, fullURL.String(), body)
+	if err != nil {
+		return Response{}, nil, err
+	}
+	return c.sendWithRetries(ctx, req, retryCount, options)
 }
 
 func isConnectionResetErr(err error) bool {
