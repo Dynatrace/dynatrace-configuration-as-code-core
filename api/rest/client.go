@@ -114,25 +114,25 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 // GET sends a GET request to the specified endpoint.
 // If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 func (c *Client) GET(ctx context.Context, endpoint string, options RequestOptions) (*http.Response, error) {
-	return c.sendRequestWithRetries(ctx, http.MethodGet, endpoint, nil, 0, options)
+	return c.sendRequestWithRetries(ctx, http.MethodGet, endpoint, nil, options)
 }
 
 // PUT sends a PUT request to the specified endpoint with the given body.
 // If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 func (c *Client) PUT(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (*http.Response, error) {
-	return c.sendRequestWithRetries(ctx, http.MethodPut, endpoint, body, 0, options)
+	return c.sendRequestWithRetries(ctx, http.MethodPut, endpoint, body, options)
 }
 
 // POST sends a POST request to the specified endpoint with the given body.
 // If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 func (c *Client) POST(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (*http.Response, error) {
-	return c.sendRequestWithRetries(ctx, http.MethodPost, endpoint, body, 0, options)
+	return c.sendRequestWithRetries(ctx, http.MethodPost, endpoint, body, options)
 }
 
 // DELETE sends a DELETE request to the specified endpoint.
 // If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 func (c *Client) DELETE(ctx context.Context, endpoint string, options RequestOptions) (*http.Response, error) {
-	return c.sendRequestWithRetries(ctx, http.MethodDelete, endpoint, nil, 0, options)
+	return c.sendRequestWithRetries(ctx, http.MethodDelete, endpoint, nil, options)
 }
 
 // SetHeader sets a custom header for the HTTP client.
@@ -217,7 +217,7 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 }
 
 // sendRequestWithRetries sends an HTTP request with custom headers and modified request body, with retries if configured.
-func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endpoint string, body io.Reader, retryCount int, options RequestOptions) (*http.Response, error) {
+func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endpoint string, body io.Reader, options RequestOptions) (*http.Response, error) {
 	fullURL := c.baseURL.JoinPath(endpoint)
 	if options.QueryParams != nil {
 		fullURL.RawQuery = options.QueryParams.Encode()
@@ -227,7 +227,7 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 	if err != nil {
 		return nil, err
 	}
-	return c.sendWithRetries(ctx, req, retryCount)
+	return c.sendWithRetries(ctx, req, 0)
 }
 
 func isConnectionResetErr(err error) bool {
