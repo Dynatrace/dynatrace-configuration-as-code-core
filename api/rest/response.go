@@ -14,38 +14,22 @@
 
 package rest
 
-// Response represents an HTTP response returned by the server.
-type Response struct {
-	// Payload contains the body payload of the response.
-	Payload []byte
-
-	// StatusCode is the HTTP status code of the response.
-	StatusCode int
-
-	// RequestInfo holds information about the original request that led to this response
-	RequestInfo RequestInfo
-}
-
-// IsSuccess returns true if the response indicates a successful HTTP status code.
-// A status code between 200 and 299 (inclusive) is considered a success.
-func (resp Response) IsSuccess() bool {
-	return resp.StatusCode >= 200 && resp.StatusCode <= 299
-}
-
-// Is4xxError returns true if the response indicates a 4xx client error HTTP status code.
-// A status code between 400 and 499 (inclusive) is considered a client error.
-func (resp Response) Is4xxError() bool {
-	return resp.StatusCode >= 400 && resp.StatusCode <= 499
-}
-
-// Is5xxError returns true if the response indicates a 5xx server error HTTP status code.
-// A status code between 500 and 599 (inclusive) is considered a server error.
-func (resp Response) Is5xxError() bool {
-	return resp.StatusCode >= 500 && resp.StatusCode <= 599
-}
+import "net/http"
 
 // RequestInfo holds information about the original request that led to this response
 type RequestInfo struct {
 	Method string `json:"method"` // The HTTP method of the request.
 	URL    string `json:"url"`    // The full URL of the request
+}
+
+func IsSuccess(resp *http.Response) bool {
+	return resp.StatusCode >= 200 && resp.StatusCode <= 299
+}
+
+func Is4xxError(resp *http.Response) bool {
+	return resp.StatusCode >= 400 && resp.StatusCode <= 499
+}
+
+func Is5xxError(resp *http.Response) bool {
+	return resp.StatusCode >= 500 && resp.StatusCode <= 599
 }

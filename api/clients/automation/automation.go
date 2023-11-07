@@ -92,13 +92,13 @@ type ClientOption func(*Client)
 //
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (rest.Response, error) {
+func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (*http.Response, error) {
 	if id == "" {
-		return rest.Response{}, fmt.Errorf("id must be non empty")
+		return nil, fmt.Errorf("id must be non empty")
 	}
 	path, err := url.JoinPath(Resources[resourceType].Path, id)
 	if err != nil {
-		return rest.Response{}, fmt.Errorf("failed to create URL: %w", err)
+		return nil, fmt.Errorf("failed to create URL: %w", err)
 	}
 
 	return a.client.GET(ctx, path, rest.RequestOptions{})
@@ -116,8 +116,8 @@ func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (
 //
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (a Client) Create(ctx context.Context, resourceType ResourceType, data []byte) (result rest.Response, err error) {
-	return a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
+func (a Client) Create(ctx context.Context, resourceType ResourceType, data []byte) (result *http.Response, err error) {
+	return a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (*http.Response, error) {
 		return a.client.POST(ctx, Resources[resourceType].Path, bytes.NewReader(data), options)
 	})
 }
@@ -136,8 +136,8 @@ func (a Client) Create(ctx context.Context, resourceType ResourceType, data []by
 //
 //   - ListResponse: A ListResponse which is an api.PagedListResponse containing all objects fetched from the api
 //   - error: An error if the HTTP call fails or another error happened.
-func (a Client) List(ctx context.Context, resourceType ResourceType, offset int) (rest.Response, error) {
-	return a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
+func (a Client) List(ctx context.Context, resourceType ResourceType, offset int) (*http.Response, error) {
+	return a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (*http.Response, error) {
 		options.QueryParams["offset"] = []string{strconv.Itoa(offset)}
 		return a.client.GET(ctx, Resources[resourceType].Path, options)
 	})
@@ -156,16 +156,16 @@ func (a Client) List(ctx context.Context, resourceType ResourceType, offset int)
 //
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (a Client) Update(ctx context.Context, resourceType ResourceType, id string, data []byte) (rest.Response, error) {
+func (a Client) Update(ctx context.Context, resourceType ResourceType, id string, data []byte) (*http.Response, error) {
 	if id == "" {
-		return rest.Response{}, errors.New("id must be non empty")
+		return nil, errors.New("id must be non empty")
 	}
 	path, err := url.JoinPath(Resources[resourceType].Path, id)
 	if err != nil {
-		return rest.Response{}, fmt.Errorf("failed to create URL: %w", err)
+		return nil, fmt.Errorf("failed to create URL: %w", err)
 	}
 
-	return a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
+	return a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (*http.Response, error) {
 		return a.client.PUT(ctx, path, bytes.NewReader(data), options)
 	})
 }
@@ -184,21 +184,21 @@ func (a Client) Update(ctx context.Context, resourceType ResourceType, id string
 //
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (a Client) Delete(ctx context.Context, resourceType ResourceType, id string) (rest.Response, error) {
+func (a Client) Delete(ctx context.Context, resourceType ResourceType, id string) (*http.Response, error) {
 	if id == "" {
-		return rest.Response{}, errors.New("id must be non empty")
+		return nil, errors.New("id must be non empty")
 	}
 	path, err := url.JoinPath(Resources[resourceType].Path, id)
 	if err != nil {
-		return rest.Response{}, fmt.Errorf("failed to create URL: %w", err)
+		return nil, fmt.Errorf("failed to create URL: %w", err)
 	}
 
-	return a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (rest.Response, error) {
+	return a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (*http.Response, error) {
 		return a.client.DELETE(ctx, path, options)
 	})
 }
 
-func (a Client) makeRequestWithAdminAccess(resourceType ResourceType, request func(options rest.RequestOptions) (rest.Response, error)) (rest.Response, error) {
+func (a Client) makeRequestWithAdminAccess(resourceType ResourceType, request func(options rest.RequestOptions) (*http.Response, error)) (*http.Response, error) {
 	opt := rest.RequestOptions{
 		QueryParams: url.Values{"adminAccess": []string{"true"}},
 	}
@@ -206,7 +206,7 @@ func (a Client) makeRequestWithAdminAccess(resourceType ResourceType, request fu
 	resp, err := request(opt)
 
 	// if Workflow API rejected the initial request with admin permissions -> retry without
-	if resourceType == Workflows && resp.StatusCode == http.StatusForbidden {
+	if resourceType == Workflows && resp != nil && resp.StatusCode == http.StatusForbidden {
 		return request(rest.RequestOptions{})
 	}
 

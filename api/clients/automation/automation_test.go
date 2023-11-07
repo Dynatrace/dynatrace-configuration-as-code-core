@@ -21,6 +21,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/testutils"
 	"github.com/stretchr/testify/assert"
+	"io"
 	"net/http"
 	"testing"
 )
@@ -61,7 +62,10 @@ func TestAutomationClient_Get(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Get(ctx, automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
 		assert.NotNil(t, resp)
-		assert.Equal(t, payload, string(resp.Payload))
+		body, _ := io.ReadAll(resp.Body)
+		defer resp.Body.Close()
+
+		assert.Equal(t, payload, string(body))
 		assert.NoError(t, err)
 	})
 
@@ -123,7 +127,9 @@ func TestAutomationClient_Create(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Create(ctx, automation.Workflows, []byte(payload))
 		assert.NotNil(t, resp)
-		assert.Equal(t, payload, string(resp.Payload))
+		body, _ := io.ReadAll(resp.Body)
+		defer resp.Body.Close()
+		assert.Equal(t, payload, string(body))
 		assert.NoError(t, err)
 	})
 
@@ -216,7 +222,9 @@ func TestAutomationClient_Update(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Update(ctx, automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45", []byte(payload))
 		assert.NotNil(t, resp)
-		assert.Equal(t, payload, string(resp.Payload))
+		body, _ := io.ReadAll(resp.Body)
+		defer resp.Body.Close()
+		assert.Equal(t, payload, string(body))
 		assert.NoError(t, err)
 	})
 
@@ -482,10 +490,14 @@ func TestAutomationClient_List(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.List(ctx, automation.Workflows, 0)
 		assert.NoError(t, err)
-		assert.Equal(t, payloadePages[0], string(resp.Payload))
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		assert.Equal(t, payloadePages[0], string(body))
 		resp, err = client.List(ctx, automation.Workflows, 2)
+		body, _ = io.ReadAll(resp.Body)
+		resp.Body.Close()
 		assert.NoError(t, err)
-		assert.Equal(t, payloadePages[1], string(resp.Payload))
+		assert.Equal(t, payloadePages[1], string(body))
 	})
 
 	t.Run("List - API Call returned with != 2xx", func(t *testing.T) {
@@ -518,7 +530,7 @@ func TestAutomationClient_List(t *testing.T) {
 		client := automation.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.List(ctx, automation.Workflows, 0)
-		assert.Equal(t, rest.Response{}, resp)
+		assert.Nil(t, resp)
 		assert.NotNil(t, err)
 	})
 }

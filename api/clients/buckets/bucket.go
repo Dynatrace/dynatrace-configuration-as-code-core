@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
+	"net/http"
 	"net/url"
 )
 
@@ -59,10 +60,10 @@ func NewClient(client *rest.Client) *Client {
 // Returns:
 //   - Response: A Response containing the result of the HTTP call, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (c Client) Create(ctx context.Context, data []byte) (rest.Response, error) {
+func (c Client) Create(ctx context.Context, data []byte) (*http.Response, error) {
 	r, err := c.client.POST(ctx, endpointPath, bytes.NewReader(data), rest.RequestOptions{})
 	if err != nil {
-		return rest.Response{}, fmt.Errorf("failed to create new bucket: %w", err)
+		return nil, fmt.Errorf("failed to create new bucket: %w", err)
 	}
 
 	return r, nil
@@ -77,10 +78,10 @@ func (c Client) Create(ctx context.Context, data []byte) (rest.Response, error) 
 // Returns:
 //   - Response: A Response containing the result of the HTTP call, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (c Client) Get(ctx context.Context, bucketName string) (rest.Response, error) {
+func (c Client) Get(ctx context.Context, bucketName string) (*http.Response, error) {
 	path, err := url.JoinPath(endpointPath, bucketName)
 	if err != nil {
-		return rest.Response{}, fmt.Errorf("failed to create URL: %w", err)
+		return nil, fmt.Errorf("failed to create URL: %w", err)
 	}
 	return c.client.GET(ctx, path, rest.RequestOptions{})
 }
@@ -93,7 +94,7 @@ func (c Client) Get(ctx context.Context, bucketName string) (rest.Response, erro
 // Returns:
 //   - Response: A Response containing the result of the HTTP call, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (c Client) List(ctx context.Context) (rest.Response, error) {
+func (c Client) List(ctx context.Context) (*http.Response, error) {
 	return c.client.GET(ctx, endpointPath, rest.RequestOptions{})
 }
 
@@ -108,10 +109,10 @@ func (c Client) List(ctx context.Context) (rest.Response, error) {
 // Returns:
 //   - Response: A Response containing the result of the HTTP call, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (c Client) Update(ctx context.Context, bucketName string, bucketVersion string, data []byte) (rest.Response, error) {
+func (c Client) Update(ctx context.Context, bucketName string, bucketVersion string, data []byte) (*http.Response, error) {
 	path, err := url.JoinPath(endpointPath, bucketName)
 	if err != nil {
-		return rest.Response{}, fmt.Errorf("failed to join URL: %w", err)
+		return nil, fmt.Errorf("failed to join URL: %w", err)
 	}
 
 	return c.client.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{
@@ -128,13 +129,13 @@ func (c Client) Update(ctx context.Context, bucketName string, bucketVersion str
 // Returns:
 //   - Response: A Response containing the result of the HTTP call, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (c Client) Delete(ctx context.Context, bucketName string) (rest.Response, error) {
+func (c Client) Delete(ctx context.Context, bucketName string) (*http.Response, error) {
 	if bucketName == "" {
-		return rest.Response{}, fmt.Errorf("bucketName must be non-empty")
+		return nil, fmt.Errorf("bucketName must be non-empty")
 	}
 	path, err := url.JoinPath(endpointPath, bucketName)
 	if err != nil {
-		return rest.Response{}, fmt.Errorf("failed to create URL: %w", err)
+		return nil, fmt.Errorf("failed to create URL: %w", err)
 	}
 	return c.client.DELETE(ctx, path, rest.RequestOptions{})
 }

@@ -24,6 +24,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -88,7 +89,14 @@ func (a Client) Get(ctx context.Context, resourceType automation.ResourceType, i
 		return Response{}, fmt.Errorf("failed to get automation resource of type %q with id %q: %w", resourceType, id, err)
 	}
 
-	return Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return Response{}, err
+	}
+	defer resp.Body.Close()
+
+	return Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, nil
 }
 
 // Create creates a new automation object based on the specified resource type.
@@ -109,7 +117,14 @@ func (a Client) Create(ctx context.Context, resourceType automation.ResourceType
 		return Response{}, err
 	}
 
-	return Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return Response{}, err
+	}
+	defer resp.Body.Close()
+
+	return Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, nil
 }
 
 // Update updates an automation object based on the specified resource type and id
@@ -134,7 +149,14 @@ func (a Client) Update(ctx context.Context, resourceType automation.ResourceType
 		return Response{}, err
 	}
 
-	return Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return Response{}, err
+	}
+	defer resp.Body.Close()
+
+	return Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, nil
 }
 
 // List retrieves a list of automation objects of the specified resource
@@ -185,19 +207,25 @@ func (a Client) List(ctx context.Context, resourceType automation.ResourceType) 
 		}
 
 		// if one of the response has code != 2xx return empty list with response info
-		if !resp.IsSuccess() {
+		if !rest.IsSuccess(resp) {
+			body, err := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			if err != nil {
+				return ListResponse{}, err
+			}
+
 			return ListResponse{
 				api.ListResponse{
 					Response: Response{
 						StatusCode: resp.StatusCode,
-						Data:       resp.Payload,
-						Request:    resp.RequestInfo,
+						Data:       body,
+						Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
 					},
 				},
 			}, nil
 		}
 
-		result, err = unmarshalJSONList(&resp)
+		result, err = unmarshalJSONList(resp)
 		if err != nil {
 			return ListResponse{}, fmt.Errorf("failed to parse list response:%w", err)
 		}
@@ -270,7 +298,13 @@ func (a Client) createWithID(ctx context.Context, resourceType automation.Resour
 		return Response{}, err
 	}
 
-	return Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return Response{}, err
+	}
+
+	return Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, nil
 }
 
 // Delete removes an automation object of the specified resource type by its unique identifier (ID).
@@ -293,18 +327,31 @@ func (a Client) Delete(ctx context.Context, resourceType automation.ResourceType
 		return Response{}, err
 	}
 
-	return Response{StatusCode: resp.StatusCode, Data: resp.Payload, Request: resp.RequestInfo}, nil
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return Response{}, err
+	}
+	return Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, nil
 }
 
-func unmarshalJSONList(raw *rest.Response) (listResponse, error) {
+func unmarshalJSONList(raw *http.Response) (listResponse, error) {
 	var r listResponse
-	err := json.Unmarshal(raw.Payload, &r)
+
+	body, err := io.ReadAll(raw.Body)
+	if err != nil {
+		return r, err
+	}
+	err = json.Unmarshal(body, &r)
 	if err != nil {
 		return listResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-	r.Data = raw.Payload
+	r.Data = body
 	r.StatusCode = raw.StatusCode
-	r.Request = raw.RequestInfo
+	r.Request = rest.RequestInfo{
+		Method: raw.Request.Method,
+		URL:    raw.Request.URL.String(),
+	}
 	return r, nil
 }
 
