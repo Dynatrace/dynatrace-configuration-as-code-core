@@ -20,7 +20,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/testutils"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"

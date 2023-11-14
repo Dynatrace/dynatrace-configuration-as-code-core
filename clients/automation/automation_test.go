@@ -22,7 +22,7 @@ import (
 	apiClient "github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/testutils"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"net/http"
