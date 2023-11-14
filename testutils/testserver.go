@@ -81,6 +81,7 @@ func NewHTTPTestServer(t *testing.T, responses []ResponseDef) *TestServer {
 			panic(fmt.Sprintf("No %s method defined for server call nr. %d", req.Method, testServer.calls))
 		}
 		response := handlerFunc(t, req)
+		rw.Header().Add("Content-Type", "application/json; charset=utf-8")
 		rw.WriteHeader(response.ResponseCode)
 		_, _ = rw.Write([]byte(response.ResponseBody)) // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
 		responseDef.Validate(t, req)
