@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/testutils"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
