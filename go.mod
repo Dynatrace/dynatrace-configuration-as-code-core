@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.4.0
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/oauth2 v0.15.0
-	golang.org/x/time v0.4.0
+	golang.org/x/time v0.5.0
 )
 
 require (
