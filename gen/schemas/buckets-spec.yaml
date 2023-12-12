@@ -1,0 +1,968 @@
+openapi: "3.0.1"
+info:
+  title: "Grail - Storage Management"
+  description: "Here you can find the\n\n* The Dynatrace Bucket Management API for\
+    \ Grail. Get more information about\n  use cases and examples from\n  the <a href=\"\
+    https://docs.dynatrace.com/docs/shortlink/assign-bucket-table-permissions\">\n\
+    \  Dynatrace Documentation</a>\n"
+  version: "1.0.0"
+servers:
+  - url: "https://vsy13800.dev.apps.dynatracelabs.com/platform/storage/management/v1"
+    x-api-gateway-url: "/platform/storage/management/v1"
+tags:
+  - name: "Bucket Definitions"
+    description: "Documentation of the Dynatrace Bucket Management API for Grail.\n\
+    To read about use cases and examples, see\n<a href=\"https://docs.dynatrace.com/docs/shortlink/assign-bucket-table-permissions\"\
+    >\nDynatrace Documentation</a>"
+paths:
+  /bucket-definitions/{bucketName}:
+    get:
+      tags:
+        - "Bucket Definitions"
+      summary: "Get bucket definition by name"
+      description: "Get bucket definition by name.\n\nNewly created buckets are not\
+        \ shown immediately, this can take up to a minute.\n\nRequired scope: `storage:bucket-definitions:read`\n"
+      operationId: "getDefinition"
+      parameters:
+        - name: "bucketName"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "404":
+          description: "Bucket with provided name was not found."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Bucket not found:
+                  description: "Bucket not found"
+                  value:
+                    error:
+                      code: 404
+                      message: "Bucket not found"
+                      errorDetails: []
+        "200":
+          description: "Successfully retrieved bucket definition."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bucket"
+              examples:
+                Successful Result:
+                  description: "Successful Result"
+                  value:
+                    bucketName: "default_metrics"
+                    table: "metrics"
+                    displayName: "Default metrics (15 months)"
+                    status: "active"
+                    retentionDays: 462
+                    metricInterval: "PT1M"
+                    version: 1
+                    updatable: false
+        "401":
+          description: "unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Unauthorized:
+                  value:
+                    error:
+                      code: 401
+                      message: "Invalid authorization parameters"
+                      errorDetails: []
+        "403":
+          description: "missing permissions"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Forbidden:
+                  value:
+                    error:
+                      code: 403
+                      message: "Required permissions not met"
+                      errorDetails: []
+        "400":
+          description: "bad request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                TenantId missing:
+                  value:
+                    error:
+                      code: 400
+                      message: "Missing request header"
+                      errorDetails:
+                        - type: "parameter"
+                          parameterDescriptor: "Dt-Tenant"
+                          message: "is required"
+      security:
+        - ApiToken: []
+    put:
+      tags:
+        - "Bucket Definitions"
+      summary: "Update a bucket"
+      description: "Update a bucket. Update one of the following fields or both:\n\
+        \n* displayName: descriptive name of the bucket\n* retentionDays: retention\
+        \ period in days (important note: the new retention days will also apply\n\
+        to existing records. Shortening the retention period could result in data\
+        \ deletion!)\n\nDefine the full bucket definition with updated field(s) in\
+        \ the request body.\n\nRequired scope: `storage:bucket-definitions:write`.\n"
+      operationId: "updateBucket"
+      parameters:
+        - name: "bucketName"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+        - name: "optimistic-locking-version"
+          in: "query"
+          description: "Define on which version the updated data is based on."
+          required: true
+          schema:
+            type: "integer"
+            format: "int32"
+      requestBody:
+        description: "Updated Bucket"
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBucket"
+            examples:
+              Full bucket update request example:
+                description: "Full bucket update request example"
+                value:
+                  bucketName: "custom_logs"
+                  table: "logs"
+                  displayName: "Custom logs bucket (updated)"
+                  status: "active"
+                  retentionDays: 10
+                  version: 1
+        required: true
+      responses:
+        "404":
+          description: "Bucket with provided name was not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Bucket not found:
+                  description: "Bucket not found"
+                  value:
+                    error:
+                      code: 404
+                      message: "Bucket not found"
+                      errorDetails: []
+        "200":
+          description: "Successfully updated bucket definition"
+        "409":
+          description: "Attempt to update an old version or an operation is currently\
+            \ in progress that prevents current modifications (creating, deleting,\
+            \ updating)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Ongoing operation conflict:
+                  description: "Ongoing operation conflict"
+                  value:
+                    error:
+                      code: 409
+                      message: "Operation in progress that prevents current modifications\
+                        \ (creating, deleting, updating)"
+                      errorDetails: []
+                Version conflict:
+                  description: "Version conflict"
+                  value:
+                    error:
+                      code: 409
+                      message: "Optimistic locking failed. Seems like the affected\
+                        \ object has been modified by another operation in the meantime."
+                      errorDetails: []
+        "202":
+          description: "Accepted update bucket definition"
+        "401":
+          description: "unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Unauthorized:
+                  value:
+                    error:
+                      code: 401
+                      message: "Invalid authorization parameters"
+                      errorDetails: []
+        "403":
+          description: "missing permissions"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Forbidden:
+                  value:
+                    error:
+                      code: 403
+                      message: "Required permissions not met"
+                      errorDetails: []
+        "400":
+          description: "bad request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                TenantId missing:
+                  value:
+                    error:
+                      code: 400
+                      message: "Missing request header"
+                      errorDetails:
+                        - type: "parameter"
+                          parameterDescriptor: "Dt-Tenant"
+                          message: "is required"
+      security:
+        - ApiToken: []
+    delete:
+      tags:
+        - "Bucket Definitions"
+      summary: "Delete a bucket"
+      description: "Starts deleting a bucket.\n\nDeletes the bucket and all data stored\
+        \ in the bucket.\nThis operation can not be undone.\n\nRequired scope: `storage:bucket-definitions:delete`\n"
+      operationId: "deleteBucket"
+      parameters:
+        - name: "bucketName"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "202":
+          description: "accepted delete bucket"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bucket"
+              examples:
+                Deletion of bucket was accepted.:
+                  description: "Deletion of bucket was accepted."
+                  value:
+                    bucketName: "custom_logs"
+                    table: "logs"
+                    displayName: "Custom logs bucket"
+                    status: "deleting"
+                    retentionDays: 35
+                    version: 3
+                    updatable: true
+        "409":
+          description: "another operation is still in progress that prevents deletion."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Another operation that prevents deletion is still in progress.:
+                  description: "Another operation that prevents deletion is still\
+                    \ in progress."
+                  value:
+                    error:
+                      code: 409
+                      message: "Operation in progress that prevents current modifications\
+                        \ (creating, deleting, updating)"
+                      errorDetails: []
+        "404":
+          description: "bucket not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Error when bucket was not found.:
+                  description: "Error when bucket was not found."
+                  value:
+                    error:
+                      code: 404
+                      message: "Bucket not found"
+                      errorDetails: []
+        "401":
+          description: "unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Unauthorized:
+                  value:
+                    error:
+                      code: 401
+                      message: "Invalid authorization parameters"
+                      errorDetails: []
+        "403":
+          description: "missing permissions"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Forbidden:
+                  value:
+                    error:
+                      code: 403
+                      message: "Required permissions not met"
+                      errorDetails: []
+        "400":
+          description: "bad request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                TenantId missing:
+                  value:
+                    error:
+                      code: 400
+                      message: "Missing request header"
+                      errorDetails:
+                        - type: "parameter"
+                          parameterDescriptor: "Dt-Tenant"
+                          message: "is required"
+      security:
+        - ApiToken: []
+    patch:
+      tags:
+        - "Bucket Definitions"
+      summary: "Update a bucket partially"
+      description: "Update a bucket. Update one of the following fields or both:\n\
+        \n* displayName: descriptive name of the bucket\n* retentionDays: retention\
+        \ period in days (important note: the new retention days will also apply\n\
+        to existing records. Shortening the retention period could result in data\
+        \ deletion!)\n\nAdd the field(s) to be updated to the request body.\n\nRequired\
+        \ scope: `storage:bucket-definitions:write`\n"
+      operationId: "updateBucketPartially"
+      parameters:
+        - name: "bucketName"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+        - name: "optimistic-locking-version"
+          in: "query"
+          description: "Define on which version the updated data is based on."
+          required: true
+          schema:
+            type: "integer"
+            format: "int32"
+      requestBody:
+        description: "Information for partial update of bucket"
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartialUpdateBucket"
+            examples:
+              Partial bucket update request example:
+                description: "Partial bucket update request example"
+                value:
+                  displayName: "Custom logs bucket (updated)"
+                  retentionDays: 10
+        required: true
+      responses:
+        "404":
+          description: "Bucket with provided name was not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Bucket not found:
+                  description: "Bucket not found"
+                  value:
+                    error:
+                      code: 404
+                      message: "Bucket not found"
+                      errorDetails: []
+        "200":
+          description: "Successfully updated bucket definition"
+        "409":
+          description: "Attempt to update an old version or an operation is currently\
+            \ in progress that prevents current modifications (creating, deleting,\
+            \ updating)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Ongoing operation conflict:
+                  description: "Ongoing operation conflict"
+                  value:
+                    error:
+                      code: 409
+                      message: "Operation in progress that prevents current modifications\
+                        \ (creating, deleting, updating)"
+                      errorDetails: []
+                Version conflict:
+                  description: "Version conflict"
+                  value:
+                    error:
+                      code: 409
+                      message: "Optimistic locking failed. Seems like the affected\
+                        \ object has been modified by another operation in the meantime."
+                      errorDetails: []
+        "202":
+          description: "Accepted update bucket definition"
+        "401":
+          description: "unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Unauthorized:
+                  value:
+                    error:
+                      code: 401
+                      message: "Invalid authorization parameters"
+                      errorDetails: []
+        "403":
+          description: "missing permissions"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Forbidden:
+                  value:
+                    error:
+                      code: 403
+                      message: "Required permissions not met"
+                      errorDetails: []
+        "400":
+          description: "bad request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                TenantId missing:
+                  value:
+                    error:
+                      code: 400
+                      message: "Missing request header"
+                      errorDetails:
+                        - type: "parameter"
+                          parameterDescriptor: "Dt-Tenant"
+                          message: "is required"
+      security:
+        - ApiToken: []
+  /bucket-definitions:
+    get:
+      tags:
+        - "Bucket Definitions"
+      summary: "Get all bucket definitions"
+      description: "Get all bucket definitions.\n\nNewly created buckets are not shown\
+        \ immediately, this can take up to a minute.\n\nRequired scope: `storage:bucket-definitions:read`\n"
+      operationId: "getDefinitions"
+      responses:
+        "200":
+          description: "Successfully retrieved all bucket definitions"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Buckets"
+              examples:
+                Successful Result:
+                  description: "Successful Result"
+                  value:
+                    buckets:
+                      - bucketName: "default_metrics"
+                        table: "metrics"
+                        displayName: "Default metrics (15 months)"
+                        status: "active"
+                        retentionDays: 462
+                        metricInterval: "PT1M"
+                        version: 1
+                        updatable: false
+                      - bucketName: "default_bizevents"
+                        table: "bizevents"
+                        displayName: "Business events (35 days)"
+                        status: "active"
+                        retentionDays: 35
+                        version: 1
+                        updatable: false
+        "401":
+          description: "unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Unauthorized:
+                  value:
+                    error:
+                      code: 401
+                      message: "Invalid authorization parameters"
+                      errorDetails: []
+        "403":
+          description: "missing permissions"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Forbidden:
+                  value:
+                    error:
+                      code: 403
+                      message: "Required permissions not met"
+                      errorDetails: []
+        "400":
+          description: "bad request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                TenantId missing:
+                  value:
+                    error:
+                      code: 400
+                      message: "Missing request header"
+                      errorDetails:
+                        - type: "parameter"
+                          parameterDescriptor: "Dt-Tenant"
+                          message: "is required"
+      security:
+        - ApiToken: []
+    post:
+      tags:
+        - "Bucket Definitions"
+      summary: "Create a new bucket"
+      description: "Create a new bucket. Bucket creation can take up to 1 minute.\n\
+        \nRequired scope: `storage:bucket-definitions:write`\n"
+      operationId: "createBucket"
+      requestBody:
+        description: "New Bucket"
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBucket"
+            examples:
+              New Bucket request example:
+                description: "New Bucket request example"
+                value:
+                  bucketName: "custom_logs"
+                  table: "logs"
+                  displayName: "Custom logs bucket"
+                  retentionDays: 35
+        required: true
+      responses:
+        "409":
+          description: "Bucket already exists"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Bucket already exists error:
+                  description: "Bucket already exists error"
+                  value:
+                    error:
+                      code: 409
+                      message: "Bucket already exists"
+                      errorDetails: []
+        "201":
+          description: "Successfully created bucket definition"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bucket"
+              examples:
+                Successful Result:
+                  description: "Successful Result"
+                  value:
+                    bucketName: "custom_logs"
+                    table: "logs"
+                    displayName: "Custom logs bucket"
+                    status: "creating"
+                    retentionDays: 35
+                    version: 1
+                    updatable: true
+        "401":
+          description: "unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Unauthorized:
+                  value:
+                    error:
+                      code: 401
+                      message: "Invalid authorization parameters"
+                      errorDetails: []
+        "403":
+          description: "missing permissions"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Forbidden:
+                  value:
+                    error:
+                      code: 403
+                      message: "Required permissions not met"
+                      errorDetails: []
+        "400":
+          description: "bad request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                TenantId missing:
+                  value:
+                    error:
+                      code: 400
+                      message: "Missing request header"
+                      errorDetails:
+                        - type: "parameter"
+                          parameterDescriptor: "Dt-Tenant"
+                          message: "is required"
+      security:
+        - ApiToken: []
+  /bucket-definitions/{bucketName}:truncate:
+    post:
+      tags:
+        - "Bucket Definitions"
+      summary: "Truncate a bucket"
+      description: "Truncate a specific bucket.\nRemoves the content of the given\
+        \ bucket.\nOperation can be executed with all types of buckets.\n\nRequired\
+        \ scope: `storage:bucket-definitions:truncate`\n"
+      operationId: "truncateBucket"
+      parameters:
+        - name: "bucketName"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "404":
+          description: "Bucket not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Bucket not found error:
+                  description: "Bucket not found error"
+                  value:
+                    error:
+                      code: 404
+                      message: "Bucket not found"
+                      errorDetails: []
+        "202":
+          description: "Accepted truncate bucket"
+        "503":
+          description: "Server not ready"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Server not ready error:
+                  description: "Server not ready error"
+                  value:
+                    error:
+                      code: 503
+                      message: "Server not ready"
+                      errorDetails: []
+        "401":
+          description: "unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Unauthorized:
+                  value:
+                    error:
+                      code: 401
+                      message: "Invalid authorization parameters"
+                      errorDetails: []
+        "403":
+          description: "missing permissions"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                Forbidden:
+                  value:
+                    error:
+                      code: 403
+                      message: "Required permissions not met"
+                      errorDetails: []
+        "400":
+          description: "bad request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                TenantId missing:
+                  value:
+                    error:
+                      code: 400
+                      message: "Missing request header"
+                      errorDetails:
+                        - type: "parameter"
+                          parameterDescriptor: "Dt-Tenant"
+                          message: "is required"
+      security:
+        - ApiToken: []
+components:
+  schemas:
+    Bucket:
+      required:
+        - "bucketName"
+        - "retentionDays"
+        - "status"
+        - "table"
+        - "updatable"
+        - "version"
+      type: "object"
+      properties:
+        bucketName:
+          maxLength: 100
+          pattern: "([a-z])([a-z0-9])([a-z0-9_-])*"
+          type: "string"
+          description: "The unique identifier of the bucket within the tenant."
+          example: "default_logs"
+        table:
+          type: "string"
+          description: "Name of the table the bucket is assigned to."
+          example: "logs"
+        displayName:
+          maxLength: 200
+          type: "string"
+          description: "Descriptive name of the bucket.\nNo restriction regarding\
+            \ unique naming or valid characters."
+          example: "Logs (35 days)"
+        status:
+          type: "string"
+          description: "The current status of the bucket, depending on bucket lifecycle."
+          example: "active"
+          enum:
+            - "creating"
+            - "active"
+            - "updating"
+            - "deleting"
+        retentionDays:
+          type: "integer"
+          description: "The retention period in days of the data in the bucket."
+          format: "int32"
+          example: 35
+        metricInterval:
+          type: "string"
+          description: "Interval of aggregated metric data. Only applies to metric\
+            \ buckets."
+          example: "PT1M"
+          enum:
+            - "PT1S"
+            - "PT5S"
+            - "PT10S"
+            - "PT1M"
+            - "PT5M"
+            - "PT15M"
+            - "PT1H"
+        version:
+          type: "integer"
+          description: "Optimistic locking version. Update requests define with this\
+            \ on which version the data updated is based on. This must match with\
+            \ the version stored, otherwise the update will fail due to concurrent\
+            \ modification."
+          format: "int32"
+          example: 1
+        updatable:
+          type: "boolean"
+          description: "A flag indicating whether a bucket can be updated or not."
+          example: true
+    Buckets:
+      required:
+        - "buckets"
+      type: "object"
+      properties:
+        buckets:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Bucket"
+    ErrorEnvelope:
+      type: "object"
+      properties:
+        error:
+          $ref: "#/components/schemas/ExceptionalReturn"
+    ErrorInfo:
+      type: "object"
+      properties:
+        message:
+          type: "string"
+    ExceptionalReturn:
+      type: "object"
+      properties:
+        message:
+          type: "string"
+        errorDetails:
+          type: "array"
+          properties:
+            empty:
+              type: "boolean"
+          items:
+            $ref: "#/components/schemas/ErrorInfo"
+        code:
+          type: "integer"
+          format: "int32"
+    CreateBucket:
+      required:
+        - "bucketName"
+        - "retentionDays"
+        - "table"
+      type: "object"
+      properties:
+        bucketName:
+          maxLength: 100
+          pattern: "([a-z])([a-z0-9])([a-z0-9_-])*"
+          type: "string"
+          description: "The unique identifier of the bucket within the tenant."
+        table:
+          type: "string"
+          description: "Name of the table the bucket is assigned to."
+          enum:
+            - "logs"
+            - "spans"
+            - "events"
+            - "bizevents"
+        displayName:
+          maxLength: 200
+          type: "string"
+          description: "Descriptive name of the bucket.\nNo restriction regarding\
+            \ unique naming or valid characters."
+        retentionDays:
+          maximum: 3657
+          minimum: 1
+          type: "integer"
+          description: "The retention period in days of the data in the bucket."
+          format: "int32"
+        metricInterval:
+          type: "string"
+          description: "Interval of aggregated metric data. Only applies to metric\
+            \ buckets."
+          enum:
+            - "PT1M"
+            - "PT5M"
+            - "PT15M"
+            - "PT1H"
+    PartialUpdateBucket:
+      type: "object"
+      properties:
+        displayName:
+          maxLength: 200
+          type: "string"
+          description: "Descriptive name of the bucket.\nNo restriction regarding\
+            \ unique naming or valid characters."
+        retentionDays:
+          maximum: 3657
+          minimum: 1
+          type: "integer"
+          description: "The retention period in days of the data in the bucket. Important\
+            \ note: the new retention days will also apply to existing records. Shortening\
+            \ the retention period could result in data deletion!"
+          format: "int32"
+    UpdateBucket:
+      required:
+        - "bucketName"
+        - "retentionDays"
+        - "status"
+        - "table"
+        - "version"
+      type: "object"
+      properties:
+        bucketName:
+          maxLength: 100
+          pattern: "([a-z])([a-z0-9])([a-z0-9_-])*"
+          type: "string"
+          description: "The unique identifier of the bucket within the tenant."
+          readOnly: true
+        table:
+          type: "string"
+          description: "Name of the table the bucket is assigned to."
+          readOnly: true
+          enum:
+            - "logs"
+            - "spans"
+            - "events"
+            - "bizevents"
+        displayName:
+          maxLength: 200
+          type: "string"
+          description: "Descriptive name of the bucket.\nNo restriction regarding\
+            \ unique naming or valid characters."
+        status:
+          type: "string"
+          description: "The current status of the bucket, depending on bucket lifecycle."
+          readOnly: true
+          enum:
+            - "creating"
+            - "active"
+            - "updating"
+            - "deleting"
+        retentionDays:
+          maximum: 3657
+          minimum: 1
+          type: "integer"
+          description: "The retention period in days of the data in the bucket. Important\
+            \ note: the new retention days will also apply to existing records. Shortening\
+            \ the retention period could result in data deletion!"
+          format: "int32"
+        metricInterval:
+          type: "string"
+          description: "Metric interval for metric buckets. Will be ignored for other\
+            \ buckets."
+          readOnly: true
+          enum:
+            - "PT1M"
+            - "PT5M"
+            - "PT15M"
+            - "PT1H"
+        version:
+          type: "integer"
+          description: "Optimistic locking version. Update requests define with this\
+            \ on which version the data updated is based on. This must match with\
+            \ the version stored, otherwise the update will fail due to concurrent\
+            \ modification."
+          format: "int32"
+          readOnly: true
+  securitySchemes:
+    OAuth2:
+      type: "oauth2"
+      flows:
+        clientCredentials:
+          tokenUrl: "https://sso-dev.dynatracelabs.com/sso/oauth2/token"
+          scopes:
+            storage:bucket-definitions:read: "read bucket definitions"
+            storage:bucket-definitions:write: "create bucket definitions"
+            storage:bucket-definitions:truncate: "truncate buckets"
+            storage:bucket-definitions:delete: "delete buckets"
+            storage:view-definitions:write: "create custom views"
+            storage:view-definitions:admin: "view management admin"
