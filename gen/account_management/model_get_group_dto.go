@@ -20,7 +20,7 @@ var _ MappedNullable = &GetGroupDto{}
 // GetGroupDto struct for GetGroupDto
 type GetGroupDto struct {
 	// The UUID of the user group.
-	Uuid *string `json:"uuid,omitempty"`
+	Uuid string `json:"uuid,omitempty"`
 	// The name of the user group.
 	Name string `json:"name"`
 	// A short description of the user group.
@@ -58,34 +58,12 @@ func NewGetGroupDtoWithDefaults() *GetGroupDto {
 
 // GetUuid returns the Uuid field value if set, zero value otherwise.
 func (o *GetGroupDto) GetUuid() string {
-	if o == nil || IsNil(o.Uuid) {
-		var ret string
-		return ret
-	}
-	return *o.Uuid
-}
-
-// GetUuidOk returns a tuple with the Uuid field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *GetGroupDto) GetUuidOk() (*string, bool) {
-	if o == nil || IsNil(o.Uuid) {
-		return nil, false
-	}
-	return o.Uuid, true
-}
-
-// HasUuid returns a boolean if a field has been set.
-func (o *GetGroupDto) HasUuid() bool {
-	if o != nil && !IsNil(o.Uuid) {
-		return true
-	}
-
-	return false
+	return o.Uuid
 }
 
 // SetUuid gets a reference to the given string and assigns it to the Uuid field.
 func (o *GetGroupDto) SetUuid(v string) {
-	o.Uuid = &v
+	o.Uuid = v
 }
 
 // GetName returns the Name field value
@@ -258,9 +236,7 @@ func (o GetGroupDto) MarshalJSON() ([]byte, error) {
 
 func (o GetGroupDto) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !IsNil(o.Uuid) {
-		toSerialize["uuid"] = o.Uuid
-	}
+	toSerialize["uuid"] = o.Uuid
 	toSerialize["name"] = o.Name
 	if !IsNil(o.Description) {
 		toSerialize["description"] = o.Description
