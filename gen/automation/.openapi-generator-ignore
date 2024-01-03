@@ -1,0 +1,8 @@
+go.mod
+go.sum
+test/**
+api/**
+docs/**
+git_push.sh
+README.md
+.travis.yml
