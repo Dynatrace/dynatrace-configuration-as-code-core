@@ -41,10 +41,11 @@ func Factory() factory {
 
 // factory represents a factory-like component for creating API client instances.
 type factory struct {
-	url          string                    // The base URL of the API
-	oauthConfig  *clientcredentials.Config // Configuration for OAuth2 client credentials
-	userAgent    string                    // The User-Agent header to be set
-	httpListener *rest.HTTPListener        // The HTTP listener to be set
+	url                    string                    // The base URL of the API
+	oauthConfig            *clientcredentials.Config // Configuration for OAuth2 client credentials
+	userAgent              string                    // The User-Agent header to be set
+	httpListener           *rest.HTTPListener        // The HTTP listener to be set
+	concurrentRequestLimit int                       // The number of allowed concurrent requests
 }
 
 // WithOAuthCredentials sets the OAuth2 client credentials configuration for the factory.
@@ -69,6 +70,13 @@ func (f factory) WithUserAgent(userAgent string) factory {
 // underlying rest/http client
 func (f factory) WithHTTPListener(listener *rest.HTTPListener) factory {
 	f.httpListener = listener
+	return f
+}
+
+// WithConcurrentRequestLimit sets the given request limit that specifying how much
+// requests can be triggered concurrently by the underlying rest/http client
+func (f factory) WithConcurrentRequestLimit(limit int) factory {
+	f.concurrentRequestLimit = limit
 	return f
 }
 
@@ -119,7 +127,7 @@ func (f factory) createClientForAccount(accManagementURL string) (*rest.Client, 
 		return nil, fmt.Errorf("failed to parse URL %q: %w", f.url, err)
 	}
 
-	restClient := rest.NewClient(parsedURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig), rest.WithHTTPListener(f.httpListener))
+	restClient := rest.NewClient(parsedURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig), rest.WithHTTPListener(f.httpListener), rest.WithConcurrentRequestLimit(f.concurrentRequestLimit))
 	if f.userAgent != "" {
 		restClient.SetHeader("User-Agent", f.userAgent)
 	}
