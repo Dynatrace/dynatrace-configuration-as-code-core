@@ -1,34 +1,33 @@
 # Dynatrace Configuration as Code - Core
 [![stability-wip](https://img.shields.io/badge/stability-wip-lightgrey.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#work-in-progress)
 
-Dynatrace Configuration as Code Core provides libraries simplifying development of configuration as code tooling for Dynatrace.
+**Dynatrace Configuration as Code Core** provides libraries simplifying development of configuration as code tooling for Dynatrace.
 
-It provides Go libraries for things like API clients, which are shared between several Dynatrace configuration as code tools.
-
+ℹ️ **DISCLAIMER:** This library is **not** meant to be a general purpose client library for Dynatrace but rather contains functionality that is
+tailored to simplify the development of Configuration as Code tools like Monaco, the Terraform Provider, and similar tools.
 
 ## API Clients
 
-The library provides different kinds of API clients to interact with the Dynatrace API.
-Following are some important characteristics of the API clients to keep in mind:
+The library provides different kinds of clients to interact with Dynatrace in two different packages:
 
-* Each client provides a method set, usually supporting CRUD operations and an Upsert - which will create or update a configuration as needed.
-However, the specific interface might differ between clients.
-* Payloads to and from the APIs aren't interpreted in any particular way.
-Thus, it's the user's responsibility to marshal/unmarshal payloads into/from Go structs.
-* API clients typically return `(Response, error)` pairs. Note that any API result (including `4xx`,`5xx`...) will be carried back
-in the `Response` return value.
-It is the responsibility of the user to check for success or failure of the actual operations by inspecting the 
-`Response`. The user can expect `error` to be `!= nil` only for (technical) failures that
-happen either prior to making the actual HTTP calls or if the HTTP calls couldn't be carried out (e.g. due to network problems, etc.)
+* **api/clients**: "Basic" clients that offers a one-to-one mapping to the Dynatrace API and do not contain any other special logic.
+* **clients**: "Smarter" clients that build upon the basic clients to offer additional logic and operations tailored to simplify configuration as code use cases.
+  * Each client provides a method set, usually supporting CRUD operations and an Upsert - which will create or update a configuration as needed.
+  However, the specific interface might differ between clients.
+  * Payloads to and from the APIs aren't interpreted in any particular way.
+  Thus, it's the user's responsibility to marshal/unmarshal payloads into/from Go structs.
+  * API clients typically return `(Response, error)` pairs. Note that any API result (including `4xx`,`5xx`...) will be carried back
+  in the `Response` return value.
+  It is the responsibility of the user to check for success or failure of the actual operations by inspecting the 
+  `Response`. The user can expect `error` to be `!= nil` only for (technical) failures that
+  happen either prior to making the actual HTTP calls or if the HTTP calls couldn't be carried out (e.g. due to network problems, etc.)
 
-| API Client          | Implemented |
-|---------------------|-------------|
-| Classic config APIs | ❌           |
-| Settings 2.0        | ❌           |
-| Automation          | ✅           |
-| Grail buckets       | ✅           |
-
-
+  | API Client          | Implemented |
+  |---------------------|-------------|
+  | Classic config APIs | ❌           |
+  | Settings 2.0        | ❌           |
+  | Automation          | ✅           |
+  | Grail buckets       | ✅           |
 
 
 ### Usage
