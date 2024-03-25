@@ -21,13 +21,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/automation"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/automation"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
 type Response = api.Response
@@ -200,8 +201,8 @@ func (a Client) List(ctx context.Context, resourceType automation.ResourceType) 
 			return ListResponse{}, fmt.Errorf("failed to list automation resources: %w", err)
 		}
 
-		// if Workflow API rejected the initial request with admin permissions -> continue without
-		if resourceType == automation.Workflows && resp.StatusCode == http.StatusForbidden {
+		// if Automation API rejected the initial request with admin permissions -> continue without
+		if ((resourceType == automation.Workflows) || (resourceType == automation.BusinessCalendars) || (resourceType == automation.SchedulingRules)) && resp.StatusCode == http.StatusForbidden {
 			adminAccess = false
 			continue
 		}
@@ -290,8 +291,8 @@ func (a Client) createWithID(ctx context.Context, resourceType automation.Resour
 		return Response{}, err
 	}
 
-	// if Workflow API rejected the initial request with admin permissions -> retry without
-	if resourceType == automation.Workflows && resp.StatusCode == http.StatusForbidden {
+	// if Automation API rejected the initial request with admin permissions -> retry without
+	if ((resourceType == automation.Workflows) || (resourceType == automation.BusinessCalendars) || (resourceType == automation.SchedulingRules)) && resp.StatusCode == http.StatusForbidden {
 		resp, err = a.restClient.POST(ctx, automation.Resources[resourceType].Path, bytes.NewReader(data), rest.RequestOptions{})
 	}
 	if err != nil {
