@@ -17,7 +17,6 @@
 package automation
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -184,26 +183,28 @@ func (a Client) List(ctx context.Context, resourceType automation.ResourceType) 
 	// result is the latest API response received
 	var result listResponse
 	result.Count = 1 // ensure starting condition is met, after the first API call this will be actual total count of objects
-
 	retrieved := 0
 
-	adminAccess := resourceType == automation.Workflows
+	wfAdminAccess := resourceType == automation.Workflows // only use admin access for workflows
 
 	for retrieved < result.Count {
-		resp, err := a.restClient.GET(ctx, automation.Resources[resourceType].Path, rest.RequestOptions{
+		opts := rest.RequestOptions{
 			QueryParams: url.Values{
-				"offset":      []string{strconv.Itoa(retrieved)},
-				"adminAccess": []string{strconv.FormatBool(adminAccess)},
+				"offset": []string{strconv.Itoa(retrieved)},
 			},
-		})
+		}
+		if wfAdminAccess {
+			opts.QueryParams["adminAccess"] = []string{"true"}
+		}
 
+		resp, err := a.restClient.GET(ctx, automation.Resources[resourceType].Path, opts)
 		if err != nil {
 			return ListResponse{}, fmt.Errorf("failed to list automation resources: %w", err)
 		}
 
-		// if Automation API rejected the initial request with admin permissions -> continue without
-		if resp.StatusCode == http.StatusForbidden {
-			adminAccess = false
+		// if Workflow API rejected the initial request with admin permissions -> retry without
+		if wfAdminAccess && resp.StatusCode == http.StatusForbidden {
+			wfAdminAccess = false
 			continue
 		}
 
@@ -284,21 +285,10 @@ func (a Client) createWithID(ctx context.Context, resourceType automation.Resour
 		return Response{}, fmt.Errorf("unable to set the id field in order to crate object with id %s: %w", id, err)
 	}
 
-	resp, err := a.restClient.POST(ctx, automation.Resources[resourceType].Path, bytes.NewReader(data), rest.RequestOptions{
-		QueryParams: url.Values{"adminAccess": []string{strconv.FormatBool(resourceType == automation.Workflows)}},
-	})
+	resp, err := a.client.Create(ctx, resourceType, data)
 	if err != nil {
 		return Response{}, err
 	}
-
-	// if Automation API rejected the initial request with admin permissions -> retry without
-	if resp.StatusCode == http.StatusForbidden {
-		resp, err = a.restClient.POST(ctx, automation.Resources[resourceType].Path, bytes.NewReader(data), rest.RequestOptions{})
-	}
-	if err != nil {
-		return Response{}, err
-	}
-
 	body, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {

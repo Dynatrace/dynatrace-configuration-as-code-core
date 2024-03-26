@@ -356,8 +356,7 @@ func TestAutomationClient_Upsert(t *testing.T) {
 				},
 				ValidateRequest: func(t *testing.T, req *http.Request) {
 					adminAccessQP := req.URL.Query()["adminAccess"]
-					assert.Len(t, adminAccessQP, 1)
-					assert.Equal(t, "false", adminAccessQP[0])
+					assert.Nil(t, adminAccessQP)
 				},
 			},
 		}
@@ -545,8 +544,7 @@ func TestAutomationClient_Delete(t *testing.T) {
 				},
 				ValidateRequest: func(t *testing.T, req *http.Request) {
 					adminAccessQP := req.URL.Query()["adminAccess"]
-					assert.Len(t, adminAccessQP, 1)
-					assert.Equal(t, "false", adminAccessQP[0])
+					assert.Nil(t, adminAccessQP)
 				},
 			},
 		}
@@ -732,7 +730,7 @@ func TestAutomationClient_List(t *testing.T) {
 					}
 				},
 				ValidateRequest: func(t *testing.T, req *http.Request) {
-					assert.Equal(t, []string{"false"}, req.URL.Query()["adminAccess"])
+					assert.Nil(t, req.URL.Query()["adminAccess"])
 					assert.Equal(t, []string{"0"}, req.URL.Query()["offset"])
 				},
 			},
@@ -744,7 +742,7 @@ func TestAutomationClient_List(t *testing.T) {
 					}
 				},
 				ValidateRequest: func(t *testing.T, req *http.Request) {
-					assert.Equal(t, []string{"false"}, req.URL.Query()["adminAccess"])
+					assert.Nil(t, req.URL.Query()["adminAccess"])
 					assert.Equal(t, []string{"1"}, req.URL.Query()["offset"])
 				},
 			},

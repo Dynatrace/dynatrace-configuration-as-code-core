@@ -202,19 +202,19 @@ func (a Client) Delete(ctx context.Context, resourceType ResourceType, id string
 }
 
 func (a Client) makeRequestWithAdminAccess(resourceType ResourceType, request func(options rest.RequestOptions) (*http.Response, error)) (*http.Response, error) {
-	opt := rest.RequestOptions{
-		QueryParams: url.Values{"adminAccess": []string{strconv.FormatBool(resourceType == Workflows)}},
+	if resourceType == Workflows {
+		opts := rest.RequestOptions{
+			QueryParams: url.Values{"adminAccess": []string{"true"}},
+		}
+		resp, err := request(opts)
+		if err != nil {
+			return nil, err
+		}
+		if resp != nil && resp.StatusCode == http.StatusForbidden {
+			return request(rest.RequestOptions{})
+		}
+		return resp, err
 	}
 
-	resp, err := request(opt)
-	if err != nil {
-		return nil, err
-	}
-
-	// if Workflow API rejected the initial request with admin permissions -> retry without
-	if resp != nil && resp.StatusCode == http.StatusForbidden {
-		return request(rest.RequestOptions{})
-	}
-
-	return resp, err
+	return request(rest.RequestOptions{})
 }
