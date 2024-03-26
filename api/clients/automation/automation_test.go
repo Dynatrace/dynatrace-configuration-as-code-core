@@ -330,8 +330,7 @@ func TestAutomationClient_Delete(t *testing.T) {
 				},
 				ValidateRequest: func(t *testing.T, req *http.Request) {
 					adminAccessQP := req.URL.Query()["adminAccess"]
-					assert.Len(t, adminAccessQP, 1)
-					assert.Equal(t, "true", adminAccessQP[0])
+					assert.Nil(t, adminAccessQP)
 				},
 			},
 		}
