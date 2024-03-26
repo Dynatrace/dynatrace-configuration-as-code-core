@@ -187,7 +187,7 @@ func (a Client) List(ctx context.Context, resourceType automation.ResourceType) 
 
 	retrieved := 0
 
-	adminAccess := true
+	adminAccess := resourceType == automation.Workflows
 
 	for retrieved < result.Count {
 		resp, err := a.restClient.GET(ctx, automation.Resources[resourceType].Path, rest.RequestOptions{
@@ -202,7 +202,7 @@ func (a Client) List(ctx context.Context, resourceType automation.ResourceType) 
 		}
 
 		// if Automation API rejected the initial request with admin permissions -> continue without
-		if ((resourceType == automation.Workflows) || (resourceType == automation.BusinessCalendars) || (resourceType == automation.SchedulingRules)) && resp.StatusCode == http.StatusForbidden {
+		if resp.StatusCode == http.StatusForbidden {
 			adminAccess = false
 			continue
 		}
@@ -285,14 +285,14 @@ func (a Client) createWithID(ctx context.Context, resourceType automation.Resour
 	}
 
 	resp, err := a.restClient.POST(ctx, automation.Resources[resourceType].Path, bytes.NewReader(data), rest.RequestOptions{
-		QueryParams: url.Values{"adminAccess": []string{"true"}},
+		QueryParams: url.Values{"adminAccess": []string{strconv.FormatBool(resourceType == automation.Workflows)}},
 	})
 	if err != nil {
 		return Response{}, err
 	}
 
 	// if Automation API rejected the initial request with admin permissions -> retry without
-	if ((resourceType == automation.Workflows) || (resourceType == automation.BusinessCalendars) || (resourceType == automation.SchedulingRules)) && resp.StatusCode == http.StatusForbidden {
+	if resp.StatusCode == http.StatusForbidden {
 		resp, err = a.restClient.POST(ctx, automation.Resources[resourceType].Path, bytes.NewReader(data), rest.RequestOptions{})
 	}
 	if err != nil {

@@ -101,7 +101,10 @@ func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (
 		return nil, fmt.Errorf("failed to create URL: %w", err)
 	}
 
-	return a.client.GET(ctx, path, rest.RequestOptions{})
+	return a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (*http.Response, error) {
+		return a.client.GET(ctx, path, rest.RequestOptions{})
+	})
+
 }
 
 // Create creates a new automation object based on the specified resource type.
@@ -200,13 +203,16 @@ func (a Client) Delete(ctx context.Context, resourceType ResourceType, id string
 
 func (a Client) makeRequestWithAdminAccess(resourceType ResourceType, request func(options rest.RequestOptions) (*http.Response, error)) (*http.Response, error) {
 	opt := rest.RequestOptions{
-		QueryParams: url.Values{"adminAccess": []string{"true"}},
+		QueryParams: url.Values{"adminAccess": []string{strconv.FormatBool(resourceType == Workflows)}},
 	}
 
 	resp, err := request(opt)
+	if err != nil {
+		return nil, err
+	}
 
 	// if Workflow API rejected the initial request with admin permissions -> retry without
-	if resourceType == Workflows && resp != nil && resp.StatusCode == http.StatusForbidden {
+	if resp != nil && resp.StatusCode == http.StatusForbidden {
 		return request(rest.RequestOptions{})
 	}
 
