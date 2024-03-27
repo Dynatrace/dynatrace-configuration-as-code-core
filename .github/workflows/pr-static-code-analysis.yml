@@ -32,7 +32,7 @@ jobs:
         run: make vet
 
       - name: 🔎 golangci-lint
-        uses: reviewdog/action-golangci-lint@f016e796a429b33094d0da6e86af3fa5479afe65 #v2.5.1
+        uses: reviewdog/action-golangci-lint@00311c26a97213f93f2fd3a3524d66762e956ae0 #v2.6.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-check
