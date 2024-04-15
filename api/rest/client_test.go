@@ -662,7 +662,7 @@ func TestClient_WithRetriesAndRateLimit(t *testing.T) {
 
 	ctx := testutils.ContextWithVerboseLogger(t)
 
-	resp, err := client.GET(ctx, "/sample/endpoint", RequestOptions{url.Values{"type": {"car", "bike"}}})
+	resp, err := client.GET(ctx, "/sample/endpoint", RequestOptions{QueryParams: url.Values{"type": {"car", "bike"}}})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -686,5 +686,5 @@ func TestClient_RequestOptionsQueryParams(t *testing.T) {
 
 	ctx := testutils.ContextWithLogger(t)
 
-	client.GET(ctx, "", RequestOptions{expectedQueryParams})
+	client.GET(ctx, "", RequestOptions{QueryParams: expectedQueryParams})
 }
