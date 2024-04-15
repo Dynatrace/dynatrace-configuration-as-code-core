@@ -33,6 +33,11 @@ type RequestOptions struct {
 	// QueryParams are HTTP query parameters that shall be appended
 	// to the endpoint url
 	QueryParams url.Values
+
+	// ContentType is the "Content-Type" HTTP header that shall be used
+	// during a request. A "Content-Type" header configured for the client
+	// will be overwritten for the particular request
+	ContentType string
 }
 
 // Option represents a functional Option for the Client.
@@ -108,7 +113,7 @@ func NewClient(baseURL *url.URL, httpClient *http.Client, opts ...Option) *Clien
 
 // Do executes the given request and returns a raw *http.Response
 func (c *Client) Do(req *http.Request) (*http.Response, error) {
-	return c.sendWithRetries(req.Context(), req, 0)
+	return c.sendWithRetries(req.Context(), req, 0, RequestOptions{})
 }
 
 // GET sends a GET request to the specified endpoint.
@@ -129,6 +134,12 @@ func (c *Client) POST(ctx context.Context, endpoint string, body io.Reader, opti
 	return c.sendRequestWithRetries(ctx, http.MethodPost, endpoint, body, options)
 }
 
+// PATCH sends a PATCH request to the specified endpoint with the given body.
+// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
+func (c *Client) PATCH(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (*http.Response, error) {
+	return c.sendRequestWithRetries(ctx, http.MethodPatch, endpoint, body, options)
+}
+
 // DELETE sends a DELETE request to the specified endpoint.
 // If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 func (c *Client) DELETE(ctx context.Context, endpoint string, options RequestOptions) (*http.Response, error) {
@@ -145,7 +156,7 @@ func (c *Client) BaseURL() *url.URL {
 	return c.baseURL
 }
 
-func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCount int) (*http.Response, error) {
+func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 
 	if c.rateLimiter != nil {
@@ -158,7 +169,14 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 		defer c.concurrentRequestLimiter.Release()
 	}
 
-	req.Header.Set("Content-type", "application/json")
+	// Set Content-Type header accordingly
+	if options.ContentType != "" {
+		req.Header.Set("Content-type", options.ContentType)
+	} else {
+		req.Header.Set("Content-type", "application/json")
+	}
+
+	// set fixed headers
 	for key, value := range c.headers {
 		req.Header.Set(key, value)
 	}
@@ -211,7 +229,7 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 		c.requestRetrier.ShouldRetryFunc != nil && c.requestRetrier.ShouldRetryFunc(response) {
 		logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, 100, retryCount+1, c.requestRetrier.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", c.requestRetrier.MaxRetries)
 		time.Sleep(100 * time.Millisecond)
-		return c.sendWithRetries(ctx, req, retryCount+1)
+		return c.sendWithRetries(ctx, req, retryCount+1, options)
 	}
 	return response, nil
 }
@@ -227,7 +245,8 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 	if err != nil {
 		return nil, err
 	}
-	return c.sendWithRetries(ctx, req, 0)
+
+	return c.sendWithRetries(ctx, req, 0, options)
 }
 
 func isConnectionResetErr(err error) bool {
