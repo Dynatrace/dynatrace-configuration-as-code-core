@@ -74,6 +74,7 @@ func NewHTTPTestServer(t *testing.T, responses []ResponseDef) *TestServer {
 			http.MethodPost:   responseDef.Post,
 			http.MethodPut:    responseDef.Put,
 			http.MethodDelete: responseDef.Delete,
+			http.MethodPatch:  responseDef.Patch,
 		}
 
 		handlerFunc, found := handlers[req.Method]
@@ -81,9 +82,16 @@ func NewHTTPTestServer(t *testing.T, responses []ResponseDef) *TestServer {
 			panic(fmt.Sprintf("No %s method defined for server call nr. %d", req.Method, testServer.calls))
 		}
 		response := handlerFunc(t, req)
-		rw.Header().Add("Content-Type", "application/json; charset=utf-8")
+		if response.ContentType != "" {
+			rw.Header().Set("Content-Type", response.ContentType)
+		} else {
+			rw.Header().Set("Content-Type", "application/json; charset=utf-8")
+		}
 		rw.WriteHeader(response.ResponseCode)
-		_, _ = rw.Write([]byte(response.ResponseBody)) // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
+		_, err := rw.Write([]byte(response.ResponseBody)) // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
+		if err != nil {
+			panic(err)
+		}
 		responseDef.Validate(t, req)
 	}
 	testServer.Server = httptest.NewServer(http.HandlerFunc(handler))
@@ -93,6 +101,7 @@ func NewHTTPTestServer(t *testing.T, responses []ResponseDef) *TestServer {
 type Response struct {
 	ResponseCode int
 	ResponseBody string
+	ContentType  string
 }
 
 type ResponseDef struct {
@@ -100,6 +109,7 @@ type ResponseDef struct {
 	PUT             func(*testing.T, *http.Request) Response
 	POST            func(*testing.T, *http.Request) Response
 	DELETE          func(*testing.T, *http.Request) Response
+	PATCH           func(*testing.T, *http.Request) Response
 	ValidateRequest func(*testing.T, *http.Request)
 }
 
@@ -115,17 +125,26 @@ func (r ResponseDef) Put(t *testing.T, req *http.Request) Response {
 	}
 	return r.PUT(t, req)
 }
+
 func (r ResponseDef) Post(t *testing.T, req *http.Request) Response {
 	if r.POST == nil {
 		panic("POST() function not defined")
 	}
 	return r.POST(t, req)
 }
+
 func (r ResponseDef) Delete(t *testing.T, req *http.Request) Response {
 	if r.DELETE == nil {
 		panic("DELETE() function not defined")
 	}
 	return r.DELETE(t, req)
+}
+
+func (r ResponseDef) Patch(t *testing.T, req *http.Request) Response {
+	if r.PATCH == nil {
+		panic("PATCH() function not defined")
+	}
+	return r.PATCH(t, req)
 }
 
 func (r ResponseDef) Validate(t *testing.T, req *http.Request) {
@@ -154,6 +173,9 @@ func checkExactlyOneHandlerSet(def ResponseDef) bool {
 		count++
 	}
 	if def.DELETE != nil {
+		count++
+	}
+	if def.PATCH != nil {
 		count++
 	}
 	return count == 1
