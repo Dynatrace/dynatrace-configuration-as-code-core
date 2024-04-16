@@ -17,6 +17,7 @@ package clients
 import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2/clientcredentials"
 	"testing"
@@ -45,6 +46,11 @@ func TestClientCreation(t *testing.T) {
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &automation.Client{}, clientInstance)
 
+	clientInstance, err = f.DocumentClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &documents.Client{}, clientInstance)
+
 	//... other clients
 }
 
@@ -70,6 +76,11 @@ func TestClientMissingEnvironmentURL(t *testing.T) {
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrEnvironmentURLMissing)
 
+	clientInstance, err = f.DocumentClient()
+	assert.Error(t, err)
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrEnvironmentURLMissing)
+
 	//... other clients
 }
 
@@ -87,6 +98,11 @@ func TestClientMissingOAuthCredentials(t *testing.T) {
 	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
 
 	clientInstance, err = f.AutomationClient()
+	assert.Error(t, err)
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
+
+	clientInstance, err = f.DocumentClient()
 	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
@@ -113,6 +129,11 @@ func TestClientURLParsingError(t *testing.T) {
 	assert.ErrorContains(t, err, "failed to parse URL")
 
 	clientInstance, err = f.AutomationClient()
+	assert.Error(t, err)
+	assert.Nil(t, clientInstance)
+	assert.ErrorContains(t, err, "failed to parse URL")
+
+	clientInstance, err = f.DocumentClient()
 	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, "failed to parse URL")

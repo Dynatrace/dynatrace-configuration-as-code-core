@@ -23,6 +23,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
 	"golang.org/x/oauth2/clientcredentials"
 	"net/url"
 	"time"
@@ -105,6 +106,15 @@ func (f factory) BucketClient() (*buckets.Client, error) {
 		return nil, err
 	}
 	return buckets.NewClient(restClient), nil
+}
+
+// DocumentClient creates and returns a new instance of documents.Client for interacting with the document API.
+func (f factory) DocumentClient() (*documents.Client, error) {
+	restClient, err := f.createClient()
+	if err != nil {
+		return nil, err
+	}
+	return documents.NewClient(restClient), nil
 }
 
 // BucketClientWithRetrySettings creates and returns a new instance of buckets.Client with non-default retry settings.
