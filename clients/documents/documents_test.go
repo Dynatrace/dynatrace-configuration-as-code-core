@@ -1,7 +1,22 @@
+// @license
+// Copyright 2023 Dynatrace LLC
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package documents_test
 
 import (
 	"fmt"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
@@ -114,8 +129,10 @@ This is the document content
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Get(ctx, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
-		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-		assert.NoError(t, err)
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
 	})
 }
 
@@ -182,8 +199,11 @@ func TestDocumentClient_Create(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Create(ctx, "my-dashboard", []byte(payload), documents.Dashboard)
 
-		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
-		assert.NoError(t, err)
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
+
 	})
 
 	t.Run("Create - Unable to make HTTP POST call", func(t *testing.T) {
@@ -344,8 +364,12 @@ This is the document content
 
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Upsert(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", []byte(payload), documents.Dashboard)
-		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
-		assert.NoError(t, err)
+
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
+
 	})
 
 	t.Run("Upsert - Existing Document Found - Updates it", func(t *testing.T) {
@@ -409,8 +433,11 @@ This is the document content
 
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Upsert(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", []byte(payload), documents.Dashboard)
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
 	})
 }
 
@@ -542,9 +569,13 @@ func TestDocumentClient_List(t *testing.T) {
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.List(ctx, "")
+
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
 		assert.Len(t, resp.Responses, 0)
-		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
-		assert.NoError(t, err)
+
 	})
 
 	t.Run("List - Request Fails", func(t *testing.T) {
@@ -655,9 +686,12 @@ This is the document content
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Delete(ctx, "id-of-document")
-		assert.NotZero(t, resp)
-		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
-		assert.NoError(t, err)
+
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
+
 	})
 
 	t.Run("Delete - Failed to execut Request", func(t *testing.T) {

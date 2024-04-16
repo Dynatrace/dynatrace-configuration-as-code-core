@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/documents"
@@ -98,7 +99,11 @@ func (c Client) Get(ctx context.Context, id string) (Response, error) {
 	r.Data = body
 
 	if !rest.IsSuccess(httpResp) {
-		return r, nil
+		return Response{}, api.APIError{
+			StatusCode: httpResp.StatusCode,
+			Body:       body,
+			Request:    rest.RequestInfo{Method: httpResp.Request.Method, URL: httpResp.Request.URL.String()},
+		}
 	}
 	contentType := httpResp.Header["Content-Type"][0]
 	boundaryIndex := strings.Index(contentType, "boundary=")
@@ -174,14 +179,12 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 		}
 
 		if !rest.IsSuccess(resp) {
-			return ListResponse{
-				Response: api.Response{
+			return ListResponse{},
+				api.APIError{
 					StatusCode: resp.StatusCode,
-					Data:       body,
+					Body:       body,
 					Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
-				},
-				Responses: nil,
-			}, nil
+				}
 
 		}
 
@@ -235,6 +238,14 @@ func (c Client) Create(ctx context.Context, name string, data []byte, documentTy
 		return Response{}, err
 	}
 
+	if !rest.IsSuccess(resp) {
+		return Response{}, api.APIError{
+			StatusCode: resp.StatusCode,
+			Body:       body.Bytes(),
+			Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
+		}
+	}
+
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return Response{}, err
@@ -250,9 +261,6 @@ func (c Client) Create(ctx context.Context, name string, data []byte, documentTy
 			Data:       respBody,
 			Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
 		},
-	}
-	if !rest.IsSuccess(resp) {
-		return r, nil
 	}
 
 	if err = json.Unmarshal(respBody, &r); err != nil {
@@ -273,7 +281,11 @@ func (c Client) Update(ctx context.Context, id string, name string, data []byte,
 	}
 
 	if !(getResp.StatusCode >= 200 && getResp.StatusCode <= 299) {
-		return getResp, nil
+		return Response{}, api.APIError{
+			StatusCode: getResp.StatusCode,
+			Body:       getResp.Data,
+			Request:    rest.RequestInfo{Method: getResp.Request.Method, URL: getResp.Request.URL},
+		}
 	}
 
 	body := &bytes.Buffer{}
@@ -319,13 +331,11 @@ func (c Client) Update(ctx context.Context, id string, name string, data []byte,
 	}
 
 	if !rest.IsSuccess(patchResp) {
-		return Response{
-			Response: api.Response{
-				StatusCode: patchResp.StatusCode,
-				Data:       respBody,
-				Request:    rest.RequestInfo{Method: patchResp.Request.Method, URL: patchResp.Request.URL.String()},
-			},
-		}, nil
+		return Response{}, api.APIError{
+			StatusCode: patchResp.StatusCode,
+			Body:       respBody,
+			Request:    rest.RequestInfo{Method: patchResp.Request.Method, URL: patchResp.Request.URL.String()},
+		}
 	}
 
 	type documentMetaData struct {
@@ -370,19 +380,13 @@ func (c Client) Upsert(ctx context.Context, id string, name string, data []byte,
 
 	resp, err := c.Update(ctx, id, name, data, documentType)
 	if err != nil {
+		var apiErr api.APIError
+		if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound {
+			return c.Create(ctx, name, data, documentType)
+		}
 		return Response{}, err
 	}
-
-	if resp.IsSuccess() {
-		return resp, err
-	}
-
-	if resp.StatusCode == http.StatusNotFound {
-		return c.Create(ctx, name, data, documentType)
-	}
-
 	return resp, nil
-
 }
 
 func (c Client) Delete(ctx context.Context, id string) (Response, error) {
@@ -396,12 +400,11 @@ func (c Client) Delete(ctx context.Context, id string) (Response, error) {
 	}
 
 	if !(getResp.StatusCode >= 200 && getResp.StatusCode <= 299) {
-		return Response{
-			Response: api.Response{
-				StatusCode: getResp.StatusCode,
-				Request:    rest.RequestInfo{Method: getResp.Request.Method, URL: getResp.Request.URL},
-			},
-		}, nil
+		return Response{}, api.APIError{
+			StatusCode: getResp.StatusCode,
+			Body:       getResp.Data,
+			Request:    rest.RequestInfo{Method: getResp.Request.Method, URL: getResp.Request.URL},
+		}
 	}
 
 	resp, err := c.client.Delete(ctx, id, rest.RequestOptions{
@@ -409,6 +412,13 @@ func (c Client) Delete(ctx context.Context, id string) (Response, error) {
 	})
 	if err != nil {
 		return Response{}, err
+	}
+
+	if !rest.IsSuccess(resp) {
+		return Response{}, api.APIError{
+			StatusCode: resp.StatusCode,
+			Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
+		}
 	}
 
 	return Response{
