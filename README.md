@@ -16,11 +16,7 @@ The library provides different kinds of clients to interact with Dynatrace in tw
   However, the specific interface might differ between clients.
   * Payloads to and from the APIs aren't interpreted in any particular way.
   Thus, it's the user's responsibility to marshal/unmarshal payloads into/from Go structs.
-  * API clients typically return `(Response, error)` pairs. Note that any API result (including `4xx`,`5xx`...) will be carried back
-  in the `Response` return value.
-  It is the responsibility of the user to check for success or failure of the actual operations by inspecting the 
-  `Response`. The user can expect `error` to be `!= nil` only for (technical) failures that
-  happen either prior to making the actual HTTP calls or if the HTTP calls couldn't be carried out (e.g. due to network problems, etc.)
+
 
   | API Client          | Implemented |
   |---------------------|-------------|
