@@ -19,6 +19,7 @@ package automation
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -88,15 +89,18 @@ func (a Client) Get(ctx context.Context, resourceType automation.ResourceType, i
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to get automation resource of type %q with id %q: %w", resourceType, id, err)
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
 	if err != nil {
 		return Response{}, err
 	}
-	defer resp.Body.Close()
 
-	return Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, nil
+	if !rest.IsSuccess(resp) {
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+	}
+
+	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
 }
 
 // Create creates a new automation object based on the specified resource type.
@@ -116,15 +120,18 @@ func (a Client) Create(ctx context.Context, resourceType automation.ResourceType
 	if err != nil {
 		return Response{}, err
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
 	if err != nil {
 		return Response{}, err
 	}
-	defer resp.Body.Close()
 
-	return Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, nil
+	if !rest.IsSuccess(resp) {
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+	}
+
+	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
 }
 
 // Update updates an automation object based on the specified resource type and id
@@ -148,15 +155,18 @@ func (a Client) Update(ctx context.Context, resourceType automation.ResourceType
 	if err != nil {
 		return Response{}, err
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
 	if err != nil {
 		return Response{}, err
 	}
-	defer resp.Body.Close()
 
-	return Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, nil
+	if !rest.IsSuccess(resp) {
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+	}
+
+	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
 }
 
 // List retrieves a list of automation objects of the specified resource
@@ -216,15 +226,7 @@ func (a Client) List(ctx context.Context, resourceType automation.ResourceType) 
 				return ListResponse{}, err
 			}
 
-			return ListResponse{
-				api.ListResponse{
-					Response: Response{
-						StatusCode: resp.StatusCode,
-						Data:       body,
-						Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
-					},
-				},
-			}, nil
+			return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 		}
 
 		result, err = unmarshalJSONList(resp)
@@ -268,15 +270,13 @@ func (a Client) List(ctx context.Context, resourceType automation.ResourceType) 
 func (a Client) Upsert(ctx context.Context, resourceType automation.ResourceType, id string, data []byte) (result Response, err error) {
 	resp, err := a.Update(ctx, resourceType, id, data)
 	if err != nil {
+		var apiErr api.APIError
+		if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound {
+			return a.createWithID(ctx, resourceType, id, data)
+		}
 		return Response{}, err
 	}
-
-	if resp.IsSuccess() {
-		return resp, nil
-	}
-
-	// at this point we need to create a new object using HTTP POST
-	return a.createWithID(ctx, resourceType, id, data)
+	return resp, nil
 }
 
 func (a Client) createWithID(ctx context.Context, resourceType automation.ResourceType, id string, data []byte) (Response, error) {
@@ -295,7 +295,11 @@ func (a Client) createWithID(ctx context.Context, resourceType automation.Resour
 		return Response{}, err
 	}
 
-	return Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, nil
+	if !rest.IsSuccess(resp) {
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+	}
+
+	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
 }
 
 // Delete removes an automation object of the specified resource type by its unique identifier (ID).
@@ -323,7 +327,11 @@ func (a Client) Delete(ctx context.Context, resourceType automation.ResourceType
 	if err != nil {
 		return Response{}, err
 	}
-	return Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, nil
+
+	if !rest.IsSuccess(resp) {
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+	}
+	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
 }
 
 func unmarshalJSONList(raw *http.Response) (listResponse, error) {

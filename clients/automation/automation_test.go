@@ -103,8 +103,11 @@ func TestAutomationClient_Get(t *testing.T) {
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Get(ctx, apiClient.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
-		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-		assert.NoError(t, err)
+
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
 	})
 }
 
@@ -155,8 +158,10 @@ func TestAutomationClient_Create(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Create(ctx, apiClient.Workflows, []byte(payload))
 
-		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
-		assert.NoError(t, err)
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
 	})
 
 	t.Run("Create - Unable to make HTTP POST call", func(t *testing.T) {
@@ -249,8 +254,10 @@ func TestAutomationClient_Update(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Update(ctx, apiClient.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45", []byte(payload))
 
-		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
-		assert.NoError(t, err)
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
 	})
 
 	t.Run("Update - HTTP PUT call is not possible", func(t *testing.T) {
@@ -447,9 +454,12 @@ func TestAutomationClient_Upsert(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		data := []byte(`{"id" : "some-id"}`)
 		resp, err := client.Upsert(ctx, apiClient.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45", data)
-		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 		assert.Equal(t, 3, server.Calls())
-		assert.Nil(t, err)
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
+
 	})
 
 	t.Run("Upsert - Direct update using HTTP PUT API Call returned with != 2xx - creation via POST OK", func(t *testing.T) {
@@ -625,9 +635,11 @@ func TestAutomationClient_Delete(t *testing.T) {
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Delete(ctx, apiClient.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
-		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 		assert.Equal(t, 2, server.Calls())
-		assert.Nil(t, err)
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
 	})
 
 	t.Run("Delete - adminAccess forbidden - resource not found", func(t *testing.T) {
@@ -649,9 +661,11 @@ func TestAutomationClient_Delete(t *testing.T) {
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Delete(ctx, apiClient.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
-		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 		assert.Equal(t, 1, server.Calls())
-		assert.Nil(t, err)
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
 	})
 }
 
@@ -793,9 +807,10 @@ func TestAutomationClient_List(t *testing.T) {
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.List(ctx, apiClient.Workflows)
-		assert.Len(t, resp, 1)
-		assert.Len(t, resp[0].Objects, 0)
-		assert.Nil(t, err)
+		assert.Len(t, resp, 0)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
 	})
 
 	t.Run("List - API Call returned with != 2xx", func(t *testing.T) {
@@ -816,10 +831,10 @@ func TestAutomationClient_List(t *testing.T) {
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.List(ctx, apiClient.Workflows)
-		assert.Len(t, resp, 1)
-		assert.Equal(t, resp[0].Response.StatusCode, http.StatusBadRequest)
-		assert.Len(t, resp[0].Objects, 0)
-		assert.Nil(t, err)
+		var apiError api.APIError
+		assert.Len(t, resp, 0)
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
 	})
 
 	t.Run("List - API Call failed", func(t *testing.T) {
