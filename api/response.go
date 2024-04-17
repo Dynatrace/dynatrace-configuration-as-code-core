@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
+	"net/http"
 )
 
 // Response represents an API response
@@ -25,6 +26,15 @@ type Response struct {
 	StatusCode int              `json:"-"`
 	Data       []byte           `json:"-"`
 	Request    rest.RequestInfo `json:"-"`
+}
+
+func NewResponseFromHTTPResponseAndBody(resp *http.Response, body []byte) Response {
+	return Response{
+		StatusCode: resp.StatusCode,
+		Data:       body,
+		Request: rest.RequestInfo{
+			Method: resp.Request.Method,
+			URL:    resp.Request.URL.String()}}
 }
 
 // PagedListResponse is a list of ListResponse values.
@@ -125,6 +135,14 @@ type APIError struct {
 	StatusCode int              `json:"statusCode"` // StatusCode is the HTTP response status code returned by the API.
 	Body       []byte           `json:"body"`       // Body is the HTTP payload returned by the API.
 	Request    rest.RequestInfo `json:"request"`    // Request is information about the original request that led to this response error.
+}
+
+func NewAPIErrorFromResponseAndBody(resp *http.Response, body []byte) APIError {
+	return APIError{
+		StatusCode: resp.StatusCode,
+		Body:       body,
+		Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
+	}
 }
 
 // Error returns a string representation of the APIError, providing details about the failed API request.
