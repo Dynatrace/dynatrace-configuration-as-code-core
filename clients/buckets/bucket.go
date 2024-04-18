@@ -165,11 +165,11 @@ func (c Client) List(ctx context.Context) (ListResponse, error) {
 	if err != nil {
 		return ListResponse{}, fmt.Errorf("failed to list buckets:%w", err)
 	}
+	defer resp.Body.Close()
 
 	// if the response has code != 2xx return empty list with response info
 	if !rest.IsSuccess(resp) {
 		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
 		if err != nil {
 			return ListResponse{}, err
 		}
@@ -217,8 +217,9 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (Res
 	if err != nil {
 		return api.Response{}, err
 	}
+	defer resp.Body.Close()
+
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
 	if err != nil {
 		return Response{}, err
 	}
@@ -268,9 +269,10 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	if err != nil {
 		return api.Response{}, err
 	}
+	defer resp.Body.Close()
+
 	if !rest.IsSuccess(resp) {
 		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
 		if err != nil {
 			return Response{}, err
 		}
@@ -288,7 +290,6 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	}
 
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
 	if err != nil {
 		return Response{}, err
 	}
@@ -313,10 +314,10 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	if err != nil {
 		return api.Response{}, err
 	}
+	defer resp.Body.Close()
 
 	if !rest.IsSuccess(resp) {
 		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
 		if err != nil {
 			return Response{}, err
 		}
@@ -375,9 +376,9 @@ func (c Client) Delete(ctx context.Context, bucketName string) (Response, error)
 	if err != nil {
 		return api.Response{}, fmt.Errorf("unable to delete object with bucket name %q: %w", bucketName, err)
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
 	if err != nil {
 		return Response{}, err
 	}
@@ -409,9 +410,9 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	if err != nil {
 		return api.Response{}, err
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
 	if err != nil {
 		return Response{}, err
 	}
@@ -462,6 +463,8 @@ func (c Client) create(ctx context.Context, bucketName string, data []byte) (*ht
 		return r, nil
 	}
 
+	r.Body.Close()
+
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
 	defer cancel() // cancel deadline if awaitBucketState returns before deadline
 	return c.awaitBucketState(timeoutCtx, bucketName, active)
@@ -511,6 +514,8 @@ func (c Client) awaitBucketState(ctx context.Context, bucketName string, desired
 				}
 			}
 
+			r.Body.Close()
+
 			logger.V(1).Info("Waiting for bucket to reach desired state...")
 			time.Sleep(c.retrySettings.durationBetweenTries)
 		}
@@ -528,6 +533,8 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 	if !rest.IsSuccess(b) {
 		return b, nil
 	}
+
+	defer b.Body.Close()
 
 	// try to unmarshal into internal struct
 	res, err := unmarshalJSON(b)
@@ -558,6 +565,9 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 	if !rest.IsSuccess(resp) {
 		return resp, nil
 	}
+
+	resp.Body.Close()
+
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
 	defer cancel() // cancel deadline if awaitBucketState returns before deadline
 	return c.awaitBucketState(timeoutCtx, bucketName, active)
