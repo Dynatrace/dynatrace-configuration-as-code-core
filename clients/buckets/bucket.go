@@ -30,6 +30,8 @@ import (
 	"time"
 )
 
+const bodyReadErrMsg = "unable to read API response body"
+
 const (
 	stateActive   = "active"
 	stateDeleting = "deleting"
@@ -136,7 +138,8 @@ func (c Client) Get(ctx context.Context, bucketName string) (Response, error) {
 	body, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		return Response{}, err
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	if !rest.IsSuccess(resp) {
@@ -166,22 +169,21 @@ func (c Client) List(ctx context.Context) (ListResponse, error) {
 		return ListResponse{}, fmt.Errorf("failed to list buckets:%w", err)
 	}
 	defer resp.Body.Close()
-
-	// if the response has code != 2xx return empty list with response info
-	if !rest.IsSuccess(resp) {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return ListResponse{}, err
-		}
-
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
 		return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
+	// if the response has code != 2xx return empty list with response info
+	if !rest.IsSuccess(resp) {
+		return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+	}
 	l, err := unmarshalJSONList(resp)
 	if err != nil {
-		return ListResponse{}, fmt.Errorf("failed to parse list response:%w", err)
+		logr.FromContextOrDiscard(ctx).Error(err, "failed to unmarshal json response")
+		return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
-
 	b := make([][]byte, len(l.Buckets))
 	for i, v := range l.Buckets {
 		b[i], _ = v.MarshalJSON() // marshalling the JSON back to JSON will not fail
@@ -221,7 +223,8 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (Res
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return Response{}, err
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	if !rest.IsSuccess(resp) {
@@ -271,27 +274,24 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	}
 	defer resp.Body.Close()
 
-	if !rest.IsSuccess(resp) {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return Response{}, err
-		}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+	}
 
+	if !rest.IsSuccess(resp) {
 		return api.Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	current, err := unmarshalJSON(resp)
 	if err != nil {
-		return api.Response{}, err
+		logr.FromContextOrDiscard(ctx).Error(err, "failed to unmarshal json response")
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	if current.Status == stateDeleting {
 		return api.Response{}, DeletingBucketErr
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return Response{}, err
 	}
 
 	if bucketsEqual(body, data) {
@@ -316,11 +316,13 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	}
 	defer resp.Body.Close()
 
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+	}
+
 	if !rest.IsSuccess(resp) {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return Response{}, err
-		}
 
 		return api.Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
@@ -380,7 +382,8 @@ func (c Client) Delete(ctx context.Context, bucketName string) (Response, error)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return Response{}, err
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	if !rest.IsSuccess(resp) {
@@ -414,7 +417,8 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return Response{}, err
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	// If creating the bucket definition worked, return the result
