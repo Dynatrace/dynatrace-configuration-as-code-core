@@ -21,14 +21,13 @@ import (
 	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	bucketAPI "github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/buckets"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
+	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	"io"
 	"net/http"
 	"strconv"
 	"time"
-
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
-	"github.com/go-logr/logr"
 )
 
 const (
@@ -139,7 +138,12 @@ func (c Client) Get(ctx context.Context, bucketName string) (Response, error) {
 	if err != nil {
 		return Response{}, err
 	}
-	return api.Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, nil
+
+	if !rest.IsSuccess(resp) {
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+	}
+
+	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
 }
 
 // List retrieves all bucket definitions. The function sends a GET request
@@ -161,6 +165,18 @@ func (c Client) List(ctx context.Context) (ListResponse, error) {
 	if err != nil {
 		return ListResponse{}, fmt.Errorf("failed to list buckets:%w", err)
 	}
+	defer resp.Body.Close()
+
+	// if the response has code != 2xx return empty list with response info
+	if !rest.IsSuccess(resp) {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return ListResponse{}, err
+		}
+
+		return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+	}
+
 	l, err := unmarshalJSONList(resp)
 	if err != nil {
 		return ListResponse{}, fmt.Errorf("failed to parse list response:%w", err)
@@ -201,17 +217,18 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (Res
 	if err != nil {
 		return api.Response{}, err
 	}
+	defer resp.Body.Close()
+
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
 	if err != nil {
 		return Response{}, err
 	}
 
-	return api.Response{
-		StatusCode: resp.StatusCode,
-		Data:       body,
-		Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
-	}, nil
+	if !rest.IsSuccess(resp) {
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+	}
+
+	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
 }
 
 var DeletingBucketErr = errors.New("cannot update bucket that is currently being deleted")
@@ -252,20 +269,15 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	if err != nil {
 		return api.Response{}, err
 	}
+	defer resp.Body.Close()
+
 	if !rest.IsSuccess(resp) {
 		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
 		if err != nil {
 			return Response{}, err
 		}
-		r := api.Response{
-			StatusCode: resp.StatusCode,
-			Data:       body,
-			Request: rest.RequestInfo{
-				Method: "GET",
-			},
-		}
-		return r, nil
+
+		return api.Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	current, err := unmarshalJSON(resp)
@@ -278,7 +290,6 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	}
 
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
 	if err != nil {
 		return Response{}, err
 	}
@@ -303,12 +314,20 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	if err != nil {
 		return api.Response{}, err
 	}
+	defer resp.Body.Close()
 
-	if rest.IsSuccess(resp) {
-		logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
+	if !rest.IsSuccess(resp) {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return Response{}, err
+		}
+
+		return api.Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
-	return api.Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, nil
+	logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
+
+	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
 }
 
 // Upsert creates or updates a bucket definition using the provided apiClient. The function first attempts
@@ -357,15 +376,15 @@ func (c Client) Delete(ctx context.Context, bucketName string) (Response, error)
 	if err != nil {
 		return api.Response{}, fmt.Errorf("unable to delete object with bucket name %q: %w", bucketName, err)
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
 	if err != nil {
 		return Response{}, err
 	}
 
 	if !rest.IsSuccess(resp) {
-		return api.Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, nil
+		return api.Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	// await bucket being successfully deleted
@@ -376,7 +395,7 @@ func (c Client) Delete(ctx context.Context, bucketName string) (Response, error)
 		return api.Response{}, fmt.Errorf("unable to delete object with bucket name %q: %w", bucketName, err)
 	}
 
-	return api.Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, nil
+	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
 }
 
 // upsert is an internal function used by Upsert to perform the create or update logic.
@@ -391,9 +410,9 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	if err != nil {
 		return api.Response{}, err
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
 	if err != nil {
 		return Response{}, err
 	}
@@ -401,12 +420,12 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	// If creating the bucket definition worked, return the result
 	if rest.IsSuccess(resp) {
 		logger.Info(fmt.Sprintf("Created bucket with bucket name %q", bucketName))
-		return api.Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, nil
+		return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
 	}
 
 	// Return if creation failed, but the errors was not 409 Conflict - Bucket already exists
 	if resp.StatusCode != http.StatusConflict {
-		return api.Response{StatusCode: resp.StatusCode, Data: body, Request: rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}}, err
+		return api.Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	// If bucket is currently being deleted, wait for it to be gone, then re-create it
@@ -434,7 +453,7 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 
 func (c Client) create(ctx context.Context, bucketName string, data []byte) (*http.Response, error) {
 	if err := setBucketName(bucketName, &data); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to set bucket name: %w", err)
 	}
 	r, err := c.apiClient.Create(ctx, data)
 	if err != nil {
@@ -443,6 +462,8 @@ func (c Client) create(ctx context.Context, bucketName string, data []byte) (*ht
 	if !rest.IsSuccess(r) {
 		return r, nil
 	}
+
+	r.Body.Close()
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
 	defer cancel() // cancel deadline if awaitBucketState returns before deadline
@@ -493,6 +514,8 @@ func (c Client) awaitBucketState(ctx context.Context, bucketName string, desired
 				}
 			}
 
+			r.Body.Close()
+
 			logger.V(1).Info("Waiting for bucket to reach desired state...")
 			time.Sleep(c.retrySettings.durationBetweenTries)
 		}
@@ -511,6 +534,8 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 		return b, nil
 	}
 
+	defer b.Body.Close()
+
 	// try to unmarshal into internal struct
 	res, err := unmarshalJSON(b)
 	if err != nil {
@@ -521,7 +546,7 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 	var m map[string]interface{}
 	err = json.Unmarshal(data, &m)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal template: %w", err)
+		return nil, fmt.Errorf("unable to unmarshal data: %w", err)
 	}
 	m["bucketName"] = res.BucketName
 	m["version"] = res.Version
@@ -540,6 +565,9 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 	if !rest.IsSuccess(resp) {
 		return resp, nil
 	}
+
+	resp.Body.Close()
+
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
 	defer cancel() // cancel deadline if awaitBucketState returns before deadline
 	return c.awaitBucketState(timeoutCtx, bucketName, active)
@@ -571,12 +599,12 @@ func setBucketName(bucketName string, data *[]byte) error {
 	var m map[string]interface{}
 	err := json.Unmarshal(*data, &m)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to unmarshal data: %w", err)
 	}
 	m["bucketName"] = bucketName
 	*data, err = json.Marshal(m)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to marshal data: %w", err)
 	}
 	return nil
 }

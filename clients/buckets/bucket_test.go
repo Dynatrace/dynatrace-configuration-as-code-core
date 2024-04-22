@@ -98,7 +98,7 @@ func TestGet(t *testing.T) {
 		assert.Equal(t, resp.Data, []byte(activeBucketResponse))
 	})
 
-	t.Run("correctly create the error in case of a server issue", func(t *testing.T) {
+	t.Run("returns an error in case of a server issue", func(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
 			{
@@ -119,8 +119,11 @@ func TestGet(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 
 		resp, err := client.Get(ctx, "bucket name")
-		assert.NoError(t, err, "expected err to be nil")
-		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
 	})
 }
 
@@ -197,12 +200,13 @@ func TestList(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 
 		resp, err := client.List(ctx)
+
 		assert.NoError(t, err, "expected err to be nil")
 		assert.Equal(t, resp[0].Data, []byte(payload))
 		assert.Empty(t, resp.All())
 	})
 
-	t.Run("successfully returns response in case of HTTP error", func(t *testing.T) {
+	t.Run("returns error in case of HTTP error", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
@@ -222,8 +226,12 @@ func TestList(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 
 		resp, err := client.List(ctx)
-		assert.NoError(t, err, "expected err to be nil")
-		assert.Equal(t, http.StatusNotFound, resp[0].StatusCode)
+
+		assert.Len(t, resp, 0)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
+
 	})
 
 	t.Run("returns error in case of network error", func(t *testing.T) {
@@ -370,8 +378,11 @@ func TestUpsert(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 
 		resp, err := client.Upsert(ctx, "bucket name", data)
-		assert.NoError(t, err, "expected err to be nil")
-		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusForbidden, apiError.StatusCode)
 	})
 
 	t.Run("bucket exists, update - OK", func(t *testing.T) {
@@ -456,7 +467,7 @@ func TestUpsert(t *testing.T) {
 		assert.Equal(t, "bucket name", m["bucketName"])
 	})
 
-	t.Run("bucket exists, update fails", func(t *testing.T) {
+	t.Run("returns an error when bucket exists and update fails", func(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
 			{
@@ -503,11 +514,14 @@ func TestUpsert(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 
 		resp, err := client.Upsert(ctx, "bucket name", data)
-		assert.NoError(t, err, "expected err to be nil")
-		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusForbidden, apiError.StatusCode)
 	})
 
-	t.Run("bucket exists, update fails with conflict", func(t *testing.T) {
+	t.Run("returns an error when bucket exists and update fails with conflict", func(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
 			{
@@ -559,11 +573,14 @@ func TestUpsert(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 
 		resp, err := client.Upsert(ctx, "bucket name", data)
-		assert.NoError(t, err, "expected err to be nil")
-		assert.Equal(t, http.StatusConflict, resp.StatusCode)
+
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusConflict, apiError.StatusCode)
 	})
 
-	t.Run("bucket exists, update fails because GET fails", func(t *testing.T) {
+	t.Run("returns an error when bucket exists and update fails because GET fails", func(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
 			{
@@ -608,9 +625,11 @@ func TestUpsert(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 
 		resp, err := client.Upsert(ctx, "bucket name", data)
-		assert.NoError(t, err, "expected err to be nil")
-		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
 	})
 
 	t.Run("bucket exists, update succeeds after initial conflict", func(t *testing.T) {
@@ -834,7 +853,7 @@ func TestDelete(t *testing.T) {
 		assert.Equal(t, deletingBucketResponse, string(resp.Data))
 	})
 
-	t.Run("delete bucket - not found", func(t *testing.T) {
+	t.Run("returns an error when bucket to be deleted is not found", func(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
 			{
@@ -855,9 +874,11 @@ func TestDelete(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 
 		resp, err := client.Delete(ctx, "bucket name")
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
-		assert.Equal(t, []byte{}, resp.Data)
+
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
 	})
 
 	t.Run("delete bucket - network error", func(t *testing.T) {
@@ -1005,7 +1026,7 @@ func TestCreate(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 
-	t.Run("update fails", func(t *testing.T) {
+	t.Run("returns an error when update fails", func(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
 			{
@@ -1043,8 +1064,11 @@ func TestUpdate(t *testing.T) {
 
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Update(ctx, "bucket name", data)
-		assert.NoError(t, err, "expected err to be nil")
-		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusForbidden, apiError.StatusCode)
 	})
 
 	t.Run("update bucket - OK", func(t *testing.T) {
@@ -1153,7 +1177,7 @@ func TestUpdate(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
-	t.Run("Update fails with conflict", func(t *testing.T) {
+	t.Run("returns an error when update fails with conflict", func(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
 			{
@@ -1201,11 +1225,14 @@ func TestUpdate(t *testing.T) {
 
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Update(ctx, "bucket name", data)
-		assert.NoError(t, err, "expected err to be nil")
-		assert.Equal(t, http.StatusConflict, resp.StatusCode)
+
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusConflict, apiError.StatusCode)
 	})
 
-	t.Run("Update fails because GET fails", func(t *testing.T) {
+	t.Run("returns an error when update fails because GET fails", func(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
 			{
@@ -1227,8 +1254,11 @@ func TestUpdate(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 
 		resp, err := client.Update(ctx, "bucket name", data)
-		assert.NoError(t, err, "expected err to be nil")
-		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusForbidden, apiError.StatusCode)
 
 	})
 
