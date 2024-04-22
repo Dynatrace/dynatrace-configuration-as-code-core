@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-logr/logr"
 	"io"
 	"net/http"
 	"net/url"
@@ -30,6 +31,8 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
+
+const bodyReadErrMsg = "unable to read API response body"
 
 type Response = api.Response
 
@@ -93,7 +96,8 @@ func (a Client) Get(ctx context.Context, resourceType automation.ResourceType, i
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return Response{}, err
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	if !rest.IsSuccess(resp) {
@@ -124,7 +128,8 @@ func (a Client) Create(ctx context.Context, resourceType automation.ResourceType
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return Response{}, err
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	if !rest.IsSuccess(resp) {
@@ -159,7 +164,8 @@ func (a Client) Update(ctx context.Context, resourceType automation.ResourceType
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return Response{}, err
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	if !rest.IsSuccess(resp) {
@@ -218,20 +224,22 @@ func (a Client) List(ctx context.Context, resourceType automation.ResourceType) 
 			continue
 		}
 
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+			return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+		}
+
 		// if one of the response has code != 2xx return empty list with response info
 		if !rest.IsSuccess(resp) {
-			body, err := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			if err != nil {
-				return ListResponse{}, err
-			}
-
 			return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 		}
 
 		result, err = unmarshalJSONList(resp)
 		if err != nil {
-			return ListResponse{}, fmt.Errorf("failed to parse list response:%w", err)
+			logr.FromContextOrDiscard(ctx).Error(err, "failed to unmarshal json response")
+			return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 		}
 
 		retrieved += len(result.Objects)
@@ -292,7 +300,8 @@ func (a Client) createWithID(ctx context.Context, resourceType automation.Resour
 	body, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		return Response{}, err
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	if !rest.IsSuccess(resp) {
@@ -325,7 +334,8 @@ func (a Client) Delete(ctx context.Context, resourceType automation.ResourceType
 	body, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		return Response{}, err
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	if !rest.IsSuccess(resp) {
