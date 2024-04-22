@@ -9,6 +9,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
+	"github.com/go-logr/logr"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -32,9 +33,11 @@ import (
  * limitations under the License.
  */
 
-type DocumentType int
+const bodyReadErrMsg = "unable to read API response body"
 
 const optimisticLockingHeader = "optimistic-locking-version"
+
+type DocumentType int
 
 const (
 	Dashboard DocumentType = iota
@@ -87,7 +90,8 @@ func (c Client) Get(ctx context.Context, id string) (Response, error) {
 
 	body, err := io.ReadAll(httpResp.Body)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to read response body: %w", err)
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+		return Response{}, api.NewAPIErrorFromResponseAndBody(httpResp, body)
 	}
 
 	if err = httpResp.Body.Close(); err != nil {
@@ -175,9 +179,9 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 		body, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
-			return ListResponse{}, err
+			logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+			return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 		}
-
 		if !rest.IsSuccess(resp) {
 			return ListResponse{},
 				api.APIError{
@@ -248,7 +252,8 @@ func (c Client) Create(ctx context.Context, name string, data []byte, documentTy
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return Response{}, err
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, respBody)
 	}
 
 	if err = resp.Body.Close(); err != nil {
@@ -324,7 +329,8 @@ func (c Client) Update(ctx context.Context, id string, name string, data []byte,
 
 	respBody, err := io.ReadAll(patchResp.Body)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to read response body: %w", err)
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+		return Response{}, api.NewAPIErrorFromResponseAndBody(patchResp, respBody)
 	}
 	if err = patchResp.Body.Close(); err != nil {
 		return Response{}, err
