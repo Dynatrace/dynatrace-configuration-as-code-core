@@ -37,17 +37,12 @@ const bodyReadErrMsg = "unable to read API response body"
 
 const optimisticLockingHeader = "optimistic-locking-version"
 
-type DocumentType int
+type DocumentType string
 
 const (
-	Dashboard DocumentType = iota
-	Notebook
+	Dashboard DocumentType = "dashboard"
+	Notebook  DocumentType = "notebook"
 )
-
-var documentTypesValues = map[DocumentType]string{
-	Dashboard: "dashboard",
-	Notebook:  "notebook",
-}
 
 // Client is the HTTP client to be used for interacting with the Document API
 type Client struct {
@@ -213,7 +208,7 @@ func (c Client) Create(ctx context.Context, name string, data []byte, documentTy
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	if err := writer.WriteField("type", documentTypesValues[documentType]); err != nil {
+	if err := writer.WriteField("type", string(documentType)); err != nil {
 		return Response{}, err
 	}
 	if err := writer.WriteField("name", name); err != nil {
@@ -296,7 +291,7 @@ func (c Client) Update(ctx context.Context, id string, name string, data []byte,
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	if err = writer.WriteField("type", documentTypesValues[documentType]); err != nil {
+	if err = writer.WriteField("type", string(documentType)); err != nil {
 		return getResp, err
 	}
 	if err = writer.WriteField("name", name); err != nil {
