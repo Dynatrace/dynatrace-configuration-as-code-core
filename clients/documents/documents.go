@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/documents"
@@ -12,7 +11,6 @@ import (
 	"github.com/go-logr/logr"
 	"io"
 	"mime/multipart"
-	"net/http"
 	"net/url"
 	"strings"
 )
@@ -204,7 +202,7 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 	return retVal, nil
 }
 
-func (c Client) Create(ctx context.Context, name string, data []byte, documentType DocumentType) (Response, error) {
+func (c Client) Create(ctx context.Context, name string, externalId string, data []byte, documentType DocumentType) (Response, error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
@@ -213,6 +211,11 @@ func (c Client) Create(ctx context.Context, name string, data []byte, documentTy
 	}
 	if err := writer.WriteField("name", name); err != nil {
 		return Response{}, err
+	}
+	if externalId != "" {
+		if err := writer.WriteField("externalId", externalId); err != nil {
+			return Response{}, err
+		}
 	}
 
 	part, err := writer.CreatePart(map[string][]string{
@@ -272,7 +275,7 @@ func (c Client) Create(ctx context.Context, name string, data []byte, documentTy
 
 func (c Client) Update(ctx context.Context, id string, name string, data []byte, documentType DocumentType) (Response, error) {
 	if id == "" {
-		return Response{}, fmt.Errorf("id must be non empty")
+		return Response{}, fmt.Errorf("id must be non-empty")
 	}
 
 	getResp, err := c.Get(ctx, id)
@@ -372,22 +375,6 @@ func (c Client) Update(ctx context.Context, id string, name string, data []byte,
 		},
 	}, nil
 
-}
-
-func (c Client) Upsert(ctx context.Context, id string, name string, data []byte, documentType DocumentType) (Response, error) {
-	if id == "" {
-		return Response{}, fmt.Errorf("id must be non empty")
-	}
-
-	resp, err := c.Update(ctx, id, name, data, documentType)
-	if err != nil {
-		var apiErr api.APIError
-		if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound {
-			return c.Create(ctx, name, data, documentType)
-		}
-		return Response{}, err
-	}
-	return resp, nil
 }
 
 func (c Client) Delete(ctx context.Context, id string) (Response, error) {
