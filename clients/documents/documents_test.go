@@ -633,6 +633,7 @@ This is the document content
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, "/platform/document/v1/documents/id-of-document", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: getPayload,
@@ -642,6 +643,15 @@ This is the document content
 			},
 			{
 				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, "/platform/document/v1/documents/id-of-document", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+					}
+				},
+			},
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, "/platform/document/v1/trash/documents/id-of-document", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 					}
@@ -682,10 +692,9 @@ This is the document content
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
 		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
-
 	})
 
-	t.Run("Delete - Failed to execut Request", func(t *testing.T) {
+	t.Run("Delete - Failed to execute Request", func(t *testing.T) {
 		responses := []testutils.ResponseDef{}
 
 		server := testutils.NewHTTPTestServer(t, responses)

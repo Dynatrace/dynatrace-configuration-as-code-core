@@ -379,7 +379,7 @@ func (c Client) Update(ctx context.Context, id string, name string, data []byte,
 
 func (c Client) Delete(ctx context.Context, id string) (Response, error) {
 	if id == "" {
-		return Response{}, fmt.Errorf("id must be non empty")
+		return Response{}, fmt.Errorf("id must be non-empty")
 	}
 
 	getResp, err := c.Get(ctx, id)
@@ -398,6 +398,18 @@ func (c Client) Delete(ctx context.Context, id string) (Response, error) {
 	resp, err := c.client.Delete(ctx, id, rest.RequestOptions{
 		QueryParams: map[string][]string{optimisticLockingHeader: {fmt.Sprint(getResp.Version)}},
 	})
+	if err != nil {
+		return Response{}, err
+	}
+
+	if !rest.IsSuccess(resp) {
+		return Response{}, api.APIError{
+			StatusCode: resp.StatusCode,
+			Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
+		}
+	}
+
+	resp, err = c.client.Trash(ctx, id)
 	if err != nil {
 		return Response{}, err
 	}
