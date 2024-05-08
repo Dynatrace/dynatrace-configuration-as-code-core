@@ -151,6 +151,7 @@ func TestDocumentClient_Create(t *testing.T) {
     ],
     "id": "038ab74f-0a3a-4bf8-9068-85e2d633a1e6",
     "name": "my-test-db",
+	"externalId": "extId",
     "type": "dashboard",
     "version": 1,
     "owner": "12341234-1234-1234-1234-12341234"
@@ -174,7 +175,7 @@ func TestDocumentClient_Create(t *testing.T) {
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Create(ctx, "my-dashboard", []byte(payload), documents.Dashboard)
+		resp, err := client.Create(ctx, "my-dashboard", "extId", []byte(payload), documents.Dashboard)
 		assert.NotNil(t, resp)
 		assert.Equal(t, payload, string(resp.Data))
 		assert.NoError(t, err)
@@ -197,7 +198,7 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Create(ctx, "my-dashboard", []byte(payload), documents.Dashboard)
+		resp, err := client.Create(ctx, "my-dashboard", "extId", []byte(payload), documents.Dashboard)
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -224,13 +225,13 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Create(ctx, "my-dashboard", []byte(payload), documents.Dashboard)
+		resp, err := client.Create(ctx, "my-dashboard", "extId", []byte(payload), documents.Dashboard)
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
 }
 
-func TestDocumentClient_Upsert(t *testing.T) {
+func TestDocumentClient_Update(t *testing.T) {
 	const getPayload = `--Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy
 Content-Disposition: form-data; name="metadata"
 Content-Type: application/json
@@ -300,7 +301,7 @@ This is the document content
   }
 }`
 
-	t.Run("Upsert - Missing id", func(t *testing.T) {
+	t.Run("Update - Missing id", func(t *testing.T) {
 		responses := []testutils.ResponseDef{}
 
 		server := testutils.NewHTTPTestServer(t, responses)
@@ -309,25 +310,17 @@ This is the document content
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Upsert(ctx, "", "my-dashboard", []byte(payload), documents.Dashboard)
+		resp, err := client.Update(ctx, "", "my-dashboard", []byte(payload), documents.Dashboard)
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
 
-	t.Run("Upsert - No document found - Creates new Document  - OK", func(t *testing.T) {
+	t.Run("Update - Document not found", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusNotFound,
-					}
-				},
-			},
-			{
-				POST: func(t *testing.T, req *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusCreated,
-						ResponseBody: payload,
 					}
 				},
 			},
@@ -339,14 +332,12 @@ This is the document content
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Upsert(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", []byte(payload), documents.Dashboard)
-		assert.NotNil(t, resp)
-		assert.Equal(t, payload, string(resp.Data))
-		assert.Equal(t, http.StatusCreated, resp.StatusCode)
-		assert.NoError(t, err)
+		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", []byte(payload), documents.Dashboard)
+		assert.Zero(t, resp)
+		assert.Error(t, err)
 	})
 
-	t.Run("Upsert - Fails to fetch existing document", func(t *testing.T) {
+	t.Run("Update - Fails to fetch existing document", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
@@ -363,7 +354,7 @@ This is the document content
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Upsert(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", []byte(payload), documents.Dashboard)
+		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", []byte(payload), documents.Dashboard)
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -372,7 +363,7 @@ This is the document content
 
 	})
 
-	t.Run("Upsert - Existing Document Found - Updates it", func(t *testing.T) {
+	t.Run("Update - Existing document found", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
@@ -399,14 +390,14 @@ This is the document content
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Upsert(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", []byte(payload), documents.Dashboard)
+		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", []byte(payload), documents.Dashboard)
 		assert.NoError(t, err)
 		assert.Equal(t, patchPayload, string(resp.Data))
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		fmt.Println(resp.ID)
 	})
 
-	t.Run("Upsert - Existing Document Found - Update fails", func(t *testing.T) {
+	t.Run("Update - Existing document found - Update fails", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
@@ -432,7 +423,7 @@ This is the document content
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Upsert(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", []byte(payload), documents.Dashboard)
+		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", []byte(payload), documents.Dashboard)
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
