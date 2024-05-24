@@ -44,6 +44,8 @@ Content-Type: application/json
     ],
     "id": "b17ec54b-07ac-4c73-9c4d-232e1b2e2420",
     "name": "my-test-db",
+	"isPrivate": true,
+	"externalId": "extId",
     "type": "dashboard",
     "version": 1,
     "owner": "12341234-1234-1234-1234-12341234"
@@ -90,6 +92,8 @@ This is the document content
 		assert.NotZero(t, resp)
 		assert.Equal(t, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420", resp.ID)
 		assert.Equal(t, "my-test-db", resp.Name)
+		assert.Equal(t, true, resp.IsPrivate)
+		assert.Equal(t, "extId", resp.ExternalID)
 		assert.Equal(t, "dashboard", resp.Type)
 		assert.Equal(t, 1, resp.Version)
 		assert.Equal(t, "12341234-1234-1234-1234-12341234", resp.Owner)
