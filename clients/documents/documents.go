@@ -12,6 +12,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -59,6 +60,7 @@ type Response struct {
 	Name       string `json:"name"`
 	Type       string `json:"type"`
 	Version    int    `json:"version"`
+	IsPrivate  bool   `json:"isPrivate"`
 }
 
 // ListResponse is a list of API Responses
@@ -202,7 +204,7 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 	return retVal, nil
 }
 
-func (c Client) Create(ctx context.Context, name string, externalId string, data []byte, documentType DocumentType) (Response, error) {
+func (c Client) Create(ctx context.Context, name string, isPrivate bool, externalId string, data []byte, documentType DocumentType) (Response, error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
@@ -212,6 +214,11 @@ func (c Client) Create(ctx context.Context, name string, externalId string, data
 	if err := writer.WriteField("name", name); err != nil {
 		return Response{}, err
 	}
+
+	if err := writer.WriteField("isPrivate", strconv.FormatBool(isPrivate)); err != nil {
+		return Response{}, err
+	}
+
 	if externalId != "" {
 		if err := writer.WriteField("externalId", externalId); err != nil {
 			return Response{}, err
@@ -273,7 +280,7 @@ func (c Client) Create(ctx context.Context, name string, externalId string, data
 	return r, nil
 }
 
-func (c Client) Update(ctx context.Context, id string, name string, data []byte, documentType DocumentType) (Response, error) {
+func (c Client) Update(ctx context.Context, id string, name string, isPrivate bool, data []byte, documentType DocumentType) (Response, error) {
 	if id == "" {
 		return Response{}, fmt.Errorf("id must be non-empty")
 	}
@@ -299,6 +306,10 @@ func (c Client) Update(ctx context.Context, id string, name string, data []byte,
 	}
 	if err = writer.WriteField("name", name); err != nil {
 		return getResp, err
+	}
+
+	if err := writer.WriteField("isPrivate", strconv.FormatBool(isPrivate)); err != nil {
+		return Response{}, err
 	}
 
 	part, err := writer.CreatePart(map[string][]string{
