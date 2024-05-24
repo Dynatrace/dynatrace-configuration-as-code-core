@@ -44,6 +44,8 @@ Content-Type: application/json
     ],
     "id": "b17ec54b-07ac-4c73-9c4d-232e1b2e2420",
     "name": "my-test-db",
+	"isPrivate": true,
+	"externalId": "extId",
     "type": "dashboard",
     "version": 1,
     "owner": "12341234-1234-1234-1234-12341234"
@@ -90,6 +92,8 @@ This is the document content
 		assert.NotZero(t, resp)
 		assert.Equal(t, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420", resp.ID)
 		assert.Equal(t, "my-test-db", resp.Name)
+		assert.Equal(t, true, resp.IsPrivate)
+		assert.Equal(t, "extId", resp.ExternalID)
 		assert.Equal(t, "dashboard", resp.Type)
 		assert.Equal(t, 1, resp.Version)
 		assert.Equal(t, "12341234-1234-1234-1234-12341234", resp.Owner)
@@ -151,6 +155,7 @@ func TestDocumentClient_Create(t *testing.T) {
     ],
     "id": "038ab74f-0a3a-4bf8-9068-85e2d633a1e6",
     "name": "my-test-db",
+	"isPrivate": true,
 	"externalId": "extId",
     "type": "dashboard",
     "version": 1,
@@ -175,7 +180,7 @@ func TestDocumentClient_Create(t *testing.T) {
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Create(ctx, "my-dashboard", "extId", []byte(payload), documents.Dashboard)
+		resp, err := client.Create(ctx, "my-dashboard", true, "extId", []byte(payload), documents.Dashboard)
 		assert.NotNil(t, resp)
 		assert.Equal(t, payload, string(resp.Data))
 		assert.NoError(t, err)
@@ -198,7 +203,7 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Create(ctx, "my-dashboard", "extId", []byte(payload), documents.Dashboard)
+		resp, err := client.Create(ctx, "my-dashboard", true, "extId", []byte(payload), documents.Dashboard)
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -225,7 +230,7 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Create(ctx, "my-dashboard", "extId", []byte(payload), documents.Dashboard)
+		resp, err := client.Create(ctx, "my-dashboard", true, "extId", []byte(payload), documents.Dashboard)
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -250,6 +255,8 @@ Content-Type: application/json
     ],
     "id": "b17ec54b-07ac-4c73-9c4d-232e1b2e2420",
     "name": "my-test-db",
+	"isPrivate": true,
+	"externalId": "extId",
     "type": "dashboard",
     "version": 1,
     "owner": "12341234-1234-1234-1234-12341234"
@@ -261,24 +268,7 @@ Content-Type: application/json
 This is the document content
 --Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy--
 `
-	const payload = `{
-    "modificationInfo": {
-        "createdBy": "12341234-1234-1234-1234-12341234",
-        "createdTime": "2024-04-11T14:06:26.491Z",
-        "lastModifiedBy": "2f321c04-566e-4779-b576-3c033b8cd9e9",
-        "lastModifiedTime": "2024-04-11T14:06:26.491Z"
-    },
-    "access": [
-        "read",
-        "delete",
-        "write"
-    ],
-    "id": "038ab74f-0a3a-4bf8-9068-85e2d633a1e6",
-    "name": "my-test-db",
-    "type": "dashboard",
-    "version": 1,
-    "owner": "12341234-1234-1234-1234-12341234"
-}`
+	const documentContent = "This is the document content"
 
 	const patchPayload = `{
   "documentMetadata": {
@@ -295,6 +285,8 @@ This is the document content
     ],
     "id": "038ab74f-0a3a-4bf8-9068-85e2d633a1e6",
     "name": "my-test-db",
+	"isPrivate": true,
+	"externalId": "extId",
     "type": "dashboard",
     "version": 1,
     "owner": "12341234-1234-1234-1234-12341234"
@@ -310,7 +302,7 @@ This is the document content
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "", "my-dashboard", []byte(payload), documents.Dashboard)
+		resp, err := client.Update(ctx, "", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -332,7 +324,7 @@ This is the document content
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", []byte(payload), documents.Dashboard)
+		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -354,7 +346,7 @@ This is the document content
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", []byte(payload), documents.Dashboard)
+		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -390,7 +382,7 @@ This is the document content
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", []byte(payload), documents.Dashboard)
+		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 		assert.NoError(t, err)
 		assert.Equal(t, patchPayload, string(resp.Data))
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -423,7 +415,7 @@ This is the document content
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", []byte(payload), documents.Dashboard)
+		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -449,6 +441,8 @@ func TestDocumentClient_List(t *testing.T) {
             ],
             "id": "id1",
             "name": "name1",
+			"isPrivate": true,
+			"externalId": "extId1",
             "type": "dashboard",
             "version": 1,
             "owner": "owner1"
@@ -474,6 +468,8 @@ func TestDocumentClient_List(t *testing.T) {
             ],
             "id": "id2",
             "name": "name2",
+			"isPrivate": false,
+			"externalId": "extId2",
             "type": "dashboard",
             "version": 1,
             "owner": "owner2"
@@ -521,6 +517,8 @@ func TestDocumentClient_List(t *testing.T) {
 
 		assert.Equal(t, "id1", resp.Responses[0].ID)
 		assert.Equal(t, "name1", resp.Responses[0].Name)
+		assert.Equal(t, true, resp.Responses[0].IsPrivate)
+		assert.Equal(t, "extId1", resp.Responses[0].ExternalID)
 		assert.Equal(t, "dashboard", resp.Responses[0].Type)
 		assert.Equal(t, 1, resp.Responses[0].Version)
 		assert.Equal(t, "owner1", resp.Responses[0].Owner)
@@ -528,6 +526,8 @@ func TestDocumentClient_List(t *testing.T) {
 
 		assert.Equal(t, "id2", resp.Responses[1].ID)
 		assert.Equal(t, "name2", resp.Responses[1].Name)
+		assert.Equal(t, false, resp.Responses[1].IsPrivate)
+		assert.Equal(t, "extId2", resp.Responses[1].ExternalID)
 		assert.Equal(t, "dashboard", resp.Responses[1].Type)
 		assert.Equal(t, 1, resp.Responses[1].Version)
 		assert.Equal(t, "owner2", resp.Responses[1].Owner)
@@ -603,6 +603,8 @@ Content-Type: application/json
     ],
     "id": "b17ec54b-07ac-4c73-9c4d-232e1b2e2420",
     "name": "my-test-db",
+	"isPrivate": true,
+	"externalId": "extId1",
     "type": "dashboard",
     "version": 1,
     "owner": "12341234-1234-1234-1234-12341234"
