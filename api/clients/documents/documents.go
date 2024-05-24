@@ -26,6 +26,7 @@ import (
 )
 
 const documentResourcePath = "/platform/document/v1/documents"
+const trashResourcePath = "/platform/document/v1/trash/documents"
 
 type Client struct {
 	client *rest.Client
@@ -40,7 +41,7 @@ func NewClient(client *rest.Client) *Client {
 
 func (c Client) Get(ctx context.Context, id string) (*http.Response, error) {
 	if id == "" {
-		return nil, fmt.Errorf("id must be non empty")
+		return nil, fmt.Errorf("id must be non-empty")
 	}
 
 	path, err := url.JoinPath(documentResourcePath, id)
@@ -113,5 +114,17 @@ func (c Client) Delete(ctx context.Context, id string, requestOptions rest.Reque
 		return nil, fmt.Errorf("unable to delete object: %w", err)
 	}
 	return resp, err
+}
 
+func (c Client) Trash(ctx context.Context, id string) (*http.Response, error) {
+	path, err := url.JoinPath(trashResourcePath, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create URL: %w", err)
+	}
+
+	resp, err := c.client.DELETE(ctx, path, rest.RequestOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("unable to trash object: %w", err)
+	}
+	return resp, err
 }
