@@ -24,6 +24,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/openpipeline"
 	"golang.org/x/oauth2/clientcredentials"
 	"net/url"
 	"time"
@@ -125,6 +126,15 @@ func (f factory) BucketClientWithRetrySettings(maxRetries int, durationBetweenTr
 		return nil, err
 	}
 	return buckets.NewClient(restClient, buckets.WithRetrySettings(maxRetries, durationBetweenTries, maxWaitDuration)), nil
+}
+
+// OpenPipelineClient creates and returns a new instance of openpipeline.Client for interacting with the openPipeline API.
+func (f factory) OpenPipelineClient() (*openpipeline.Client, error) {
+	restClient, err := f.createClient()
+	if err != nil {
+		return nil, err
+	}
+	return openpipeline.NewClient(restClient), nil
 }
 
 func (f factory) createClientForAccount(accManagementURL string) (*rest.Client, error) {

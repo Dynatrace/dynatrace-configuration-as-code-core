@@ -107,6 +107,11 @@ func TestClientMissingOAuthCredentials(t *testing.T) {
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
 
+	clientInstance, err = f.OpenPipelineClient()
+	assert.Error(t, err)
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
+
 	//... other clients
 }
 
@@ -134,6 +139,11 @@ func TestClientURLParsingError(t *testing.T) {
 	assert.ErrorContains(t, err, "failed to parse URL")
 
 	clientInstance, err = f.DocumentClient()
+	assert.Error(t, err)
+	assert.Nil(t, clientInstance)
+	assert.ErrorContains(t, err, "failed to parse URL")
+
+	clientInstance, err = f.OpenPipelineClient()
 	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, "failed to parse URL")
