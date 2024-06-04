@@ -19,14 +19,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/openpipeline"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/go-logr/logr"
 	"io"
 	"slices"
 )
 
-const openPipelineResourcePath = "/platform/openpipeline/v1/configurations"
 const bodyReadErrMsg = "unable to read API response body"
 
 type Response = api.Response
@@ -52,7 +51,7 @@ type UpdateOptions struct{}
 
 func NewClient(client *rest.Client) *Client {
 	c := &Client{
-		client: clients.NewClient(client, openPipelineResourcePath),
+		client: openpipeline.NewClient(client),
 	}
 
 	return c
@@ -60,11 +59,11 @@ func NewClient(client *rest.Client) *Client {
 
 // Client can be used to interact with the Automation API
 type Client struct {
-	client *clients.Client
+	client *openpipeline.Client
 }
 
 func (c Client) Get(ctx context.Context, id string, _ GetOptions) (Response, error) {
-	resp, err := c.client.Get(ctx, id, clients.RequestOptions{})
+	resp, err := c.client.Get(ctx, id, rest.RequestOptions{})
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to get openpipeline resource of type id %q: %w", id, err)
 	}
@@ -84,7 +83,7 @@ func (c Client) Get(ctx context.Context, id string, _ GetOptions) (Response, err
 }
 
 func (c Client) List(ctx context.Context, options ListOptions) ([]ListResponse, error) {
-	resp, err := c.client.List(ctx, clients.RequestOptions{})
+	resp, err := c.client.List(ctx, rest.RequestOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list openpipeline resources: %w", err)
 	}
@@ -149,7 +148,7 @@ func (c Client) Update(ctx context.Context, id string, data []byte, _ UpdateOpti
 		return Response{}, fmt.Errorf("unable to marshal data: %w", err)
 	}
 
-	resp, err := c.client.Update(ctx, id, data, clients.RequestOptions{})
+	resp, err := c.client.Update(ctx, id, data, rest.RequestOptions{})
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to list openpipeline resources: %w", err)
 	}
