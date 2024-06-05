@@ -54,14 +54,6 @@ func (c Client) Get(ctx context.Context, id string, ro rest.RequestOptions) (*ht
 	return resp, err
 }
 
-func (c Client) Create(ctx context.Context, data []byte, ro rest.RequestOptions) (*http.Response, error) {
-	resp, err := c.client.POST(ctx, openPipelineResourcePath, bytes.NewReader(data), ro)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create object: %w", err)
-	}
-	return resp, err
-}
-
 func (c Client) List(ctx context.Context, ro rest.RequestOptions) (*http.Response, error) {
 	resp, err := c.client.GET(ctx, openPipelineResourcePath, ro)
 	if err != nil {
@@ -84,40 +76,6 @@ func (c Client) Update(ctx context.Context, id string, data []byte, ro rest.Requ
 	resp, err := c.client.PUT(ctx, path, bytes.NewReader(data), ro)
 	if err != nil {
 		return nil, fmt.Errorf("unable to update object: %w", err)
-	}
-	return resp, err
-}
-
-func (c Client) Patch(ctx context.Context, id string, data []byte, ro rest.RequestOptions) (*http.Response, error) { //nolint:dupl
-	if id == "" {
-		return nil, fmt.Errorf("id must be non-empty")
-	}
-
-	path, err := url.JoinPath(openPipelineResourcePath, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create URL: %w", err)
-	}
-
-	resp, err := c.client.PATCH(ctx, path, bytes.NewReader(data), ro)
-	if err != nil {
-		return nil, fmt.Errorf("unable to update object: %w", err)
-	}
-	return resp, err
-}
-
-func (c Client) Delete(ctx context.Context, id string, ro rest.RequestOptions) (*http.Response, error) {
-	if id == "" {
-		return nil, fmt.Errorf("id must be non-empty")
-	}
-
-	path, err := url.JoinPath(openPipelineResourcePath, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create URL: %w", err)
-	}
-
-	resp, err := c.client.DELETE(ctx, path, ro)
-	if err != nil {
-		return nil, fmt.Errorf("unable to delete object: %w", err)
 	}
 	return resp, err
 }
