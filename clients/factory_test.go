@@ -18,6 +18,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/openpipeline"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2/clientcredentials"
 	"testing"
@@ -51,6 +52,11 @@ func TestClientCreation(t *testing.T) {
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &documents.Client{}, clientInstance)
 
+	clientInstance, err = f.OpenPipelineClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &openpipeline.Client{}, clientInstance)
+
 	//... other clients
 }
 
@@ -77,6 +83,11 @@ func TestClientMissingEnvironmentURL(t *testing.T) {
 	assert.ErrorIs(t, err, ErrEnvironmentURLMissing)
 
 	clientInstance, err = f.DocumentClient()
+	assert.Error(t, err)
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrEnvironmentURLMissing)
+
+	clientInstance, err = f.OpenPipelineClient()
 	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrEnvironmentURLMissing)
@@ -117,6 +128,8 @@ func TestClientMissingOAuthCredentials(t *testing.T) {
 
 func TestClientURLParsingError(t *testing.T) {
 
+	const failedToParseURL = "failed to parse URL"
+
 	// Prepare a factory instance with a malformed URL
 	f := Factory().
 		WithEnvironmentURL(":invalid-url").
@@ -131,22 +144,22 @@ func TestClientURLParsingError(t *testing.T) {
 	clientInstance, err := f.BucketClient()
 	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
-	assert.ErrorContains(t, err, "failed to parse URL")
+	assert.ErrorContains(t, err, failedToParseURL)
 
 	clientInstance, err = f.AutomationClient()
 	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
-	assert.ErrorContains(t, err, "failed to parse URL")
+	assert.ErrorContains(t, err, failedToParseURL)
 
 	clientInstance, err = f.DocumentClient()
 	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
-	assert.ErrorContains(t, err, "failed to parse URL")
+	assert.ErrorContains(t, err, failedToParseURL)
 
 	clientInstance, err = f.OpenPipelineClient()
 	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
-	assert.ErrorContains(t, err, "failed to parse URL")
+	assert.ErrorContains(t, err, failedToParseURL)
 
 	//... other clients
 }
