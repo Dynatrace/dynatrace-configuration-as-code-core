@@ -41,7 +41,7 @@ func TestOpenPipelineClient_Get(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, "", openpipeline.GetOptions{})
+		resp, err := client.Get(ctx, "")
 		assert.Zero(t, resp)
 		assert.NotNil(t, err)
 	})
@@ -64,7 +64,7 @@ func TestOpenPipelineClient_Get(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, "bizevents", openpipeline.GetOptions{})
+		resp, err := client.Get(ctx, "bizevents")
 		assert.Nil(t, err)
 		assert.Equal(t, payload, string(resp.Data))
 	})
@@ -77,7 +77,7 @@ func TestOpenPipelineClient_Get(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, "bizevents", openpipeline.GetOptions{})
+		resp, err := client.Get(ctx, "bizevents")
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -98,7 +98,7 @@ func TestOpenPipelineClient_Get(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, "bizevents", openpipeline.GetOptions{})
+		resp, err := client.Get(ctx, "bizevents")
 		assert.Zero(t, resp)
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
@@ -149,18 +149,11 @@ func TestOpenPipelineClient_List(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.List(ctx, openpipeline.ListOptions{Editable: true})
+		resp, err := client.List(ctx)
 		assert.Nil(t, err)
-		assert.Len(t, resp, 2)
+		assert.Len(t, resp, 3)
 		assert.Contains(t, resp, openpipeline.ListResponse{Id: "logs", Editable: true})
 		assert.Contains(t, resp, openpipeline.ListResponse{Id: "events", Editable: true})
-		assert.NotContains(t, resp, openpipeline.ListResponse{Id: "bizevents", Editable: false})
-
-		resp, err = client.List(ctx, openpipeline.ListOptions{Editable: false})
-		assert.Nil(t, err)
-		assert.Len(t, resp, 1)
-		assert.NotContains(t, resp, openpipeline.ListResponse{Id: "logs", Editable: true})
-		assert.NotContains(t, resp, openpipeline.ListResponse{Id: "events", Editable: true})
 		assert.Contains(t, resp, openpipeline.ListResponse{Id: "bizevents", Editable: false})
 	})
 
@@ -172,7 +165,7 @@ func TestOpenPipelineClient_List(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.List(ctx, openpipeline.ListOptions{})
+		resp, err := client.List(ctx)
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -193,7 +186,7 @@ func TestOpenPipelineClient_List(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.List(ctx, openpipeline.ListOptions{})
+		resp, err := client.List(ctx)
 		assert.Zero(t, resp)
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
@@ -217,9 +210,23 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 		"editable": false
 	}
 ]`
-	const payloadGet = `{
-	"id": "bizevents",
+	const payloadGet1 = `{
+	"id": "logs",
 	"editable": true,
+	"version": "1716904550612-4770deb9105b4a5293c1edbcc6bf4412"
+}
+`
+
+	const payloadGet2 = `{
+	"id": "events",
+	"editable": true,
+	"version": "1716904550612-4770deb9105b4a5293c1edbcc6bf4412"
+}
+`
+
+	const payloadGet3 = `{
+	"id": "bizevents",
+	"editable": false,
 	"version": "1716904550612-4770deb9105b4a5293c1edbcc6bf4412"
 }
 `
@@ -240,7 +247,25 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
-						ResponseBody: payloadGet,
+						ResponseBody: payloadGet1,
+						ContentType:  "application/json",
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payloadGet2,
+						ContentType:  "application/json",
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payloadGet3,
 						ContentType:  "application/json",
 					}
 				},
@@ -252,10 +277,12 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.GetAll(ctx, openpipeline.GetAllOptions{})
+		resp, err := client.GetAll(ctx)
 		assert.Nil(t, err)
-		assert.Len(t, resp, 1)
-		assert.Equal(t, payloadGet, string(resp[0].Data))
+		assert.Len(t, resp, 3)
+		assert.Equal(t, payloadGet1, string(resp[0].Data))
+		assert.Equal(t, payloadGet2, string(resp[1].Data))
+		assert.Equal(t, payloadGet3, string(resp[2].Data))
 	})
 
 	t.Run("GET - Unable to make HTTP call", func(t *testing.T) {
@@ -266,7 +293,7 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.GetAll(ctx, openpipeline.GetAllOptions{})
+		resp, err := client.GetAll(ctx)
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -287,7 +314,7 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.GetAll(ctx, openpipeline.GetAllOptions{})
+		resp, err := client.GetAll(ctx)
 		assert.Zero(t, resp)
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
@@ -317,7 +344,7 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "", []byte(putPayload), openpipeline.UpdateOptions{})
+		resp, err := client.Update(ctx, "", []byte(putPayload))
 		assert.Zero(t, resp)
 		assert.NotNil(t, err)
 	})
@@ -355,7 +382,7 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "bizevents", []byte(putPayload), openpipeline.UpdateOptions{})
+		resp, err := client.Update(ctx, "bizevents", []byte(putPayload))
 		assert.Nil(t, err)
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 	})
@@ -368,7 +395,7 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "", []byte(putPayload), openpipeline.UpdateOptions{})
+		resp, err := client.Update(ctx, "", []byte(putPayload))
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -397,7 +424,7 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "bizevents", []byte(putPayload), openpipeline.UpdateOptions{})
+		resp, err := client.Update(ctx, "bizevents", []byte(putPayload))
 		assert.Zero(t, resp)
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
@@ -429,7 +456,7 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "bizevents", []byte(putPayload), openpipeline.UpdateOptions{})
+		resp, err := client.Update(ctx, "bizevents", []byte(putPayload))
 		assert.Zero(t, resp)
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)

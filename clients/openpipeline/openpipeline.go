@@ -23,7 +23,6 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/go-logr/logr"
 	"io"
-	"slices"
 )
 
 const bodyReadErrMsg = "unable to read API response body"
@@ -34,20 +33,6 @@ type ListResponse struct {
 	Id       string `json:"id"`
 	Editable bool   `json:"editable"`
 }
-
-type GetOptions struct {
-	Editable bool
-}
-
-type GetAllOptions struct {
-	Editable bool
-}
-
-type ListOptions struct {
-	Editable bool
-}
-
-type UpdateOptions struct{}
 
 func NewClient(client *rest.Client) *Client {
 	c := &Client{
@@ -62,7 +47,7 @@ type Client struct {
 	client *openpipeline.Client
 }
 
-func (c Client) Get(ctx context.Context, id string, _ GetOptions) (Response, error) {
+func (c Client) Get(ctx context.Context, id string) (Response, error) {
 	resp, err := c.client.Get(ctx, id, rest.RequestOptions{})
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to get openpipeline resource of type id %q: %w", id, err)
@@ -82,7 +67,7 @@ func (c Client) Get(ctx context.Context, id string, _ GetOptions) (Response, err
 	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
 }
 
-func (c Client) List(ctx context.Context, options ListOptions) ([]ListResponse, error) {
+func (c Client) List(ctx context.Context) ([]ListResponse, error) {
 	resp, err := c.client.List(ctx, rest.RequestOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list openpipeline resources: %w", err)
@@ -101,21 +86,18 @@ func (c Client) List(ctx context.Context, options ListOptions) ([]ListResponse, 
 		logr.FromContextOrDiscard(ctx).Error(err, "failed to unmarshal json response")
 		return nil, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
-	return slices.DeleteFunc(resources, func(response ListResponse) bool { return response.Editable != options.Editable }), nil
+	return resources, nil
 }
 
-func (c Client) GetAll(ctx context.Context, options GetAllOptions) ([]Response, error) {
-	listResp, err := c.List(ctx, ListOptions{Editable: options.Editable})
+func (c Client) GetAll(ctx context.Context) ([]Response, error) {
+	listResp, err := c.List(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var resources []Response
 	for _, r := range listResp {
-		if r.Editable != options.Editable {
-			continue
-		}
-		rr, err := c.Get(ctx, r.Id, GetOptions{})
+		rr, err := c.Get(ctx, r.Id)
 		if err != nil {
 			return nil, err
 		}
@@ -124,8 +106,8 @@ func (c Client) GetAll(ctx context.Context, options GetAllOptions) ([]Response, 
 	return resources, nil
 }
 
-func (c Client) Update(ctx context.Context, id string, data []byte, _ UpdateOptions) (Response, error) {
-	getResp, err := c.Get(ctx, id, GetOptions{})
+func (c Client) Update(ctx context.Context, id string, data []byte) (Response, error) {
+	getResp, err := c.Get(ctx, id)
 	if err != nil {
 		return Response{}, err
 	}
