@@ -24,7 +24,8 @@ The library provides different kinds of clients to interact with Dynatrace in tw
   | Settings 2.0        | ❌           |
   | Automation          | ✅           |
   | Grail buckets       | ✅           |
-
+  | Documents           | ✅           |
+  | OpenPipeline        | ✅           |
 
 ### Usage
 
