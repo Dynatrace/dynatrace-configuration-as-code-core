@@ -144,7 +144,7 @@ func NewAPIErrorFromResponseAndBody(resp *http.Response, body []byte) APIError {
 	return APIError{
 		StatusCode: resp.StatusCode,
 		Body:       body,
-		Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
+		Request:    rest.NewRequestInfoFromResponse(resp.Request),
 	}
 }
 
