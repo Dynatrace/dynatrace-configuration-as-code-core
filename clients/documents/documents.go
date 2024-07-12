@@ -1,21 +1,3 @@
-package documents
-
-import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"fmt"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/documents"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
-	"github.com/go-logr/logr"
-	"io"
-	"mime/multipart"
-	"net/url"
-	"strconv"
-	"strings"
-)
-
 /*
  * @license
  * Copyright 2023 Dynatrace LLC
@@ -31,6 +13,24 @@ import (
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package documents
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/url"
+	"strings"
+
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/documents"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
+	"github.com/go-logr/logr"
+)
 
 const bodyReadErrMsg = "unable to read API response body"
 
@@ -61,6 +61,31 @@ type Response struct {
 	Type       string `json:"type"`
 	Version    int    `json:"version"`
 	IsPrivate  bool   `json:"isPrivate"`
+}
+
+type Response2 = api.Response
+
+type documentMetaData struct {
+	ID         string `json:"id"`
+	ExternalID string `json:"externalId"`
+	Actor      string `json:"actor"`
+	Owner      string `json:"owner"`
+	Name       string `json:"name"`
+	Type       string `json:"type"`
+	Version    int    `json:"version"`
+}
+
+func metadata(r *Response2) (documentMetaData, error) {
+	type metadata struct {
+		DocumentMetaData documentMetaData `json:"documentMetadata"`
+	}
+
+	var m metadata
+	if err := json.Unmarshal(r.Data, &m); err != nil {
+		return documentMetaData{}, err
+	}
+
+	return m.DocumentMetaData, nil
 }
 
 // ListResponse is a list of API Responses
@@ -204,239 +229,107 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 	return retVal, nil
 }
 
-func (c Client) Create(ctx context.Context, name string, isPrivate bool, externalId string, data []byte, documentType DocumentType) (Response, error) {
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-
-	if err := writer.WriteField("type", string(documentType)); err != nil {
-		return Response{}, err
-	}
-	if err := writer.WriteField("name", name); err != nil {
-		return Response{}, err
+func (c Client) Create(ctx context.Context, name string, isPrivate bool, externalId string, data []byte, documentType DocumentType) (Response2, error) {
+	d := documents.Document{
+		Kind:       string(documentType),
+		Name:       name,
+		Public:     !isPrivate,
+		ExternalID: externalId,
+		Content:    data,
 	}
 
-	if err := writer.WriteField("isPrivate", strconv.FormatBool(isPrivate)); err != nil {
-		return Response{}, err
-	}
-
-	if externalId != "" {
-		if err := writer.WriteField("externalId", externalId); err != nil {
-			return Response{}, err
-		}
-	}
-
-	part, err := writer.CreatePart(map[string][]string{
-		"Content-Type":        {"application/json"},
-		"Content-Disposition": {fmt.Sprintf(`form-data; name="content"; filename="%s"`, name)},
-	})
+	resp, err := c.client.Create(ctx, d)
 	if err != nil {
-		return Response{}, err
+		return Response2{}, err
 	}
+	defer resp.Body.Close()
 
-	if _, err = part.Write(data); err != nil {
-		return Response{}, err
-	}
-	if err = writer.Close(); err != nil {
-		return Response{}, err
-	}
-
-	resp, err := c.client.Create(ctx, body.Bytes(), rest.RequestOptions{
-		ContentType: writer.FormDataContentType(),
-	})
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return Response{}, err
+		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
+		return Response2{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	if !rest.IsSuccess(resp) {
-		return Response{}, api.APIError{
-			StatusCode: resp.StatusCode,
-			Body:       body.Bytes(),
-			Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
-		}
+		return Response2{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, respBody)
-	}
-
-	if err = resp.Body.Close(); err != nil {
-		return Response{}, err
-	}
-
-	r := Response{
-		Response: api.Response{
-			StatusCode: resp.StatusCode,
-			Data:       respBody,
-			Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
-		},
-	}
-
-	if err = json.Unmarshal(respBody, &r); err != nil {
-		return r, err
-	}
-
-	return r, nil
+	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
 }
 
-func (c Client) Update(ctx context.Context, id string, name string, isPrivate bool, data []byte, documentType DocumentType) (Response, error) {
+func (c Client) Update(ctx context.Context, id string, name string, isPrivate bool, data []byte, documentType DocumentType) (Response2, error) {
 	if id == "" {
-		return Response{}, fmt.Errorf("id must be non-empty")
+		return Response2{}, fmt.Errorf("id must be non-empty")
 	}
 
 	getResp, err := c.Get(ctx, id)
 	if err != nil {
-		return Response{}, err
+		return Response2{}, err
 	}
 
 	if !(getResp.StatusCode >= 200 && getResp.StatusCode <= 299) {
-		return Response{}, api.APIError{
+		return Response2{}, api.APIError{
 			StatusCode: getResp.StatusCode,
 			Body:       getResp.Data,
 			Request:    rest.RequestInfo{Method: getResp.Request.Method, URL: getResp.Request.URL},
 		}
 	}
 
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-
-	if err = writer.WriteField("type", string(documentType)); err != nil {
-		return getResp, err
-	}
-	if err = writer.WriteField("name", name); err != nil {
-		return getResp, err
+	d := documents.Document{
+		Kind:    string(documentType),
+		Name:    name,
+		Public:  !isPrivate,
+		Content: data,
 	}
 
-	if err := writer.WriteField("isPrivate", strconv.FormatBool(isPrivate)); err != nil {
-		return Response{}, err
-	}
-
-	part, err := writer.CreatePart(map[string][]string{
-		"Content-Type":        {"application/json"},
-		"Content-Disposition": {fmt.Sprintf(`form-data; name="content"; filename="%s"`, name)},
-	})
+	patchResp, err := c.client.Patch(ctx, id, d)
 	if err != nil {
-		return getResp, err
+		return Response2{}, err
 	}
-
-	if _, err = part.Write(data); err != nil {
-		return Response{}, err
-	}
-	if err = writer.Close(); err != nil {
-		return Response{}, err
-	}
-
-	patchResp, err := c.client.Patch(ctx, id, body.Bytes(), rest.RequestOptions{
-		QueryParams: map[string][]string{optimisticLockingHeader: {fmt.Sprint(getResp.Version)}},
-		ContentType: writer.FormDataContentType(),
-	})
-
-	if err != nil {
-		return Response{}, err
-	}
+	defer patchResp.Body.Close()
 
 	respBody, err := io.ReadAll(patchResp.Body)
 	if err != nil {
 		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(patchResp, respBody)
-	}
-	if err = patchResp.Body.Close(); err != nil {
-		return Response{}, err
+		return Response2{}, api.NewAPIErrorFromResponseAndBody(patchResp, respBody)
 	}
 
 	if !rest.IsSuccess(patchResp) {
-		return Response{}, api.APIError{
-			StatusCode: patchResp.StatusCode,
-			Body:       respBody,
-			Request:    rest.RequestInfo{Method: patchResp.Request.Method, URL: patchResp.Request.URL.String()},
-		}
+		return Response2{}, api.NewAPIErrorFromResponseAndBody(patchResp, respBody)
 	}
 
-	type documentMetaData struct {
-		ID         string `json:"id"`
-		ExternalID string `json:"externalId"`
-		Actor      string `json:"actor"`
-		Owner      string `json:"owner"`
-		Name       string `json:"name"`
-		Type       string `json:"type"`
-		Version    int    `json:"version"`
-	}
-	type metadata struct {
-		DocumentMetaData documentMetaData `json:"documentMetadata"`
-	}
-
-	var r metadata
-	if err = json.Unmarshal(respBody, &r); err != nil {
-		return Response{}, err
-	}
-
-	return Response{
-		ID:      r.DocumentMetaData.ID,
-		Actor:   r.DocumentMetaData.Actor,
-		Owner:   r.DocumentMetaData.Owner,
-		Name:    r.DocumentMetaData.Name,
-		Type:    r.DocumentMetaData.Type,
-		Version: r.DocumentMetaData.Version,
-
-		Response: api.Response{
-			StatusCode: patchResp.StatusCode,
-			Data:       respBody,
-			Request:    rest.RequestInfo{Method: patchResp.Request.Method, URL: patchResp.Request.URL.String()},
-		},
-	}, nil
-
+	return api.NewResponseFromHTTPResponseAndBody(patchResp, respBody), nil
 }
 
-func (c Client) Delete(ctx context.Context, id string) (Response, error) {
+func (c Client) Delete(ctx context.Context, id string) (Response2, error) {
 	if id == "" {
-		return Response{}, fmt.Errorf("id must be non-empty")
+		return Response2{}, fmt.Errorf("id must be non-empty")
 	}
 
 	getResp, err := c.Get(ctx, id)
 	if err != nil {
-		return Response{}, err
-	}
-
-	if !(getResp.StatusCode >= 200 && getResp.StatusCode <= 299) {
-		return Response{}, api.APIError{
-			StatusCode: getResp.StatusCode,
-			Body:       getResp.Data,
-			Request:    rest.RequestInfo{Method: getResp.Request.Method, URL: getResp.Request.URL},
-		}
+		return Response2{}, err
 	}
 
 	resp, err := c.client.Delete(ctx, id, rest.RequestOptions{
 		QueryParams: map[string][]string{optimisticLockingHeader: {fmt.Sprint(getResp.Version)}},
 	})
 	if err != nil {
-		return Response{}, err
+		return Response2{}, err
 	}
 
 	if !rest.IsSuccess(resp) {
-		return Response{}, api.APIError{
-			StatusCode: resp.StatusCode,
-			Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
-		}
+		return Response2{}, api.NewAPIErrorFromResponseAndBody(resp, nil)
 	}
 
 	resp, err = c.client.Trash(ctx, id)
 	if err != nil {
-		return Response{}, err
+		return Response2{}, err
 	}
 
 	if !rest.IsSuccess(resp) {
-		return Response{}, api.APIError{
-			StatusCode: resp.StatusCode,
-			Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
-		}
+		return Response2{}, api.NewAPIErrorFromResponseAndBody(resp, nil)
 	}
 
-	return Response{
-		Response: api.Response{
-			StatusCode: resp.StatusCode,
-			Data:       nil,
-			Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
-		},
-	}, nil
+	return api.NewResponseFromHTTPResponseAndBody(resp, nil), nil
 }
