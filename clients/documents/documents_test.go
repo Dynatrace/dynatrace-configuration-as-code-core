@@ -15,14 +15,14 @@
 package documents_test
 
 import (
-	"fmt"
+	"net/http"
+	"testing"
+
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
 	"github.com/stretchr/testify/assert"
-	"net/http"
-	"testing"
 )
 
 func TestDocumentClient_Get(t *testing.T) {
@@ -386,7 +386,6 @@ This is the document content
 		assert.NoError(t, err)
 		assert.Equal(t, patchPayload, string(resp.Data))
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-		fmt.Println(resp.ID)
 	})
 
 	t.Run("Update - Existing document found - Update fails", func(t *testing.T) {
