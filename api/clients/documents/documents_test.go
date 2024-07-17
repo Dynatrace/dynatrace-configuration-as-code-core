@@ -29,30 +29,18 @@ import (
 
 func TestDocumentClient_Create(t *testing.T) {
 	const payload = `{
-    "modificationInfo": {
-        "createdBy": "12341234-1234-1234-1234-12341234",
-        "createdTime": "2024-04-11T14:06:26.491Z",
-        "lastModifiedBy": "2f321c04-566e-4779-b576-3c033b8cd9e9",
-        "lastModifiedTime": "2024-04-11T14:06:26.491Z"
-    },
-    "access": [
-        "read",
-        "delete",
-        "write"
-    ],
     "id": "038ab74f-0a3a-4bf8-9068-85e2d633a1e6",
     "name": "my-test-db",
 	"isPrivate": true,
 	"externalId": "extId",
     "type": "dashboard",
-    "version": 1,
-    "owner": "12341234-1234-1234-1234-12341234"
+    "version": 1
 }`
 
-	t.Run("Create  - OK", func(t *testing.T) {
+	t.Run("OK", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				POST: func(t *testing.T, req *http.Request) testutils.Response {
+				POST: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusCreated,
 						ResponseBody: payload,
@@ -63,14 +51,12 @@ func TestDocumentClient_Create(t *testing.T) {
 				},
 			},
 		}
-
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-
 		given := documents.Document{
 			Kind:       "type",
 			Name:       "my_name",
@@ -78,12 +64,11 @@ func TestDocumentClient_Create(t *testing.T) {
 			Content:    []byte("the content can be anything"),
 		}
 		resp, err := client.Create(ctx, given)
-		assert.NotNil(t, resp)
-		// assert.Equal(t, payload, string(resp.Data))
+		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
 	})
 
-	t.Run("Create - Unable to make HTTP POST call", func(t *testing.T) {
+	t.Run("Unable to make HTTP POST call", func(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
 			{
@@ -95,13 +80,12 @@ func TestDocumentClient_Create(t *testing.T) {
 				},
 			},
 		}
-
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-		ctx := testutils.ContextWithLogger(t)
 
+		ctx := testutils.ContextWithLogger(t)
 		given := documents.Document{
 			Kind:       "type",
 			Name:       "my_name",
@@ -113,7 +97,7 @@ func TestDocumentClient_Create(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("Create - API Call returned with != 2xx - No change", func(t *testing.T) {
+	t.Run("API Call returned with != 2xx - No change", func(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
 			{
@@ -124,13 +108,12 @@ func TestDocumentClient_Create(t *testing.T) {
 				},
 			},
 		}
-
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
 
+		ctx := testutils.ContextWithLogger(t)
 		given := documents.Document{
 			Kind:       "type",
 			Name:       "my-dashboard",
@@ -146,52 +129,8 @@ func TestDocumentClient_Create(t *testing.T) {
 }
 
 func TestDocumentClient_Patch(t *testing.T) {
-	const getPayload = `--Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy
-Content-Disposition: form-data; name="metadata"
-Content-Type: application/json
-
-{
-    "modificationInfo": {
-        "createdBy": "12341234-1234-1234-1234-12341234",
-        "createdTime": "2024-04-11T12:31:33.599Z",
-        "lastModifiedBy": "2f321c04-566e-4779-b576-3c033b8cd9e9",
-        "lastModifiedTime": "2024-04-11T12:31:33.599Z"
-    },
-    "access": [
-        "read",
-        "delete",
-        "write"
-    ],
-    "id": "b17ec54b-07ac-4c73-9c4d-232e1b2e2420",
-    "name": "my-test-db",
-	"isPrivate": true,
-	"externalId": "extId",
-    "type": "dashboard",
-    "version": 1,
-    "owner": "12341234-1234-1234-1234-12341234"
-}
---Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy
-Content-Disposition: form-data; name="content"; filename="my-test-db"
-Content-Type: application/json
-
-This is the document content
---Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy--
-`
-	const documentContent = "This is the document content"
-
 	const patchPayload = `{
   "documentMetadata": {
-    "modificationInfo": {
-      "createdBy": "12341234-1234-1234-1234-12341234",
-      "createdTime": "2024-04-11T14:06:26.491Z",
-      "lastModifiedBy": "2f321c04-566e-4779-b576-3c033b8cd9e9",
-      "lastModifiedTime": "2024-04-11T14:06:26.491Z"
-    },
-    "access": [
-      "read",
-      "delete",
-      "write"
-    ],
     "id": "038ab74f-0a3a-4bf8-9068-85e2d633a1e6",
     "name": "my-test-db",
 	"isPrivate": true,
@@ -202,84 +141,80 @@ This is the document content
   }
 }`
 
-	t.Run("Missing id", func(t *testing.T) {
-		responses := []testutils.ResponseDef{}
-
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Patch(ctx, "", documents.Document{})
-		assert.Zero(t, resp)
-		assert.Error(t, err)
-	})
-
-	t.Run("Document not found", func(t *testing.T) {
+	t.Run("OK", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusNotFound,
-					}
-				},
-			},
-		}
-
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Patch(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", documents.Document{})
-		assert.Zero(t, resp)
-		assert.Error(t, err)
-	})
-
-	t.Run("Existing document found", func(t *testing.T) {
-		responses := []testutils.ResponseDef{
-			{
-				PATCH: func(t *testing.T, req *http.Request) testutils.Response {
+				PATCH: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: patchPayload,
 					}
 				},
-			},
-		}
-
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Patch(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", documents.Document{})
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
-	})
-
-	t.Run("Patch fails", func(t *testing.T) {
-		responses := []testutils.ResponseDef{
-			{
-				PATCH: func(t *testing.T, req *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusInternalServerError,
-					}
+				ValidateRequest: func(t *testing.T, request *http.Request) {
+					assert.Contains(t, request.URL.Path, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6")
+					assert.Contains(t, request.URL.Query(), "optimistic-locking-version")
+					assert.Equal(t, "1", request.URL.Query().Get("optimistic-locking-version"))
 				},
 			},
 		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Patch(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "1", documents.Document{})
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	})
+
+	t.Run("Missing id", func(t *testing.T) {
+		responses := []testutils.ResponseDef{}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Patch(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", documents.Document{})
+		resp, err := client.Patch(ctx, "", "1", documents.Document{})
+		assert.Zero(t, resp)
+		assert.ErrorContains(t, err, "id")
+	})
+
+	t.Run("Missing version", func(t *testing.T) {
+		responses := []testutils.ResponseDef{}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Patch(ctx, "someID", "", documents.Document{})
+		assert.Zero(t, resp)
+		assert.ErrorContains(t, err, "version")
+	})
+
+	t.Run("Document not found", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				PATCH: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusNotFound,
+					}
+				},
+				ValidateRequest: func(t *testing.T, request *http.Request) {
+					assert.Contains(t, request.URL.Path, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6")
+					assert.Contains(t, request.URL.Query(), "optimistic-locking-version")
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Patch(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "1", documents.Document{})
 		assert.NoError(t, err)
-		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+		assert.NotEmpty(t, resp)
 	})
 }

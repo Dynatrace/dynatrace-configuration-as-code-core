@@ -54,6 +54,7 @@ func (t TestServer) FaultyClient() *http.Client {
 
 // NewHTTPTestServer creates a new HTTP test server with the specified responses for each HTTP method.
 func NewHTTPTestServer(t *testing.T, responses []ResponseDef) *TestServer {
+	t.Helper()
 	for i, r := range responses {
 		// it's only allowed to set ONE handler per response
 		if !checkExactlyOneHandlerSet(r) {
@@ -63,6 +64,7 @@ func NewHTTPTestServer(t *testing.T, responses []ResponseDef) *TestServer {
 
 	testServer := &TestServer{}
 	handler := func(rw http.ResponseWriter, req *http.Request) {
+		t.Helper()
 		testServer.calls++
 		if len(responses) <= testServer.calls-1 {
 			t.Fatalf("Exceeded number of calls to test server (expected: %d), request: %s %s - %s", len(responses), req.Method, req.URL, req.Body)
@@ -114,37 +116,44 @@ type ResponseDef struct {
 }
 
 func (r ResponseDef) Get(t *testing.T, req *http.Request) Response {
+	t.Helper()
 	if r.GET == nil {
-		panic("GET() function not defined")
+		fatal(t, req)
 	}
 	return r.GET(t, req)
 }
 func (r ResponseDef) Put(t *testing.T, req *http.Request) Response {
+	t.Helper()
 	if r.PUT == nil {
-		panic("PUT() function not defined")
+		fatal(t, req)
 	}
 	return r.PUT(t, req)
 }
-
 func (r ResponseDef) Post(t *testing.T, req *http.Request) Response {
+	t.Helper()
 	if r.POST == nil {
-		panic("POST() function not defined")
+		fatal(t, req)
 	}
 	return r.POST(t, req)
 }
 
 func (r ResponseDef) Delete(t *testing.T, req *http.Request) Response {
+	t.Helper()
 	if r.DELETE == nil {
-		panic("DELETE() function not defined")
+		fatal(t, req)
 	}
 	return r.DELETE(t, req)
 }
-
 func (r ResponseDef) Patch(t *testing.T, req *http.Request) Response {
+	t.Helper()
 	if r.PATCH == nil {
-		panic("PATCH() function not defined")
+		fatal(t, req)
 	}
 	return r.PATCH(t, req)
+}
+func fatal(t testing.TB, req *http.Request) {
+	t.Helper()
+	t.Fatalf("%s invoked, but not defined\n\trequested: %s %s", req.Method, req.Method, req.RequestURI)
 }
 
 func (r ResponseDef) Validate(t *testing.T, req *http.Request) {
