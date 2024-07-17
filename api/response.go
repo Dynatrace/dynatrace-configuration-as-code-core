@@ -17,8 +17,9 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"net/http"
+
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
 // Response represents an API response

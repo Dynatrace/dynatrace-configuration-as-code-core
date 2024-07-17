@@ -6,6 +6,7 @@ setup:
 	@echo "Installing build tools..."
 	@go install github.com/google/addlicense@v1.1.1
 	@go install gotest.tools/gotestsum@v1.10.1
+	@go install go.uber.org/mock/mockgen@v0.4
 
 lint: setup
 ifeq ($(OS),Windows_NT)
@@ -44,6 +45,8 @@ compile:
 	@go test -run "NON_EXISTENT_TEST_TO_ENSURE_NOTHING_RUNS_BUT_ALL_COMPILE" ./...
 
 test: setup
+	@echo "Generating mocks"
+	@go generate ./...
 	@echo "Testing $(BINARY_NAME)..."
 	@gotestsum ${testopts} -- -v -race ./...
 

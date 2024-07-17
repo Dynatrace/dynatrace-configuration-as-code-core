@@ -27,8 +27,9 @@ import (
 )
 
 const (
-	documentResourcePath = "/platform/document/v1/documents"
-	trashResourcePath    = "/platform/document/v1/trash/documents"
+	documentResourcePath    = "/platform/document/v1/documents"
+	optimisticLockingHeader = "optimistic-locking-version"
+	trashResourcePath       = "/platform/document/v1/trash/documents"
 )
 
 type Client struct {
@@ -80,10 +81,13 @@ func (c *Client) Create(ctx context.Context, doc Document) (*http.Response, erro
 	return resp, nil
 }
 
-// Patch patches the content of the document to the server using http PATCH to change the document.
-func (c *Client) Patch(ctx context.Context, id string, doc Document) (*http.Response, error) {
+// Patch patches the content of the document to the server using http PATCH to change the document. NOTE: some of the arguments of the document are ignored due the design of the HTTP API.
+func (c *Client) Patch(ctx context.Context, id, version string, doc Document) (*http.Response, error) {
 	if id == "" {
 		return nil, fmt.Errorf("id is missing")
+	}
+	if version == "" {
+		return nil, fmt.Errorf("version is missing")
 	}
 	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
@@ -98,6 +102,7 @@ func (c *Client) Patch(ctx context.Context, id string, doc Document) (*http.Resp
 
 	resp, err := c.client.PATCH(ctx, path, body, rest.RequestOptions{
 		ContentType: writer.FormDataContentType(),
+		QueryParams: url.Values{optimisticLockingHeader: []string{version}},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to update object: %w", err)
@@ -115,7 +120,7 @@ func (c *Client) List(ctx context.Context, requestOptions rest.RequestOptions) (
 	return resp, err
 }
 
-func (c *Client) Update(ctx context.Context, id string, data []byte, requestOptions rest.RequestOptions) (*http.Response, error) { //nolint:dupl
+func (c *Client) Update(ctx context.Context, id string, data []byte, requestOptions rest.RequestOptions) (*http.Response, error) {
 	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create URL: %w", err)
