@@ -313,9 +313,7 @@ func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 		return api.Response{}, err
 	}
 
-	resp, err := c.client.Delete(ctx, id, rest.RequestOptions{
-		QueryParams: map[string][]string{optimisticLockingHeader: {fmt.Sprint(getResp.Version)}},
-	})
+	resp, err := c.client.Delete(ctx, id, getResp.Version)
 	if err != nil {
 		return api.Response{}, err
 	}
