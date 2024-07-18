@@ -68,7 +68,7 @@ type Response struct {
 	Owner      string `json:"owner"`
 	Name       string `json:"name"`
 	Type       string `json:"type"`
-	Version    string `json:"version"`
+	Version    int    `json:"version"`
 	IsPrivate  bool   `json:"isPrivate"`
 }
 
@@ -81,7 +81,7 @@ type documentMetaData struct {
 	Owner      string `json:"owner"`
 	Name       string `json:"name"`
 	Type       string `json:"type"`
-	Version    string `json:"version"`
+	Version    int    `json:"version"`
 }
 
 func metadata(b []byte) (documentMetaData, error) {
@@ -356,7 +356,7 @@ func (c Client) create(ctx context.Context, d documents.Document) (api.Response,
 	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
 }
 
-func (c Client) patch(ctx context.Context, id, version string, d documents.Document) (api.Response, error) {
+func (c Client) patch(ctx context.Context, id string, version int, d documents.Document) (api.Response, error) {
 	resp, err := c.client.Patch(ctx, id, version, d)
 	if err != nil {
 		return api.Response{}, err

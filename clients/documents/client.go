@@ -28,7 +28,7 @@ import (
 type client interface {
 	Get(ctx context.Context, id string) (*http.Response, error)
 	Create(ctx context.Context, doc documents.Document) (*http.Response, error)
-	Patch(ctx context.Context, id, version string, doc documents.Document) (*http.Response, error)
+	Patch(ctx context.Context, id string, version int, doc documents.Document) (*http.Response, error)
 	List(ctx context.Context, requestOptions rest.RequestOptions) (*http.Response, error)
 	Update(ctx context.Context, id string, data []byte, requestOptions rest.RequestOptions) (*http.Response, error)
 	Delete(ctx context.Context, id string, requestOptions rest.RequestOptions) (*http.Response, error)

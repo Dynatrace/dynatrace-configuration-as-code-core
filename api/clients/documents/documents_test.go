@@ -162,7 +162,7 @@ func TestDocumentClient_Patch(t *testing.T) {
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Patch(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "1", documents.Document{})
+		resp, err := client.Patch(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", 1, documents.Document{})
 		assert.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	})
@@ -175,22 +175,9 @@ func TestDocumentClient_Patch(t *testing.T) {
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Patch(ctx, "", "1", documents.Document{})
+		resp, err := client.Patch(ctx, "", 1, documents.Document{})
 		assert.Zero(t, resp)
 		assert.ErrorContains(t, err, "id")
-	})
-
-	t.Run("Missing version", func(t *testing.T) {
-		responses := []testutils.ResponseDef{}
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Patch(ctx, "someID", "", documents.Document{})
-		assert.Zero(t, resp)
-		assert.ErrorContains(t, err, "version")
 	})
 
 	t.Run("Document not found", func(t *testing.T) {
@@ -213,7 +200,7 @@ func TestDocumentClient_Patch(t *testing.T) {
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Patch(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "1", documents.Document{})
+		resp, err := client.Patch(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", 1, documents.Document{})
 		assert.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	})
