@@ -17,6 +17,7 @@
 package documents_test
 
 import (
+	"io"
 	"net/http"
 	"testing"
 
@@ -28,7 +29,7 @@ import (
 )
 
 func TestDocumentClient_Create(t *testing.T) {
-	const payload = `{
+	const postResponse = `{
     "id": "038ab74f-0a3a-4bf8-9068-85e2d633a1e6",
     "name": "my-test-db",
 	"isPrivate": true,
@@ -43,7 +44,7 @@ func TestDocumentClient_Create(t *testing.T) {
 				POST: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusCreated,
-						ResponseBody: payload,
+						ResponseBody: postResponse,
 					}
 				},
 				ValidateRequest: func(t *testing.T, request *http.Request) {
@@ -64,8 +65,12 @@ func TestDocumentClient_Create(t *testing.T) {
 			Content:    []byte("the content can be anything"),
 		}
 		resp, err := client.Create(ctx, given)
-		assert.NotEmpty(t, resp)
-		assert.NoError(t, err)
+		require.NoError(t, err)
+		require.NotEmpty(t, resp)
+
+		respBody, _ := io.ReadAll(resp.Body)
+		resp.Body.Read(respBody)
+		assert.JSONEq(t, postResponse, string(respBody))
 	})
 
 	t.Run("Unable to make HTTP POST call", func(t *testing.T) {
@@ -75,7 +80,7 @@ func TestDocumentClient_Create(t *testing.T) {
 				POST: func(t *testing.T, req *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusCreated,
-						ResponseBody: payload,
+						ResponseBody: postResponse,
 					}
 				},
 			},
@@ -118,7 +123,7 @@ func TestDocumentClient_Create(t *testing.T) {
 			Kind:       "type",
 			Name:       "my-dashboard",
 			ExternalID: "extId",
-			Content:    []byte(payload),
+			Content:    []byte(postResponse),
 		}
 
 		resp, err := client.Create(ctx, given)
@@ -163,8 +168,12 @@ func TestDocumentClient_Patch(t *testing.T) {
 
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Patch(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", 1, documents.Document{})
-		assert.NoError(t, err)
-		assert.NotEmpty(t, resp)
+		require.NoError(t, err)
+		require.NotEmpty(t, resp)
+
+		respBody, _ := io.ReadAll(resp.Body)
+		resp.Body.Read(respBody)
+		assert.JSONEq(t, patchPayload, string(respBody))
 	})
 
 	t.Run("Missing id", func(t *testing.T) {
