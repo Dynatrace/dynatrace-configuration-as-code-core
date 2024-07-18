@@ -96,14 +96,14 @@ This is the document content
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Get(ctx, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
 		assert.NotZero(t, resp)
-		// assert.Equal(t, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420", resp.ID)
-		// assert.Equal(t, "my-test-db", resp.Name)
-		// assert.Equal(t, true, resp.IsPrivate)
-		// assert.Equal(t, "extId", resp.ExternalID)
-		// assert.Equal(t, "dashboard", resp.Type)
-		// assert.Equal(t, 1, resp.Version)
-		// assert.Equal(t, "12341234-1234-1234-1234-12341234", resp.Owner)
-		// assert.Equal(t, "This is the document content", string(resp.Data))
+		assert.Equal(t, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420", resp.ID)
+		assert.Equal(t, "my-test-db", resp.Name)
+		assert.Equal(t, true, resp.IsPrivate)
+		assert.Equal(t, "extId", resp.ExternalID)
+		assert.Equal(t, "dashboard", resp.Type)
+		assert.Equal(t, 1, resp.Version)
+		assert.Equal(t, "12341234-1234-1234-1234-12341234", resp.Owner)
+		assert.Equal(t, "This is the document content", string(resp.Data))
 		assert.NotZero(t, resp.Request)
 		assert.Nil(t, err)
 
@@ -146,7 +146,7 @@ This is the document content
 	})
 }
 
-func TestDocumentsClient_Create(t *testing.T) {
+func TestDocumentClient_Create(t *testing.T) {
 	const (
 		respCreate = `{
   "id": "f6e26fdd-1451-4655-b6ab-1240a00c1fba",
@@ -184,7 +184,7 @@ func TestDocumentsClient_Create(t *testing.T) {
 			Return(&http.Response{Status: http.StatusText(http.StatusCreated), StatusCode: http.StatusCreated, Body: io.NopCloser(strings.NewReader(respCreate)), Request: &http.Request{Method: http.MethodGet, URL: &url.URL{}}}, nil)
 
 		mockClient.EXPECT().
-			Patch(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba", "1", d).
+			Patch(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba", 1, d).
 			Return(&http.Response{Status: http.StatusText(http.StatusOK), StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"documentMetadata":` + respPatch + "}")), Request: &http.Request{Method: http.MethodPatch, URL: &url.URL{}}}, nil)
 
 		document := documents.NewTestClient(mockClient)
@@ -196,7 +196,7 @@ func TestDocumentsClient_Create(t *testing.T) {
 	})
 }
 
-func TestDocumentClient_Create(t *testing.T) {
+func TestDocumentClient_Create_old(t *testing.T) {
 	const payload = `{
     "modificationInfo": {
         "createdBy": "12341234-1234-1234-1234-12341234",
@@ -217,30 +217,6 @@ func TestDocumentClient_Create(t *testing.T) {
     "version": 1,
     "owner": "12341234-1234-1234-1234-12341234"
 }`
-
-	t.Run("Create  - OK", func(t *testing.T) {
-		responses := []testutils.ResponseDef{
-			{
-				POST: func(t *testing.T, req *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusCreated,
-						ResponseBody: payload,
-					}
-				},
-			},
-		}
-
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Create(ctx, "my-dashboard", true, "extId", []byte(payload), documents.Dashboard)
-		assert.NotNil(t, resp)
-		assert.JSONEq(t, payload, string(resp.Data))
-		assert.NoError(t, err)
-	})
 
 	t.Run("Create - API Call returned with != 2xx", func(t *testing.T) {
 

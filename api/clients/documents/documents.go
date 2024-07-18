@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
@@ -82,12 +83,9 @@ func (c *Client) Create(ctx context.Context, doc Document) (*http.Response, erro
 }
 
 // Patch patches the content of the document to the server using http PATCH to change the document. NOTE: some of the arguments of the document are ignored due the design of the HTTP API.
-func (c *Client) Patch(ctx context.Context, id, version string, doc Document) (*http.Response, error) {
+func (c *Client) Patch(ctx context.Context, id string, version int, doc Document) (*http.Response, error) {
 	if id == "" {
 		return nil, fmt.Errorf("id is missing")
-	}
-	if version == "" {
-		return nil, fmt.Errorf("version is missing")
 	}
 	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
@@ -102,7 +100,7 @@ func (c *Client) Patch(ctx context.Context, id, version string, doc Document) (*
 
 	resp, err := c.client.PATCH(ctx, path, body, rest.RequestOptions{
 		ContentType: writer.FormDataContentType(),
-		QueryParams: url.Values{optimisticLockingHeader: []string{version}},
+		QueryParams: url.Values{optimisticLockingHeader: []string{strconv.Itoa(version)}},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to update object: %w", err)
