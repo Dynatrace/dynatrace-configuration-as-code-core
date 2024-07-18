@@ -131,13 +131,15 @@ func (c *Client) Update(ctx context.Context, id string, data []byte, requestOpti
 	return resp, err
 }
 
-func (c *Client) Delete(ctx context.Context, id string, requestOptions rest.RequestOptions) (*http.Response, error) {
+func (c *Client) Delete(ctx context.Context, id string, version int) (*http.Response, error) {
 	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create URL: %w", err)
 	}
 
-	resp, err := c.client.DELETE(ctx, path, requestOptions)
+	resp, err := c.client.DELETE(ctx, path, rest.RequestOptions{
+		QueryParams: map[string][]string{optimisticLockingHeader: {strconv.Itoa(version)}},
+	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to delete object: %w", err)
 	}
