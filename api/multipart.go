@@ -20,23 +20,37 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
-type (
-	Part struct {
-		FormName, FileName string
-		Content            []byte
-	}
+type Part struct {
+	FormName, FileName string
+	Content            []byte
+}
 
-	// MultipartResponse represent an HTTP multipart response. Each field part of a multipart content is in the map indexed with the name of the part.
-	MultipartResponse struct {
-		StatusCode int
-		Parts      []Part
-		Request    rest.RequestInfo
+// MultipartResponse represent an HTTP multipart response. Each field part of a multipart content is in the map indexed with the name of the part.
+type MultipartResponse struct {
+	StatusCode int
+	Parts      []Part
+	Request    rest.RequestInfo
+}
+
+func (mr *MultipartResponse) IsSuccess() bool {
+	return mr != nil && mr.StatusCode >= 200 && mr.StatusCode <= 299
+}
+
+func (mr *MultipartResponse) GetPartWithName(name string) (Part, bool) {
+	if mr.Parts != nil {
+		for _, part := range mr.Parts {
+			if part.FormName == name {
+				return part, true
+			}
+		}
 	}
-)
+	return Part{}, false
+}
 
 func NewMultipartResponse(resp *http.Response, parts ...Part) *MultipartResponse {
 	return &MultipartResponse{
 		StatusCode: resp.StatusCode,
+		Parts:      parts,
 		Request: rest.RequestInfo{
 			Method: resp.Request.Method,
 			URL:    resp.Request.URL.String()},
