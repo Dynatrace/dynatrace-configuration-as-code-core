@@ -29,7 +29,7 @@ else
 	@sh ./tools/add-missing-license-headers.sh
 endif
 
-vet:
+vet: generate-mocks
 	@echo "Vetting files"
 	@go vet -tags '!unit' ./...
 
@@ -38,15 +38,19 @@ check:
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1
 	@golangci-lint run ./...
 
-compile:
+.PHONY: generate-mocks
+generate-mocks:
+	@echo "Generating mocks"
+	@go install go.uber.org/mock/mockgen@v0.4
+	@go generate ./...
+
+compile: generate-mocks
 	@echo "Compiling sources..."
 	@go build ./...
 	@echo "Compiling tests..."
 	@go test -run "NON_EXISTENT_TEST_TO_ENSURE_NOTHING_RUNS_BUT_ALL_COMPILE" ./...
 
-test: setup
-	@echo "Generating mocks"
-	@go generate ./...
+test: setup generate-mocks
 	@echo "Testing $(BINARY_NAME)..."
 	@gotestsum ${testopts} -- -v -race ./...
 

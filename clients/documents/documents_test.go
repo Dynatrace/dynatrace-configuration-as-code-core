@@ -147,7 +147,23 @@ This is the document content
 }
 
 func TestDocumentClient_Create(t *testing.T) {
+	givenDoc := docApi.Document{
+		Kind:       "notebook",
+		Name:       "name",
+		ExternalID: "extID",
+		Public:     true,
+		Content:    []byte("this is the content"),
+	}
 	const (
+		expected = `{
+  "id": "f0427cd7-c779-4dc1-9cf6-2730738b4ea0",
+  "name": "name",
+  "type": "notebook",
+  "isPrivate": false,
+  "externalId": "externalID",
+  "description": null,
+  "version": 2
+}`
 		respCreate = `{
   "id": "f6e26fdd-1451-4655-b6ab-1240a00c1fba",
   "name": "name",
@@ -157,42 +173,83 @@ func TestDocumentClient_Create(t *testing.T) {
   "description": null,
   "version": 1
 }`
-		respPatch = `{
-  "id": "f0427cd7-c779-4dc1-9cf6-2730738b4ea0",
-  "name": "name",
-  "type": "notebook",
-  "isPrivate": false,
-  "externalId": "externalID",
-  "description": null,
-  "version": 2
-}`
+		respPatch = `{"documentMetadata":` + expected + `}`
 	)
 
 	t.Run("simple case", func(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		mockClient := documents.NewMockclient(gomock.NewController(t))
-
-		d := docApi.Document{
-			Kind:       "notebook",
-			Name:       "name",
-			ExternalID: "extID",
-			Public:     true,
-			Content:    []byte("this is the content"),
-		}
-		mockClient.EXPECT().
-			Create(ctx, d).
+		mockClient.EXPECT().Create(ctx, givenDoc).
 			Return(&http.Response{Status: http.StatusText(http.StatusCreated), StatusCode: http.StatusCreated, Body: io.NopCloser(strings.NewReader(respCreate)), Request: &http.Request{Method: http.MethodGet, URL: &url.URL{}}}, nil)
+		mockClient.EXPECT().Patch(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba", 1, givenDoc).
+			Return(&http.Response{Status: http.StatusText(http.StatusOK), StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(respPatch)), Request: &http.Request{Method: http.MethodPatch, URL: &url.URL{}}}, nil)
 
-		mockClient.EXPECT().
-			Patch(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba", 1, d).
-			Return(&http.Response{Status: http.StatusText(http.StatusOK), StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"documentMetadata":` + respPatch + "}")), Request: &http.Request{Method: http.MethodPatch, URL: &url.URL{}}}, nil)
+		docClient := documents.NewTestClient(mockClient)
 
-		document := documents.NewTestClient(mockClient)
-
-		res, err := document.Create(ctx, "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		res, err := docClient.Create(ctx, "name", false, "extID", []byte("this is the content"), documents.Notebook)
 
 		require.NoError(t, err)
-		assert.JSONEq(t, respPatch, string(res.Data))
+		assert.JSONEq(t, expected, string(res.Data))
+	})
+
+	t.Run("create call returns non successful response", func(t *testing.T) {
+		ctx := testutils.ContextWithLogger(t)
+		mockClient := documents.NewMockclient(gomock.NewController(t))
+		mockClient.EXPECT().Create(ctx, givenDoc).
+			Return(&http.Response{Status: http.StatusText(http.StatusInternalServerError), StatusCode: http.StatusInternalServerError, Body: io.NopCloser(strings.NewReader("some internal error")), Request: &http.Request{Method: http.MethodPost, URL: &url.URL{}}}, nil)
+
+		docClient := documents.NewTestClient(mockClient)
+
+		res, err := docClient.Create(ctx, "name", false, "extID", []byte("this is the content"), documents.Notebook)
+
+		require.Empty(t, res)
+		require.Error(t, err)
+	})
+
+	t.Run("patch call returns non successful response; rollback success", func(t *testing.T) {
+		ctx := testutils.ContextWithLogger(t)
+		mockClient := documents.NewMockclient(gomock.NewController(t))
+		mockClient.EXPECT().Create(ctx, givenDoc).
+			Return(&http.Response{Status: http.StatusText(http.StatusCreated), StatusCode: http.StatusCreated, Body: io.NopCloser(strings.NewReader(respCreate)), Request: &http.Request{Method: http.MethodGet, URL: &url.URL{}}}, nil)
+		mockClient.EXPECT().Patch(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba", 1, givenDoc).
+			Return(&http.Response{Status: http.StatusText(http.StatusInternalServerError), StatusCode: http.StatusInternalServerError, Body: io.NopCloser(strings.NewReader("some internal error")), Request: &http.Request{Method: http.MethodPatch, URL: &url.URL{}}}, nil)
+		mockClient.EXPECT().Delete(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba", 1).
+			Return(&http.Response{Status: http.StatusText(http.StatusNoContent), StatusCode: http.StatusNoContent, Request: &http.Request{Method: http.MethodDelete, URL: &url.URL{}}}, nil)
+		mockClient.EXPECT().Trash(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba").
+			Return(&http.Response{Status: http.StatusText(http.StatusNoContent), StatusCode: http.StatusNoContent, Request: &http.Request{Method: http.MethodDelete, URL: &url.URL{}}}, nil)
+
+		docClient := documents.NewTestClient(mockClient)
+
+		res, err := docClient.Create(ctx, "name", false, "extID", []byte("this is the content"), documents.Notebook)
+
+		require.Empty(t, res)
+		require.Error(t, err)
+
+		// var apiErr api.APIError
+		assert.ErrorAs(t, err, &api.APIError{})
+		assert.ErrorContains(t, err, "some internal error")
+	})
+
+	t.Run("patch call returns non successful response; rollback fails", func(t *testing.T) {
+		ctx := testutils.ContextWithLogger(t)
+		mockClient := documents.NewMockclient(gomock.NewController(t))
+		mockClient.EXPECT().Create(ctx, givenDoc).
+			Return(&http.Response{Status: http.StatusText(http.StatusCreated), StatusCode: http.StatusCreated, Body: io.NopCloser(strings.NewReader(respCreate)), Request: &http.Request{Method: http.MethodGet, URL: &url.URL{}}}, nil)
+		mockClient.EXPECT().Patch(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba", 1, givenDoc).
+			Return(&http.Response{Status: http.StatusText(http.StatusInternalServerError), StatusCode: http.StatusInternalServerError, Body: io.NopCloser(strings.NewReader("some internal error")), Request: &http.Request{Method: http.MethodPatch, URL: &url.URL{}}}, nil)
+		mockClient.EXPECT().Delete(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba", 1).
+			Return(&http.Response{Status: http.StatusText(http.StatusInternalServerError), StatusCode: http.StatusInternalServerError, Request: &http.Request{Method: http.MethodDelete, URL: &url.URL{}}}, nil)
+
+		docClient := documents.NewTestClient(mockClient)
+
+		res, err := docClient.Create(ctx, "name", false, "extID", []byte("this is the content"), documents.Notebook)
+
+		require.Empty(t, res)
+		require.Error(t, err)
+
+		// var apiErr api.APIError
+		assert.ErrorAs(t, err, &api.APIError{})
+		assert.ErrorContains(t, err, "some internal error")
 	})
 }
 

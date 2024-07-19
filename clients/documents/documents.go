@@ -253,6 +253,9 @@ func (c Client) Create(ctx context.Context, name string, isPrivate bool, externa
 
 	r, err := c.patch(ctx, md.ID, md.Version, d)
 	if err != nil {
+		if _, err1 := c.delete(ctx, md.ID, md.Version); err1 != nil {
+			return api.Response{}, errors.Join(err, err1)
+		}
 		return api.Response{}, err
 	}
 
@@ -313,25 +316,11 @@ func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 		return api.Response{}, err
 	}
 
-	resp, err := c.client.Delete(ctx, id, getResp.Version)
-	if err != nil {
-		return api.Response{}, err
-	}
+	// if !getResp.IsSuccess() {
+	// 	return api.Response{}, api.NewAPIErrorFromResponseAndBody(getResp, getResp.Data)
+	// }
 
-	if !rest.IsSuccess(resp) {
-		return api.Response{}, api.NewAPIErrorFromResponseAndBody(resp, nil)
-	}
-
-	resp, err = c.client.Trash(ctx, id)
-	if err != nil {
-		return api.Response{}, err
-	}
-
-	if !rest.IsSuccess(resp) {
-		return api.Response{}, api.NewAPIErrorFromResponseAndBody(resp, nil)
-	}
-
-	return api.NewResponseFromHTTPResponseAndBody(resp, nil), nil
+	return c.delete(ctx, id, getResp.Version)
 }
 
 func (c Client) create(ctx context.Context, d documents.Document) (api.Response, error) {
@@ -416,7 +405,6 @@ func (c Client) get(ctx context.Context, id string) (api.MultipartResponse, erro
 
 	return *api.NewMultipartResponse(resp, parts...), nil
 }
-
 func extractBoundary(resp *http.Response) (string, error) {
 	t, ps, err := mime.ParseMediaType(resp.Header.Get("content-type"))
 	if t != "multipart/x-mixed-replace" {
@@ -426,4 +414,26 @@ func extractBoundary(resp *http.Response) (string, error) {
 		return "", err
 	}
 	return ps["boundary"], nil
+}
+
+func (c Client) delete(ctx context.Context, id string, version int) (api.Response, error) {
+	resp, err := c.client.Delete(ctx, id, version)
+	if err != nil {
+		return api.Response{}, err
+	}
+
+	if !rest.IsSuccess(resp) {
+		return api.Response{}, api.NewAPIErrorFromResponseAndBody(resp, nil)
+	}
+
+	resp, err = c.client.Trash(ctx, id)
+	if err != nil {
+		return api.Response{}, err
+	}
+
+	if !rest.IsSuccess(resp) {
+		return api.Response{}, api.NewAPIErrorFromResponseAndBody(resp, nil)
+	}
+
+	return api.NewResponseFromHTTPResponseAndBody(resp, nil), nil
 }
