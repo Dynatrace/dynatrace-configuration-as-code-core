@@ -214,9 +214,9 @@ func TestDocumentClient_Create(t *testing.T) {
 		mockClient.EXPECT().Patch(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba", 1, givenDoc).
 			Return(&http.Response{Status: http.StatusText(http.StatusInternalServerError), StatusCode: http.StatusInternalServerError, Body: io.NopCloser(strings.NewReader("some internal error")), Request: &http.Request{Method: http.MethodPatch, URL: &url.URL{}}}, nil)
 		mockClient.EXPECT().Delete(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba", 1).
-			Return(&http.Response{Status: http.StatusText(http.StatusNoContent), StatusCode: http.StatusNoContent, Request: &http.Request{Method: http.MethodDelete, URL: &url.URL{}}}, nil)
+			Return(&http.Response{Status: http.StatusText(http.StatusNoContent), StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader("")), Request: &http.Request{Method: http.MethodDelete, URL: &url.URL{}}}, nil)
 		mockClient.EXPECT().Trash(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba").
-			Return(&http.Response{Status: http.StatusText(http.StatusNoContent), StatusCode: http.StatusNoContent, Request: &http.Request{Method: http.MethodDelete, URL: &url.URL{}}}, nil)
+			Return(&http.Response{Status: http.StatusText(http.StatusNoContent), StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader("")), Request: &http.Request{Method: http.MethodDelete, URL: &url.URL{}}}, nil)
 
 		docClient := documents.NewTestClient(mockClient)
 
@@ -238,7 +238,7 @@ func TestDocumentClient_Create(t *testing.T) {
 		mockClient.EXPECT().Patch(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba", 1, givenDoc).
 			Return(&http.Response{Status: http.StatusText(http.StatusInternalServerError), StatusCode: http.StatusInternalServerError, Body: io.NopCloser(strings.NewReader("some internal error")), Request: &http.Request{Method: http.MethodPatch, URL: &url.URL{}}}, nil)
 		mockClient.EXPECT().Delete(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba", 1).
-			Return(&http.Response{Status: http.StatusText(http.StatusInternalServerError), StatusCode: http.StatusInternalServerError, Request: &http.Request{Method: http.MethodDelete, URL: &url.URL{}}}, nil)
+			Return(&http.Response{Status: http.StatusText(http.StatusInternalServerError), StatusCode: http.StatusInternalServerError, Body: io.NopCloser(strings.NewReader("")), Request: &http.Request{Method: http.MethodDelete, URL: &url.URL{}}}, nil)
 
 		docClient := documents.NewTestClient(mockClient)
 
@@ -254,7 +254,16 @@ func TestDocumentClient_Create(t *testing.T) {
 }
 
 func TestDocumentClient_Update(t *testing.T) {
-	const getPayload = `--Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy
+	const (
+		expected = `{
+"id": "038ab74f-0a3a-4bf8-9068-85e2d633a1e6",
+"name": "my-test-db",
+"isPrivate": true,
+"externalId": "extId",
+"type": "dashboard",
+"version": 1
+}`
+		getPayload = `--Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy
 Content-Disposition: form-data; name="metadata"
 Content-Type: application/json
 
@@ -285,30 +294,11 @@ Content-Type: application/json
 This is the document content
 --Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy--
 `
-	const documentContent = "This is the document content"
 
-	const patchPayload = `{
-  "documentMetadata": {
-    "modificationInfo": {
-      "createdBy": "12341234-1234-1234-1234-12341234",
-      "createdTime": "2024-04-11T14:06:26.491Z",
-      "lastModifiedBy": "2f321c04-566e-4779-b576-3c033b8cd9e9",
-      "lastModifiedTime": "2024-04-11T14:06:26.491Z"
-    },
-    "access": [
-      "read",
-      "delete",
-      "write"
-    ],
-    "id": "038ab74f-0a3a-4bf8-9068-85e2d633a1e6",
-    "name": "my-test-db",
-	"isPrivate": true,
-	"externalId": "extId",
-    "type": "dashboard",
-    "version": 1,
-    "owner": "12341234-1234-1234-1234-12341234"
-  }
-}`
+		documentContent = "This is the document content"
+
+		patchPayload = `{"documentMetadata":` + expected + `}`
+	)
 
 	t.Run("Update - Missing id", func(t *testing.T) {
 		responses := []testutils.ResponseDef{}
@@ -401,8 +391,8 @@ This is the document content
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 		assert.NoError(t, err)
-		assert.Equal(t, patchPayload, string(resp.Data))
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.JSONEq(t, expected, string(resp.Data))
 	})
 
 	t.Run("Update - Existing document found - Update fails", func(t *testing.T) {
@@ -599,129 +589,129 @@ func TestDocumentClient_List(t *testing.T) {
 	})
 }
 
-// func TestDocumentClient_Delete(t *testing.T) {
-//
-// 	const getPayload = `--Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy
-// Content-Disposition: form-data; name="metadata"
-// Content-Type: application/json
-//
-// {
-//     "modificationInfo": {
-//         "createdBy": "12341234-1234-1234-1234-12341234",
-//         "createdTime": "2024-04-11T12:31:33.599Z",
-//         "lastModifiedBy": "2f321c04-566e-4779-b576-3c033b8cd9e9",
-//         "lastModifiedTime": "2024-04-11T12:31:33.599Z"
-//     },
-//     "access": [
-//         "read",
-//         "delete",
-//         "write"
-//     ],
-//     "id": "b17ec54b-07ac-4c73-9c4d-232e1b2e2420",
-//     "name": "my-test-db",
-// 	"isPrivate": true,
-// 	"externalId": "extId1",
-//     "type": "dashboard",
-//     "version": 1,
-//     "owner": "12341234-1234-1234-1234-12341234"
-// }
-// --Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy
-// Content-Disposition: form-data; name="content"; filename="my-test-db"
-// Content-Type: application/json
-//
-// This is the document content
-// --Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy--
-// `
-//
-// 	t.Run("Delete - id missing", func(t *testing.T) {
-// 		responses := []testutils.ResponseDef{}
-//
-// 		server := testutils.NewHTTPTestServer(t, responses)
-// 		defer server.Close()
-//
-// 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-// 		ctx := testutils.ContextWithLogger(t)
-// 		resp, err := client.Delete(ctx, "")
-// 		assert.Zero(t, resp)
-// 		assert.Error(t, err)
-//
-// 	})
-//
-// 	t.Run("Delete - OK", func(t *testing.T) {
-// 		responses := []testutils.ResponseDef{
-// 			{
-// 				GET: func(t *testing.T, req *http.Request) testutils.Response {
-// 					assert.Equal(t, "/platform/document/v1/documents/id-of-document", req.URL.Path)
-// 					return testutils.Response{
-// 						ResponseCode: http.StatusOK,
-// 						ResponseBody: getPayload,
-// 						ContentType:  "multipart/form-data;boundary=Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy",
-// 					}
-// 				},
-// 			},
-// 			{
-// 				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
-// 					assert.Equal(t, "/platform/document/v1/documents/id-of-document", req.URL.Path)
-// 					return testutils.Response{
-// 						ResponseCode: http.StatusOK,
-// 					}
-// 				},
-// 			},
-// 			{
-// 				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
-// 					assert.Equal(t, "/platform/document/v1/trash/documents/id-of-document", req.URL.Path)
-// 					return testutils.Response{
-// 						ResponseCode: http.StatusOK,
-// 					}
-// 				},
-// 			},
-// 		}
-//
-// 		server := testutils.NewHTTPTestServer(t, responses)
-// 		defer server.Close()
-//
-// 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-// 		ctx := testutils.ContextWithLogger(t)
-// 		resp, err := client.Delete(ctx, "id-of-document")
-// 		assert.NotZero(t, resp)
-// 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-// 		assert.NoError(t, err)
-// 	})
-//
-// 	t.Run("Delete - Fails finding existing document", func(t *testing.T) {
-// 		responses := []testutils.ResponseDef{
-// 			{
-// 				GET: func(t *testing.T, req *http.Request) testutils.Response {
-// 					return testutils.Response{
-// 						ResponseCode: http.StatusNotFound,
-// 					}
-// 				},
-// 			},
-// 		}
-//
-// 		server := testutils.NewHTTPTestServer(t, responses)
-// 		defer server.Close()
-//
-// 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-// 		ctx := testutils.ContextWithLogger(t)
-// 		resp, err := client.Delete(ctx, "id-of-document")
-//
-// 		assert.Zero(t, resp)
-// 		var apiError api.APIError
-// 		assert.ErrorAs(t, err, &apiError)
-// 		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
-// 	})
-//
-// 	t.Run("Delete - Failed to execute Request", func(t *testing.T) {
-// 		responses := []testutils.ResponseDef{}
-//
-// 		server := testutils.NewHTTPTestServer(t, responses)
-// 		defer server.Close()
-//
-// 		client := documents.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-// 		ctx := testutils.ContextWithLogger(t)
-// 		resp, err := client.Delete(ctx, "id-of-document")
-// 		assert.Zero(t, resp)
-// 		assert.Error(t, err)
-// 	})
-// }
+func TestDocumentClient_Delete(t *testing.T) {
+
+	const getPayload = `--Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy
+Content-Disposition: form-data; name="metadata"
+Content-Type: application/json
+
+{
+    "modificationInfo": {
+        "createdBy": "12341234-1234-1234-1234-12341234",
+        "createdTime": "2024-04-11T12:31:33.599Z",
+        "lastModifiedBy": "2f321c04-566e-4779-b576-3c033b8cd9e9",
+        "lastModifiedTime": "2024-04-11T12:31:33.599Z"
+    },
+    "access": [
+        "read",
+        "delete",
+        "write"
+    ],
+    "id": "b17ec54b-07ac-4c73-9c4d-232e1b2e2420",
+    "name": "my-test-db",
+	"isPrivate": true,
+	"externalId": "extId1",
+    "type": "dashboard",
+    "version": 1,
+    "owner": "12341234-1234-1234-1234-12341234"
+}
+--Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy
+Content-Disposition: form-data; name="content"; filename="my-test-db"
+Content-Type: application/json
+
+This is the document content
+--Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy--
+`
+
+	t.Run("Delete - id missing", func(t *testing.T) {
+		responses := []testutils.ResponseDef{}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Delete(ctx, "")
+		assert.Zero(t, resp)
+		assert.Error(t, err)
+
+	})
+
+	t.Run("Delete - OK", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, "/platform/document/v1/documents/id-of-document", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: getPayload,
+						ContentType:  "multipart/form-data;boundary=Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy",
+					}
+				},
+			},
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, "/platform/document/v1/documents/id-of-document", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+					}
+				},
+			},
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, "/platform/document/v1/trash/documents/id-of-document", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Delete(ctx, "id-of-document")
+		assert.NotZero(t, resp)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Delete - Fails finding existing document", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusNotFound,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Delete(ctx, "id-of-document")
+
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
+	})
+
+	t.Run("Delete - Failed to execute Request", func(t *testing.T) {
+		responses := []testutils.ResponseDef{}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Delete(ctx, "id-of-document")
+		assert.Zero(t, resp)
+		assert.Error(t, err)
+	})
+}

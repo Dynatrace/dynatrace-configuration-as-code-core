@@ -16,7 +16,9 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
@@ -144,6 +146,19 @@ func NewAPIErrorFromResponseAndBody(resp *http.Response, body []byte) APIError {
 		Body:       body,
 		Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
 	}
+}
+
+func NewAPIErrorFromResponse(resp *http.Response) error {
+	apiErr := APIError{
+		StatusCode: resp.StatusCode,
+		Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return errors.Join(apiErr, fmt.Errorf("unable to read API response body: %w", err))
+	}
+	apiErr.Body = body
+	return apiErr
 }
 
 // Error returns a string representation of the APIError, providing details about the failed API request.
