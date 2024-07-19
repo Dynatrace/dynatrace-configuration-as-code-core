@@ -21,8 +21,6 @@ import (
 )
 
 type (
-	partName = string
-
 	Part struct {
 		FormName, FileName string
 		Content            []byte
