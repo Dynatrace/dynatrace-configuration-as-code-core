@@ -31,6 +31,30 @@ type Response struct {
 	Request    rest.RequestInfo `json:"-"`
 }
 
+// AsResponseOrError is a helper function to convert an http.Response or error to a Response or error.
+func AsResponseOrError(resp *http.Response, err error) (*Response, error) {
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, NewAPIErrorFromResponseAndBody(resp, responseBody)
+	}
+
+	if !rest.IsSuccess(resp) {
+		return nil, NewAPIErrorFromResponseAndBody(resp, responseBody)
+	}
+
+	return &Response{
+		StatusCode: resp.StatusCode,
+		Data:       responseBody,
+		Request: rest.RequestInfo{
+			Method: resp.Request.Method,
+			URL:    resp.Request.URL.String()}}, nil
+}
+
 func NewResponseFromHTTPResponseAndBody(resp *http.Response, body []byte) Response {
 	return Response{
 		StatusCode: resp.StatusCode,
