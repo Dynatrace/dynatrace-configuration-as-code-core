@@ -58,27 +58,7 @@ func NewClient(client *rest.Client) *Client {
 // Response contains the API response
 type Response struct {
 	api.Response
-	documentMetadata
-}
-
-type documentMetadata struct {
-	ID         string `json:"id"`
-	ExternalID string `json:"externalId"`
-	Actor      string `json:"actor"`
-	Owner      string `json:"owner"`
-	Name       string `json:"name"`
-	Type       string `json:"type"`
-	Version    int    `json:"version"`
-	IsPrivate  bool   `json:"isPrivate"`
-}
-
-func unmarshallMetadata(b []byte) (documentMetadata, error) {
-	var m documentMetadata
-	if err := json.Unmarshal(b, &m); err != nil {
-		return documentMetadata{}, err
-	}
-
-	return m, nil
+	Metadata
 }
 
 // ListResponse is a list of API Responses
@@ -230,8 +210,8 @@ func (c Client) Create(ctx context.Context, name string, isPrivate bool, externa
 		return api.Response{}, err
 	}
 
-	var md documentMetadata
-	if md, err = unmarshallMetadata(resp.Data); err != nil {
+	var md Metadata
+	if md, err = UnmarshallMetadata(resp.Data); err != nil {
 		return api.Response{}, err
 	}
 
@@ -257,7 +237,7 @@ func (c Client) Update(ctx context.Context, id string, name string, isPrivate bo
 	}
 
 	part, _ := resp.GetPartWithName("metadata")
-	md, err := unmarshallMetadata(part.Content)
+	md, err := UnmarshallMetadata(part.Content)
 	if err != nil {
 		return api.Response{}, err
 	}
@@ -283,7 +263,7 @@ func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 	}
 
 	part, _ := resp.GetPartWithName("metadata")
-	md, err := unmarshallMetadata(part.Content)
+	md, err := UnmarshallMetadata(part.Content)
 	if err != nil {
 		return api.Response{}, err
 	}

@@ -1,6 +1,6 @@
 /*
  * @license
- * Copyright 2024 Dynatrace LLC
+ * Copyright 2023 Dynatrace LLC
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -14,19 +14,26 @@
  * limitations under the License.
  */
 
-package api_test
+package documents
 
-import (
-	"testing"
+import "encoding/json"
 
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
-	"github.com/stretchr/testify/assert"
-)
+type Metadata struct {
+	ID         string `json:"id"`
+	ExternalID string `json:"externalId"`
+	Actor      string `json:"actor"`
+	Owner      string `json:"owner"`
+	Name       string `json:"name"`
+	Type       string `json:"type"`
+	Version    int    `json:"version"`
+	IsPrivate  bool   `json:"isPrivate"`
+}
 
-func TestMultipartResponse_IsSuccess(t *testing.T) {
-	t.Run("invoke over null object", func(t *testing.T) {
-		var mr *api.MultipartResponse
+func UnmarshallMetadata(b []byte) (Metadata, error) {
+	var m Metadata
+	if err := json.Unmarshal(b, &m); err != nil {
+		return Metadata{}, err
+	}
 
-		assert.False(t, mr.IsSuccess())
-	})
+	return m, nil
 }
