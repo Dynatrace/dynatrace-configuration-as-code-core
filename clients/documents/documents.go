@@ -28,6 +28,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/documents"
@@ -215,14 +216,15 @@ func (c Client) Create(ctx context.Context, name string, isPrivate bool, externa
 		return api.Response{}, err
 	}
 
-	r, err := c.patch(ctx, md.ID, md.Version, d)
+	r, err := c.patchWithRetry(ctx, md.ID, md.Version, d)
 	if err != nil {
-		if _, err1 := c.delete(ctx, md.ID, md.Version); err1 != nil {
-			return api.Response{}, errors.Join(err, err1)
+		if !isNotFoundError(err) {
+			if _, err1 := c.delete(ctx, md.ID, md.Version); err1 != nil {
+				return api.Response{}, errors.Join(err, err1)
+			}
 		}
 		return api.Response{}, err
 	}
-
 	return r, nil
 }
 
@@ -273,6 +275,24 @@ func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 
 func (c Client) create(ctx context.Context, d documents.Document) (api.Response, error) {
 	return processHttpResponse(c.client.Create(ctx, d))
+}
+
+func (c Client) patchWithRetry(ctx context.Context, id string, version int, d documents.Document) (resp api.Response, err error) {
+	const maxRetries = 5
+	const retryDelay = 200 * time.Millisecond
+	for r := 0; r < maxRetries; r++ {
+		if resp, err = c.patch(ctx, id, version, d); isNotFoundError(err) {
+			time.Sleep(retryDelay)
+			continue
+		}
+		break
+	}
+	return
+}
+
+func isNotFoundError(err error) bool {
+	var apiErr api.APIError
+	return errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound
 }
 
 func (c Client) patch(ctx context.Context, id string, version int, d documents.Document) (api.Response, error) {

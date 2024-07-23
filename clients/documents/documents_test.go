@@ -230,6 +230,44 @@ func TestDocumentClient_Create(t *testing.T) {
 		assert.ErrorContains(t, err, "some internal error")
 	})
 
+	t.Run("patch call returns 404 - retry succeeds", func(t *testing.T) {
+		ctx := testutils.ContextWithLogger(t)
+		mockClient := documents.NewMockclient(gomock.NewController(t))
+		mockClient.EXPECT().Create(ctx, givenDoc).
+			Return(&http.Response{Status: http.StatusText(http.StatusCreated), StatusCode: http.StatusCreated, Body: io.NopCloser(strings.NewReader(respCreate)), Request: &http.Request{Method: http.MethodGet, URL: &url.URL{}}}, nil)
+		mockClient.EXPECT().Patch(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba", 1, givenDoc).Times(4).
+			Return(&http.Response{Status: http.StatusText(http.StatusNotFound), StatusCode: http.StatusNotFound, Body: io.NopCloser(strings.NewReader("some internal error")), Request: &http.Request{Method: http.MethodPatch, URL: &url.URL{}}}, nil)
+		mockClient.EXPECT().Patch(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba", 1, givenDoc).
+			Return(&http.Response{Status: http.StatusText(http.StatusOK), StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(respPatch)), Request: &http.Request{Method: http.MethodPatch, URL: &url.URL{}}}, nil)
+
+		docClient := documents.NewTestClient(mockClient)
+
+		res, err := docClient.Create(ctx, "name", false, "extID", []byte("this is the content"), documents.Notebook)
+
+		require.NoError(t, err)
+		assert.JSONEq(t, expected, string(res.Data))
+	})
+
+	t.Run("patch call returns 404 - retry fails", func(t *testing.T) {
+		ctx := testutils.ContextWithLogger(t)
+		mockClient := documents.NewMockclient(gomock.NewController(t))
+		mockClient.EXPECT().Create(ctx, givenDoc).
+			Return(&http.Response{Status: http.StatusText(http.StatusCreated), StatusCode: http.StatusCreated, Body: io.NopCloser(strings.NewReader(respCreate)), Request: &http.Request{Method: http.MethodGet, URL: &url.URL{}}}, nil)
+		mockClient.EXPECT().Patch(ctx, "f6e26fdd-1451-4655-b6ab-1240a00c1fba", 1, givenDoc).Times(5).
+			Return(&http.Response{Status: http.StatusText(http.StatusNotFound), StatusCode: http.StatusNotFound, Body: io.NopCloser(strings.NewReader("some internal error")), Request: &http.Request{Method: http.MethodPatch, URL: &url.URL{}}}, nil)
+
+		docClient := documents.NewTestClient(mockClient)
+
+		res, err := docClient.Create(ctx, "name", false, "extID", []byte("this is the content"), documents.Notebook)
+
+		require.Empty(t, res)
+		require.Error(t, err)
+
+		// var apiErr api.APIError
+		assert.ErrorAs(t, err, &api.APIError{})
+		assert.ErrorContains(t, err, "API request HTTP PATCH  failed with status code 404")
+	})
+
 	t.Run("patch call returns non successful response; rollback fails", func(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		mockClient := documents.NewMockclient(gomock.NewController(t))
