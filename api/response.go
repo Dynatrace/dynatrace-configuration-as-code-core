@@ -26,7 +26,8 @@ import (
 
 // Response represents an API response
 type Response struct {
-	StatusCode int              `json:"-"`
+	StatusCode int `json:"-"`
+	Header     http.Header
 	Data       []byte           `json:"-"`
 	Request    rest.RequestInfo `json:"-"`
 }
@@ -49,6 +50,7 @@ func AsResponseOrError(resp *http.Response, err error) (*Response, error) {
 
 	return &Response{
 		StatusCode: resp.StatusCode,
+		Header:     resp.Header,
 		Data:       responseBody,
 		Request: rest.RequestInfo{
 			Method: resp.Request.Method,
