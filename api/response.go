@@ -194,6 +194,14 @@ func (r APIError) Error() string {
 	return fmt.Sprintf("API request HTTP %s %s failed with status code %d: %s", r.Request.Method, r.Request.URL, r.StatusCode, string(r.Body))
 }
 
+func (r APIError) Is4xxError() bool {
+	return r.StatusCode >= 400 && r.StatusCode <= 499
+}
+
+func (r APIError) Is5xxError() bool {
+	return r.StatusCode >= 500 && r.StatusCode <= 599
+}
+
 // DecodeJSON tries to unmarshal the Response.Data of the given Response r into an object of T.
 func DecodeJSON[T any](r Response) (T, error) {
 	var t T
