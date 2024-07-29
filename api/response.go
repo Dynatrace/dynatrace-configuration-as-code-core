@@ -48,22 +48,27 @@ func AsResponseOrError(resp *http.Response, err error) (*Response, error) {
 		return nil, NewAPIErrorFromResponseAndBody(resp, responseBody)
 	}
 
-	return &Response{
-		StatusCode: resp.StatusCode,
-		Header:     resp.Header,
-		Data:       responseBody,
-		Request: rest.RequestInfo{
-			Method: resp.Request.Method,
-			URL:    resp.Request.URL.String()}}, nil
+	response := NewResponseFromHTTPResponseAndBody(resp, responseBody)
+	return &response, nil
 }
 
 func NewResponseFromHTTPResponseAndBody(resp *http.Response, body []byte) Response {
 	return Response{
 		StatusCode: resp.StatusCode,
 		Data:       body,
-		Request: rest.RequestInfo{
-			Method: resp.Request.Method,
-			URL:    resp.Request.URL.String()}}
+		Request:    NewRequestInfoFromRequest(resp.Request),
+	}
+}
+
+func NewRequestInfoFromRequest(request *http.Request) rest.RequestInfo {
+	var method, url string
+	if request != nil {
+		method = request.Method
+		if request.URL != nil {
+			url = request.URL.String()
+		}
+	}
+	return rest.RequestInfo{Method: method, URL: url}
 }
 
 // PagedListResponse is a list of ListResponse values.
@@ -170,7 +175,7 @@ func NewAPIErrorFromResponseAndBody(resp *http.Response, body []byte) APIError {
 	return APIError{
 		StatusCode: resp.StatusCode,
 		Body:       body,
-		Request:    rest.NewRequestInfoFromResponse(resp.Request),
+		Request:    NewRequestInfoFromRequest(resp.Request),
 	}
 }
 

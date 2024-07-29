@@ -22,17 +22,6 @@ type RequestInfo struct {
 	URL    string `json:"url"`    // The full URL of the request
 }
 
-func NewRequestInfoFromResponse(request *http.Request) RequestInfo {
-	var method, url string
-	if request != nil {
-		method = request.Method
-		if request.URL != nil {
-			url = request.URL.String()
-		}
-	}
-	return RequestInfo{Method: method, URL: url}
-}
-
 func IsSuccess(resp *http.Response) bool {
 	return resp.StatusCode >= 200 && resp.StatusCode <= 299
 }
