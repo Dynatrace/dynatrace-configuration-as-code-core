@@ -22,7 +22,7 @@ import (
 
 // reusableReader is a reader that can be used multiple times to from an io.ReadCloser
 type reusableReader struct {
-	io.Reader
+	reader  io.Reader
 	readBuf *bytes.Buffer
 	backBuf *bytes.Buffer
 }
@@ -35,21 +35,24 @@ func ReusableReader(r io.ReadCloser) (io.ReadCloser, error) {
 	if r == nil {
 		return r, nil
 	}
+	defer r.Close()
+
 	readBuf := bytes.Buffer{}
 	if _, err := readBuf.ReadFrom(r); err != nil {
 		return nil, err
 	}
+
 	backBuf := bytes.Buffer{}
 	return reusableReader{
-		io.TeeReader(&readBuf, &backBuf),
-		&readBuf,
-		&backBuf,
+		reader:  io.TeeReader(&readBuf, &backBuf),
+		readBuf: &readBuf,
+		backBuf: &backBuf,
 	}, nil
 
 }
 
 func (r reusableReader) Read(p []byte) (int, error) {
-	n, err := r.Reader.Read(p)
+	n, err := r.reader.Read(p)
 	if err == io.EOF {
 		if err := r.reset(); err != nil {
 			return n, fmt.Errorf("failed to reset reader after reaching EOF: %w", err)
@@ -59,8 +62,6 @@ func (r reusableReader) Read(p []byte) (int, error) {
 }
 
 func (r reusableReader) reset() error {
-	if _, err := io.Copy(r.readBuf, r.backBuf); err != nil {
-		return err
-	}
-	return nil
+	_, err := io.Copy(r.readBuf, r.backBuf)
+	return err
 }
