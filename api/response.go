@@ -33,14 +33,21 @@ type Response struct {
 }
 
 // AsResponseOrError is a helper function to convert an http.Response or error to a Response or error.
+// It ensures that the response body is always read to completion and closed.
+// Any non-successful (i.e. not 2xx) status code results in an APIError.
 func AsResponseOrError(resp *http.Response, err error) (*Response, error) {
+	var responseBody []byte
+	var readErr error
+	if resp != nil {
+		responseBody, readErr = io.ReadAll(resp.Body)
+		defer resp.Body.Close()
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
+	if readErr != nil {
 		return nil, NewAPIErrorFromResponseAndBody(resp, responseBody)
 	}
 
