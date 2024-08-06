@@ -26,18 +26,56 @@ import (
 
 // Response represents an API response
 type Response struct {
-	StatusCode int              `json:"-"`
+	StatusCode int `json:"-"`
+	Header     http.Header
 	Data       []byte           `json:"-"`
 	Request    rest.RequestInfo `json:"-"`
+}
+
+// AsResponseOrError is a helper function to convert an http.Response or error to a Response or error.
+// It ensures that the response body is always read to completion and closed.
+// Any non-successful (i.e. not 2xx) status code results in an APIError.
+func AsResponseOrError(resp *http.Response, err error) (*Response, error) {
+	var responseBody []byte
+	var readErr error
+	if resp != nil {
+		responseBody, readErr = io.ReadAll(resp.Body)
+		defer resp.Body.Close()
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if readErr != nil {
+		return nil, NewAPIErrorFromResponseAndBody(resp, responseBody)
+	}
+
+	if !rest.IsSuccess(resp) {
+		return nil, NewAPIErrorFromResponseAndBody(resp, responseBody)
+	}
+
+	response := NewResponseFromHTTPResponseAndBody(resp, responseBody)
+	return &response, nil
 }
 
 func NewResponseFromHTTPResponseAndBody(resp *http.Response, body []byte) Response {
 	return Response{
 		StatusCode: resp.StatusCode,
 		Data:       body,
-		Request: rest.RequestInfo{
-			Method: resp.Request.Method,
-			URL:    resp.Request.URL.String()}}
+		Request:    NewRequestInfoFromRequest(resp.Request),
+	}
+}
+
+func NewRequestInfoFromRequest(request *http.Request) rest.RequestInfo {
+	var method, url string
+	if request != nil {
+		method = request.Method
+		if request.URL != nil {
+			url = request.URL.String()
+		}
+	}
+	return rest.RequestInfo{Method: method, URL: url}
 }
 
 // PagedListResponse is a list of ListResponse values.
@@ -144,7 +182,7 @@ func NewAPIErrorFromResponseAndBody(resp *http.Response, body []byte) APIError {
 	return APIError{
 		StatusCode: resp.StatusCode,
 		Body:       body,
-		Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
+		Request:    NewRequestInfoFromRequest(resp.Request),
 	}
 }
 
@@ -168,6 +206,14 @@ func NewAPIErrorFromResponse(resp *http.Response) error {
 // - string: A string representing the error message.
 func (r APIError) Error() string {
 	return fmt.Sprintf("API request HTTP %s %s failed with status code %d: %s", r.Request.Method, r.Request.URL, r.StatusCode, string(r.Body))
+}
+
+func (r APIError) Is4xxError() bool {
+	return r.StatusCode >= 400 && r.StatusCode <= 499
+}
+
+func (r APIError) Is5xxError() bool {
+	return r.StatusCode >= 500 && r.StatusCode <= 599
 }
 
 // DecodeJSON tries to unmarshal the Response.Data of the given Response r into an object of T.
