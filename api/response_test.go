@@ -15,9 +15,13 @@
 package api
 
 import (
+	"errors"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -305,4 +309,74 @@ func TestPagedListResponse_AsAPIError(t *testing.T) {
 			assert.Equal(t, tt.expectedOK, gotOK)
 		})
 	}
+}
+
+func TestAsResponseOrError(t *testing.T) {
+
+	t.Run("Error returns error", func(t *testing.T) {
+		resp, err := AsResponseOrError(nil, errors.New("some error"))
+		assert.Nil(t, resp)
+		assert.ErrorContains(t, err, "some error")
+	})
+
+	t.Run("4xx status returns APIError", func(t *testing.T) {
+		const badRequest = "Bad request"
+		mockBody := mockReaderCloser{reader: io.NopCloser(strings.NewReader(badRequest))}
+		resp, err := AsResponseOrError(&http.Response{StatusCode: http.StatusBadRequest, Body: &mockBody}, nil)
+		assert.Nil(t, resp)
+		apiErr := APIError{}
+		require.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, apiErr.StatusCode, http.StatusBadRequest)
+		assert.Equal(t, string(apiErr.Body), badRequest)
+		assert.True(t, mockBody.wasClosed)
+	})
+
+	t.Run("2xx status returns response", func(t *testing.T) {
+		const content = "content"
+		mockBody := mockReaderCloser{reader: strings.NewReader(content)}
+		resp, err := AsResponseOrError(&http.Response{StatusCode: http.StatusOK, Body: &mockBody}, nil)
+		require.NotNil(t, resp)
+		assert.Equal(t, string(resp.Data), content)
+		assert.Equal(t, resp.StatusCode, http.StatusOK)
+		require.Nil(t, err)
+		assert.True(t, mockBody.wasClosed)
+	})
+
+	t.Run("2xx status with read error returns error", func(t *testing.T) {
+		const content = "content"
+		mockBody := mockErroredReaderCloser{}
+		resp, err := AsResponseOrError(&http.Response{StatusCode: http.StatusOK, Body: &mockBody}, nil)
+		require.Nil(t, resp)
+		apiErr := APIError{}
+		require.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, apiErr.StatusCode, http.StatusOK)
+		assert.True(t, mockBody.wasClosed)
+	})
+}
+
+type mockReaderCloser struct {
+	reader    io.Reader
+	wasClosed bool
+}
+
+func (r *mockReaderCloser) Read(p []byte) (int, error) {
+	return r.reader.Read(p)
+}
+
+func (r *mockReaderCloser) Close() error {
+	r.wasClosed = true
+	return nil
+}
+
+type mockErroredReaderCloser struct {
+	wasClosed bool
+}
+
+func (r *mockErroredReaderCloser) Read(p []byte) (int, error) {
+	return 0, errors.New("read error")
+}
+
+func (r *mockErroredReaderCloser) Close() error {
+	r.wasClosed = true
+	return nil
 }

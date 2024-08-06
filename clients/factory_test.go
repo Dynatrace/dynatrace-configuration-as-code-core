@@ -15,6 +15,7 @@
 package clients
 
 import (
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/accounts"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
@@ -24,16 +25,19 @@ import (
 	"testing"
 )
 
-func TestClientCreation(t *testing.T) {
+const failedToParseURL = "failed to parse URL"
 
-	// Prepare a factory instance with necessary configurations
+func TestClientCreation(t *testing.T) {
 	f := Factory().
-		WithEnvironmentURL("https://example.com/api").
+		WithPlatformURL("https://example.com/api").
 		WithOAuthCredentials(clientcredentials.Config{
 			ClientID:     "client_id",
 			ClientSecret: "client_secret",
 			TokenURL:     "https://auth.example.com/token",
 		}).
+		WithAccessToken("abc123").
+		WithClassicURL("https://example.com/classicapi").
+		WithAccountURL("https://example.com/accountapi").
 		WithUserAgent("MyUserAgent")
 
 	var clientInstance interface{}
@@ -57,109 +61,377 @@ func TestClientCreation(t *testing.T) {
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &openpipeline.Client{}, clientInstance)
 
-	//... other clients
+	clientInstance, err = f.AccountClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &accounts.Client{}, clientInstance)
+
+	restClient, err := f.CreatePlatformClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
+
+	restClient, err = f.CreateClassicClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
 }
 
-func TestClientMissingEnvironmentURL(t *testing.T) {
-
-	// Prepare a factory instance without an environment URL
+func TestClientMissingPlatformURL(t *testing.T) {
 	f := Factory().
 		WithOAuthCredentials(clientcredentials.Config{
 			ClientID:     "client_id",
 			ClientSecret: "client_secret",
 			TokenURL:     "https://auth.example.com/token",
 		}).
+		WithAccessToken("abc123").
+		WithClassicURL("https://example.com/classicapi").
+		WithAccountURL("https://example.com/accountapi").
 		WithUserAgent("MyUserAgent")
 
 	var clientInstance interface{}
 	clientInstance, err := f.BucketClient()
-	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
-	assert.ErrorIs(t, err, ErrEnvironmentURLMissing)
+	assert.ErrorIs(t, err, ErrPlatformURLMissing)
 
 	clientInstance, err = f.AutomationClient()
-	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
-	assert.ErrorIs(t, err, ErrEnvironmentURLMissing)
+	assert.ErrorIs(t, err, ErrPlatformURLMissing)
 
 	clientInstance, err = f.DocumentClient()
-	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
-	assert.ErrorIs(t, err, ErrEnvironmentURLMissing)
+	assert.ErrorIs(t, err, ErrPlatformURLMissing)
 
 	clientInstance, err = f.OpenPipelineClient()
-	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
-	assert.ErrorIs(t, err, ErrEnvironmentURLMissing)
+	assert.ErrorIs(t, err, ErrPlatformURLMissing)
 
-	//... other clients
+	clientInstance, err = f.AccountClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &accounts.Client{}, clientInstance)
+
+	restClient, err := f.CreatePlatformClient()
+	assert.Nil(t, restClient)
+	assert.ErrorIs(t, err, ErrPlatformURLMissing)
+
+	restClient, err = f.CreateClassicClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
 }
 
 func TestClientMissingOAuthCredentials(t *testing.T) {
-
-	// Prepare a factory instance without OAuth credentials
 	f := Factory().
-		WithEnvironmentURL("https://example.com/api").
+		WithPlatformURL("https://example.com/api").
+		WithAccessToken("abc123").
+		WithClassicURL("https://example.com/classicapi").
+		WithAccountURL("https://example.com/accountapi").
 		WithUserAgent("MyUserAgent")
 
 	var clientInstance interface{}
 	clientInstance, err := f.BucketClient()
-	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
 
 	clientInstance, err = f.AutomationClient()
-	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
 
 	clientInstance, err = f.DocumentClient()
-	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
 
 	clientInstance, err = f.OpenPipelineClient()
-	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
 
-	//... other clients
+	clientInstance, err = f.AccountClient()
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
+
+	restClient, err := f.CreatePlatformClient()
+	assert.Nil(t, restClient)
+	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
+
+	restClient, err = f.CreateClassicClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
 }
 
-func TestClientURLParsingError(t *testing.T) {
+func TestClientPlatformURLParsingError(t *testing.T) {
 
-	const failedToParseURL = "failed to parse URL"
-
-	// Prepare a factory instance with a malformed URL
 	f := Factory().
-		WithEnvironmentURL(":invalid-url").
+		WithPlatformURL(":invalid-url").
 		WithOAuthCredentials(clientcredentials.Config{
 			ClientID:     "client_id",
 			ClientSecret: "client_secret",
 			TokenURL:     "https://auth.example.com/token",
 		}).
+		WithAccessToken("abc123").
+		WithClassicURL("https://example.com/classicapi").
+		WithAccountURL("https://example.com/accountapi").
 		WithUserAgent("MyUserAgent")
 
 	var clientInstance interface{}
 	clientInstance, err := f.BucketClient()
-	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
 
 	clientInstance, err = f.AutomationClient()
-	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
 
 	clientInstance, err = f.DocumentClient()
-	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
 
 	clientInstance, err = f.OpenPipelineClient()
-	assert.Error(t, err)
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
 
-	//... other clients
+	clientInstance, err = f.AccountClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &accounts.Client{}, clientInstance)
+
+	restClient, err := f.CreatePlatformClient()
+	assert.Nil(t, restClient)
+	assert.ErrorContains(t, err, failedToParseURL)
+
+	restClient, err = f.CreateClassicClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
+}
+
+func TestClientMissingAccountURL(t *testing.T) {
+	f := Factory().
+		WithPlatformURL("https://example.com/api").
+		WithOAuthCredentials(clientcredentials.Config{
+			ClientID:     "client_id",
+			ClientSecret: "client_secret",
+			TokenURL:     "https://auth.example.com/token",
+		}).
+		WithAccessToken("abc123").
+		WithClassicURL("https://example.com/classicapi").
+		WithUserAgent("MyUserAgent")
+
+	var clientInstance interface{}
+	clientInstance, err := f.BucketClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &buckets.Client{}, clientInstance)
+
+	clientInstance, err = f.AutomationClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &automation.Client{}, clientInstance)
+
+	clientInstance, err = f.DocumentClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &documents.Client{}, clientInstance)
+
+	clientInstance, err = f.OpenPipelineClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &openpipeline.Client{}, clientInstance)
+
+	clientInstance, err = f.AccountClient()
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrAccountURLMissing)
+
+	restClient, err := f.CreatePlatformClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
+
+	restClient, err = f.CreateClassicClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
+}
+
+func TestClientAccountURLParsingError(t *testing.T) {
+	f := Factory().
+		WithPlatformURL("https://example.com/api").
+		WithOAuthCredentials(clientcredentials.Config{
+			ClientID:     "client_id",
+			ClientSecret: "client_secret",
+			TokenURL:     "https://auth.example.com/token",
+		}).
+		WithAccessToken("abc123").
+		WithClassicURL("https://example.com/classicapi").
+		WithAccountURL(":invalid-url").
+		WithUserAgent("MyUserAgent")
+
+	var clientInstance interface{}
+	clientInstance, err := f.BucketClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &buckets.Client{}, clientInstance)
+
+	clientInstance, err = f.AutomationClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &automation.Client{}, clientInstance)
+
+	clientInstance, err = f.DocumentClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &documents.Client{}, clientInstance)
+
+	clientInstance, err = f.OpenPipelineClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &openpipeline.Client{}, clientInstance)
+
+	clientInstance, err = f.AccountClient()
+	assert.Nil(t, clientInstance)
+	assert.ErrorContains(t, err, failedToParseURL)
+
+	restClient, err := f.CreatePlatformClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
+
+	restClient, err = f.CreateClassicClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
+}
+
+func TestClientMissingClassicURL(t *testing.T) {
+	f := Factory().
+		WithPlatformURL("https://example.com/api").
+		WithOAuthCredentials(clientcredentials.Config{
+			ClientID:     "client_id",
+			ClientSecret: "client_secret",
+			TokenURL:     "https://auth.example.com/token",
+		}).
+		WithAccessToken("abc123").
+		WithAccountURL("https://example.com/accountapi").
+		WithUserAgent("MyUserAgent")
+
+	var clientInstance interface{}
+	clientInstance, err := f.BucketClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &buckets.Client{}, clientInstance)
+
+	clientInstance, err = f.AutomationClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &automation.Client{}, clientInstance)
+
+	clientInstance, err = f.DocumentClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &documents.Client{}, clientInstance)
+
+	clientInstance, err = f.OpenPipelineClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &openpipeline.Client{}, clientInstance)
+
+	clientInstance, err = f.AccountClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &accounts.Client{}, clientInstance)
+
+	restClient, err := f.CreatePlatformClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
+
+	restClient, err = f.CreateClassicClient()
+	assert.Nil(t, restClient)
+	assert.ErrorIs(t, err, ErrClassicURLMissing)
+}
+
+func TestClientMissingAccessToken(t *testing.T) {
+	f := Factory().
+		WithPlatformURL("https://example.com/api").
+		WithOAuthCredentials(clientcredentials.Config{
+			ClientID:     "client_id",
+			ClientSecret: "client_secret",
+			TokenURL:     "https://auth.example.com/token",
+		}).
+		WithClassicURL("https://example.com/classicapi").
+		WithAccountURL("https://example.com/accountapi").
+		WithUserAgent("MyUserAgent")
+
+	var clientInstance interface{}
+	clientInstance, err := f.BucketClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &buckets.Client{}, clientInstance)
+
+	clientInstance, err = f.AutomationClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &automation.Client{}, clientInstance)
+
+	clientInstance, err = f.DocumentClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &documents.Client{}, clientInstance)
+
+	clientInstance, err = f.OpenPipelineClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &openpipeline.Client{}, clientInstance)
+
+	clientInstance, err = f.AccountClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &accounts.Client{}, clientInstance)
+
+	restClient, err := f.CreatePlatformClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
+
+	restClient, err = f.CreateClassicClient()
+	assert.Nil(t, restClient)
+	assert.ErrorIs(t, err, ErrAccessTokenMissing)
+}
+
+func TestClientClassicURLParsingError(t *testing.T) {
+	f := Factory().
+		WithPlatformURL("https://example.com/api").
+		WithOAuthCredentials(clientcredentials.Config{
+			ClientID:     "client_id",
+			ClientSecret: "client_secret",
+			TokenURL:     "https://auth.example.com/token",
+		}).
+		WithAccessToken("abc123").
+		WithClassicURL(":invalid-url").
+		WithAccountURL("https://example.com/accountapi").
+		WithUserAgent("MyUserAgent")
+
+	var clientInstance interface{}
+	clientInstance, err := f.BucketClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &buckets.Client{}, clientInstance)
+
+	clientInstance, err = f.AutomationClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &automation.Client{}, clientInstance)
+
+	clientInstance, err = f.DocumentClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &documents.Client{}, clientInstance)
+
+	clientInstance, err = f.OpenPipelineClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &openpipeline.Client{}, clientInstance)
+
+	clientInstance, err = f.AccountClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &accounts.Client{}, clientInstance)
+
+	restClient, err := f.CreatePlatformClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
+
+	restClient, err = f.CreateClassicClient()
+	assert.Nil(t, restClient)
+	assert.ErrorContains(t, err, failedToParseURL)
 }

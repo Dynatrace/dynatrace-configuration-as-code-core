@@ -151,7 +151,7 @@ func (c *Client) SetHeader(key, value string) {
 	c.headers[key] = value
 }
 
-// BaseURL returns the base url configured fpr this client
+// BaseURL returns the base url configured for this client
 func (c *Client) BaseURL() *url.URL {
 	return c.baseURL
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/openpipeline"
 	"golang.org/x/oauth2/clientcredentials"
+	"net/http"
 	"net/url"
 	"time"
 )
@@ -33,8 +34,17 @@ import (
 // ErrOAuthCredentialsMissing indicates that no OAuth2 client credentials were provided.
 var ErrOAuthCredentialsMissing = errors.New("no OAuth2 client credentials provided")
 
-// ErrEnvironmentURLMissing indicates that no environment URL was provided.
-var ErrEnvironmentURLMissing = errors.New("no environment URL provided")
+// ErrPlatformURLMissing indicates that no platform API URL was provided.
+var ErrPlatformURLMissing = errors.New("no platform API URL provided")
+
+// ErrClassicURLMissing indicates that no classic API URL was provided.
+var ErrClassicURLMissing = errors.New("no classic API URL provided")
+
+// ErrAccountURLMissing indicates that no account API URL was provided.
+var ErrAccountURLMissing = errors.New("no account API URL provided")
+
+// ErrAccessTokenMissing indicates that no access token was provided.
+var ErrAccessTokenMissing = errors.New("no access token provided")
 
 // Factory creates a factory-like component that is used to create API client instances.
 func Factory() factory {
@@ -43,8 +53,11 @@ func Factory() factory {
 
 // factory represents a factory-like component for creating API client instances.
 type factory struct {
-	url                    string                    // The base URL of the API
+	platformURL            string                    // The base URL for platform APIs
+	classicURL             string                    // The base URL for classic APIs
+	accountURL             string                    // The base URL for account APIs
 	oauthConfig            *clientcredentials.Config // Configuration for OAuth2 client credentials
+	accessToken            string                    // Access token for API
 	userAgent              string                    // The User-Agent header to be set
 	httpListener           *rest.HTTPListener        // The HTTP listener to be set
 	concurrentRequestLimit int                       // The number of allowed concurrent requests
@@ -56,9 +69,27 @@ func (f factory) WithOAuthCredentials(config clientcredentials.Config) factory {
 	return f
 }
 
-// WithEnvironmentURL sets the base URL for the API.
-func (f factory) WithEnvironmentURL(u string) factory {
-	f.url = u
+// WithAccessToken sets the access token for the factory.
+func (f factory) WithAccessToken(accessToken string) factory {
+	f.accessToken = accessToken
+	return f
+}
+
+// WithPlatformURL sets the base URL for accessing the platform API.
+func (f factory) WithPlatformURL(u string) factory {
+	f.platformURL = u
+	return f
+}
+
+// WithClassicURL sets the base URL for accessing the classic API.
+func (f factory) WithClassicURL(u string) factory {
+	f.classicURL = u
+	return f
+}
+
+// WithAccountURL sets the base URL for accessing the account API.
+func (f factory) WithAccountURL(u string) factory {
+	f.accountURL = u
 	return f
 }
 
@@ -83,8 +114,8 @@ func (f factory) WithConcurrentRequestLimit(limit int) factory {
 }
 
 // AccountClient creates and reaturns a new instance of accounts.Client for interacting with the accounts API.
-func (f factory) AccountClient(accountManagementURL string) (*accounts.Client, error) {
-	restClient, err := f.createClientForAccount(accountManagementURL)
+func (f factory) AccountClient() (*accounts.Client, error) {
+	restClient, err := f.createAccountClient()
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +124,7 @@ func (f factory) AccountClient(accountManagementURL string) (*accounts.Client, e
 
 // AutomationClient creates and returns a new instance of automation.Client for interacting with the automation API.
 func (f factory) AutomationClient() (*automation.Client, error) {
-	restClient, err := f.createClient()
+	restClient, err := f.CreatePlatformClient()
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +133,7 @@ func (f factory) AutomationClient() (*automation.Client, error) {
 
 // BucketClient creates and returns a new instance of buckets.Client for interacting with the bucket API.
 func (f factory) BucketClient() (*buckets.Client, error) {
-	restClient, err := f.createClient()
+	restClient, err := f.CreatePlatformClient()
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +142,7 @@ func (f factory) BucketClient() (*buckets.Client, error) {
 
 // DocumentClient creates and returns a new instance of documents.Client for interacting with the document API.
 func (f factory) DocumentClient() (*documents.Client, error) {
-	restClient, err := f.createClient()
+	restClient, err := f.CreatePlatformClient()
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +152,7 @@ func (f factory) DocumentClient() (*documents.Client, error) {
 // BucketClientWithRetrySettings creates and returns a new instance of buckets.Client with non-default retry settings.
 // For details about how retry settings are used, see buckets.WithRetrySettings.
 func (f factory) BucketClientWithRetrySettings(maxRetries int, durationBetweenTries time.Duration, maxWaitDuration time.Duration) (*buckets.Client, error) {
-	restClient, err := f.createClient()
+	restClient, err := f.CreatePlatformClient()
 	if err != nil {
 		return nil, err
 	}
@@ -130,45 +161,58 @@ func (f factory) BucketClientWithRetrySettings(maxRetries int, durationBetweenTr
 
 // OpenPipelineClient creates and returns a new instance of openpipeline.Client for interacting with the openPipeline API.
 func (f factory) OpenPipelineClient() (*openpipeline.Client, error) {
-	restClient, err := f.createClient()
+	restClient, err := f.CreatePlatformClient()
 	if err != nil {
 		return nil, err
 	}
 	return openpipeline.NewClient(restClient), nil
 }
 
-func (f factory) createClientForAccount(accManagementURL string) (*rest.Client, error) {
+func (f factory) createAccountClient() (*rest.Client, error) {
 	if f.oauthConfig == nil {
 		return nil, ErrOAuthCredentialsMissing
 	}
 
-	parsedURL, err := url.Parse(accManagementURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse URL %q: %w", f.url, err)
+	if f.accountURL == "" {
+		return nil, ErrAccountURLMissing
 	}
 
-	restClient := rest.NewClient(parsedURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig), rest.WithHTTPListener(f.httpListener), rest.WithConcurrentRequestLimit(f.concurrentRequestLimit))
-	if f.userAgent != "" {
-		restClient.SetHeader("User-Agent", f.userAgent)
-	}
-
-	return restClient, nil
+	return f.createRestClient(f.accountURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig))
 }
-func (f factory) createClient() (*rest.Client, error) {
-	if f.url == "" {
-		return nil, ErrEnvironmentURLMissing
-	}
 
+// CreatePlatformClient creates a REST client configured for accessing platform APIs.
+func (f factory) CreatePlatformClient() (*rest.Client, error) {
 	if f.oauthConfig == nil {
 		return nil, ErrOAuthCredentialsMissing
 	}
 
-	parsedURL, err := url.Parse(f.url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse URL %q: %w", f.url, err)
+	if f.platformURL == "" {
+		return nil, ErrPlatformURLMissing
 	}
 
-	restClient := rest.NewClient(parsedURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig), rest.WithHTTPListener(f.httpListener))
+	return f.createRestClient(f.platformURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig))
+}
+
+// CreateClassicClient creates a REST client configured for accessing classic APIs.
+func (f factory) CreateClassicClient() (*rest.Client, error) {
+	if f.accessToken == "" {
+		return nil, ErrAccessTokenMissing
+	}
+
+	if f.classicURL == "" {
+		return nil, ErrClassicURLMissing
+	}
+
+	return f.createRestClient(f.classicURL, auth.NewTokenBasedClient(f.accessToken))
+}
+
+func (f factory) createRestClient(u string, httpClient *http.Client) (*rest.Client, error) {
+	parsedURL, err := url.Parse(u)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse URL %q: %w", u, err)
+	}
+
+	restClient := rest.NewClient(parsedURL, httpClient, rest.WithHTTPListener(f.httpListener))
 	if f.userAgent != "" {
 		restClient.SetHeader("User-Agent", f.userAgent)
 	}
