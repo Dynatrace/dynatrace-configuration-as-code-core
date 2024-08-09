@@ -61,6 +61,7 @@ type factory struct {
 	userAgent              string                    // The User-Agent header to be set
 	httpListener           *rest.HTTPListener        // The HTTP listener to be set
 	concurrentRequestLimit int                       // The number of allowed concurrent requests
+	rateLimiterEnabled     bool                      // Enables rate limiter for clients.
 }
 
 // WithOAuthCredentials sets the OAuth2 client credentials configuration for the factory.
@@ -110,6 +111,12 @@ func (f factory) WithHTTPListener(listener *rest.HTTPListener) factory {
 // requests can be triggered concurrently by the underlying rest/http client
 func (f factory) WithConcurrentRequestLimit(limit int) factory {
 	f.concurrentRequestLimit = limit
+	return f
+}
+
+// WithRateLimiter enables a RateLimiter for Clients.
+func (f factory) WithRateLimiter(enabled bool) factory {
+	f.rateLimiterEnabled = enabled
 	return f
 }
 
@@ -212,7 +219,12 @@ func (f factory) createRestClient(u string, httpClient *http.Client) (*rest.Clie
 		return nil, fmt.Errorf("failed to parse URL %q: %w", u, err)
 	}
 
-	restClient := rest.NewClient(parsedURL, httpClient, rest.WithHTTPListener(f.httpListener))
+	opts := []rest.Option{rest.WithHTTPListener(f.httpListener)}
+	if f.rateLimiterEnabled {
+		opts = append(opts, rest.WithRateLimiter())
+	}
+
+	restClient := rest.NewClient(parsedURL, httpClient, opts...)
 	if f.userAgent != "" {
 		restClient.SetHeader("User-Agent", f.userAgent)
 	}
