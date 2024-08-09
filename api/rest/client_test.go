@@ -447,7 +447,7 @@ func TestClient_WithRateLimiting(t *testing.T) {
 		{
 			name:             "missing reset time header results in default timeout",
 			givenHeaders:     map[string]string{},
-			wantBlockingTime: 1 * time.Second,
+			wantBlockingTime: 10 * time.Second,
 		},
 	}
 
