@@ -89,8 +89,8 @@ func (rl *RateLimiter) Update(ctx context.Context, status int, headers http.Head
 
 	reset, err := extractTimeout(headers)
 	if err != nil {
-		logger.V(1).Info(fmt.Sprintf("Received 429 TooManyRequests HTTP response but no rate limit header. Using default timeout of %s", defaultTimeout), "timeout", defaultTimeout)
-
+		logger.V(1).Info(fmt.Sprintf("Received 429 TooManyRequests HTTP response but using default timeout of %s because could not extract one: %s", defaultTimeout, err.Error()), "timeout", defaultTimeout)
+		logger.V(1).Info(fmt.Sprintf("Headers: %s", headers))
 		rt := defaultTimeout
 		rl.resetTimeout = &rt
 		ra := rl.Clock.Now().Add(defaultTimeout)
