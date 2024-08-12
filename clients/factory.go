@@ -61,7 +61,8 @@ type factory struct {
 	userAgent              string                    // The User-Agent header to be set
 	httpListener           *rest.HTTPListener        // The HTTP listener to be set
 	concurrentRequestLimit int                       // The number of allowed concurrent requests
-	rateLimiterEnabled     bool                      // Enables rate limiter for clients.
+	rateLimiterEnabled     bool                      // Enables rate limiter for clients
+	requestRetrier         *rest.RequestRetrier      // The retry strategy
 }
 
 // WithOAuthCredentials sets the OAuth2 client credentials configuration for the factory.
@@ -107,8 +108,8 @@ func (f factory) WithHTTPListener(listener *rest.HTTPListener) factory {
 	return f
 }
 
-// WithConcurrentRequestLimit sets the given request limit that specifying how much
-// requests can be triggered concurrently by the underlying rest/http client
+// WithConcurrentRequestLimit sets the given request limit that specifies how many
+// requests can be triggered concurrently by the underlying rest/http client.
 func (f factory) WithConcurrentRequestLimit(limit int) factory {
 	f.concurrentRequestLimit = limit
 	return f
@@ -117,6 +118,12 @@ func (f factory) WithConcurrentRequestLimit(limit int) factory {
 // WithRateLimiter enables a RateLimiter for Clients.
 func (f factory) WithRateLimiter(enabled bool) factory {
 	f.rateLimiterEnabled = enabled
+	return f
+}
+
+// WithRequestRetrier sets the RequestRetrier for the underlying rest/http client.
+func (f factory) WithRequestRetrier(requestRetrier *rest.RequestRetrier) factory {
+	f.requestRetrier = requestRetrier
 	return f
 }
 
@@ -222,6 +229,10 @@ func (f factory) createRestClient(u string, httpClient *http.Client) (*rest.Clie
 	opts := []rest.Option{rest.WithHTTPListener(f.httpListener)}
 	if f.rateLimiterEnabled {
 		opts = append(opts, rest.WithRateLimiter())
+	}
+
+	if f.requestRetrier != nil {
+		opts = append(opts, rest.WithRequestRetrier(f.requestRetrier))
 	}
 
 	restClient := rest.NewClient(parsedURL, httpClient, opts...)
