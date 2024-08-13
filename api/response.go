@@ -61,6 +61,7 @@ func AsResponseOrError(resp *http.Response, err error) (*Response, error) {
 
 func NewResponseFromHTTPResponseAndBody(resp *http.Response, body []byte) Response {
 	return Response{
+		Header:     resp.Header,
 		StatusCode: resp.StatusCode,
 		Data:       body,
 		Request:    NewRequestInfoFromRequest(resp.Request),
