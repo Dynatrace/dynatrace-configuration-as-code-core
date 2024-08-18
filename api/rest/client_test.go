@@ -688,3 +688,33 @@ func TestClient_RequestOptionsQueryParams(t *testing.T) {
 
 	client.GET(ctx, "", RequestOptions{QueryParams: expectedQueryParams})
 }
+
+func TestClient_RequestOptionsCustomRetrier(t *testing.T) {
+	apiHits := 0
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		if apiHits == 0 {
+			rw.WriteHeader(http.StatusBadRequest)
+		} else {
+			rw.WriteHeader(http.StatusOK)
+		}
+		apiHits++
+	}))
+	defer server.Close()
+
+	baseURL, _ := url.Parse(server.URL)
+	client := NewClient(baseURL, server.Client())
+
+	ctx := testutils.ContextWithLogger(t)
+
+	resp, err := client.GET(ctx, "", RequestOptions{CustomRetrier: &RequestRetrier{
+		MaxRetries: 1,
+		ShouldRetryFunc: func(resp *http.Response) bool {
+			return resp.StatusCode != http.StatusOK
+		},
+	}})
+	if err != nil {
+		t.Fatalf("failed to send GET request: %v", err)
+	}
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, 2, apiHits)
+}
