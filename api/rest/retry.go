@@ -14,10 +14,14 @@
 
 package rest
 
-import "net/http"
+import (
+	"net/http"
+	"time"
+)
 
 // RequestRetrier represents a component for retrying failed HTTP requests.
 type RequestRetrier struct {
+	DelayAfterRetry time.Duration
 	MaxRetries      int
 	ShouldRetryFunc func(resp *http.Response) bool
 }

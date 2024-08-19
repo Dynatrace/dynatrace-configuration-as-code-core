@@ -236,8 +236,8 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 
 	if requestRetrier != nil && retryCount < requestRetrier.MaxRetries &&
 		requestRetrier.ShouldRetryFunc != nil && requestRetrier.ShouldRetryFunc(response) {
-		logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, 100, retryCount+1, requestRetrier.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", requestRetrier.MaxRetries)
-		time.Sleep(100 * time.Millisecond)
+		logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, requestRetrier.DelayAfterRetry.Milliseconds(), retryCount+1, requestRetrier.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", requestRetrier.MaxRetries)
+		time.Sleep(requestRetrier.DelayAfterRetry)
 		return c.sendWithRetries(ctx, req, retryCount+1, options)
 	}
 	return response, nil
