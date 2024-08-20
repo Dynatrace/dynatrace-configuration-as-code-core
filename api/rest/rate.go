@@ -30,7 +30,7 @@ const (
 	limitHeader = "X-RateLimit-Limit"
 	resetHeader = "X-RateLimit-Reset"
 
-	defaultTimeout = time.Second * 10
+	defaultTimeout = time.Millisecond * 100
 )
 
 type RateLimiter struct {
