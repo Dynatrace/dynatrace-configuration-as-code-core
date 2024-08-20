@@ -26,6 +26,17 @@ type RequestRetrier struct {
 	ShouldRetryFunc func(resp *http.Response) bool
 }
 
+// ShouldRetry returns true if a request should be retried based on the current response and retry count.
+func (r *RequestRetrier) ShouldRetry(resp *http.Response, currentRetryCount int) bool {
+	if currentRetryCount >= r.MaxRetries {
+		return false
+	}
+	if r.ShouldRetryFunc != nil {
+		return r.ShouldRetryFunc(resp)
+	}
+	return false
+}
+
 // RetryIfNotSuccess implements a basic retry function for a RequestRetrier which will retry on any non 2xx status code
 func RetryIfNotSuccess(resp *http.Response) bool {
 	return !(resp.StatusCode >= 200 && resp.StatusCode <= 299)
