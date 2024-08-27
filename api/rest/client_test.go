@@ -702,16 +702,11 @@ func TestClient_RequestOptionsCustomRetrier(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := NewClient(baseURL, server.Client())
+	client := NewClient(baseURL, server.Client(), WithRequestRetrier(&RequestRetrier{MaxRetries: 1, ShouldRetryFunc: func(resp *http.Response) bool { return false }}))
 
 	ctx := testutils.ContextWithLogger(t)
 
-	resp, err := client.GET(ctx, "", RequestOptions{CustomRetrier: &RequestRetrier{
-		MaxRetries: 1,
-		ShouldRetryFunc: func(resp *http.Response) bool {
-			return resp.StatusCode != http.StatusOK
-		},
-	}})
+	resp, err := client.GET(ctx, "", RequestOptions{CustomShouldRetryFunc: func(resp *http.Response) bool { return resp.StatusCode != http.StatusOK }})
 	if err != nil {
 		t.Fatalf("failed to send GET request: %v", err)
 	}

@@ -39,9 +39,9 @@ type RequestOptions struct {
 	// will be overwritten for the particular request
 	ContentType string
 
-	// CustomRetrier is the request retrier to be used for the request, overriding
-	// the retrier specified for the client.
-	CustomRetrier *RequestRetrier
+	// CustomShouldRetryFunc optionally overrides the ShouldRetryFunc of
+	// the RequestRetrier specified for the client.
+	CustomShouldRetryFunc RetryFunc
 }
 
 // Option represents a functional Option for the Client.
@@ -163,11 +163,6 @@ func (c *Client) BaseURL() *url.URL {
 func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 
-	requestRetrier := c.requestRetrier
-	if options.CustomRetrier != nil {
-		requestRetrier = options.CustomRetrier
-	}
-
 	if c.rateLimiter != nil {
 		c.rateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
 	}
@@ -234,10 +229,18 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 		c.rateLimiter.Update(ctx, response.StatusCode, response.Header)
 	}
 
-	if requestRetrier != nil && requestRetrier.ShouldRetry(response, retryCount) {
-		logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, requestRetrier.DelayAfterRetry.Milliseconds(), retryCount+1, requestRetrier.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", requestRetrier.MaxRetries)
-		time.Sleep(requestRetrier.DelayAfterRetry)
-		return c.sendWithRetries(ctx, req, retryCount+1, options)
+	if c.requestRetrier != nil && retryCount < c.requestRetrier.MaxRetries {
+
+		shouldRetryFunc := c.requestRetrier.ShouldRetryFunc
+		if options.CustomShouldRetryFunc != nil {
+			shouldRetryFunc = options.CustomShouldRetryFunc
+		}
+
+		if (shouldRetryFunc != nil) && shouldRetryFunc(response) {
+			logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, c.requestRetrier.DelayAfterRetry.Milliseconds(), retryCount+1, c.requestRetrier.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", c.requestRetrier.MaxRetries)
+			time.Sleep(c.requestRetrier.DelayAfterRetry)
+			return c.sendWithRetries(ctx, req, retryCount+1, options)
+		}
 	}
 	return response, nil
 }
