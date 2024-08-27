@@ -33,8 +33,8 @@ func RetryIfNotSuccess(resp *http.Response) bool {
 	return !(resp.StatusCode >= 200 && resp.StatusCode <= 299)
 }
 
-// RetryIfStatusTooManyRequests return true for responses with status code Too Many Requests (429).
-func RetryIfStatusTooManyRequests(resp *http.Response) bool {
+// RetryIfTooManyRequests return true for responses with status code Too Many Requests (429).
+func RetryIfTooManyRequests(resp *http.Response) bool {
 	return resp.StatusCode == http.StatusTooManyRequests
 }
 
