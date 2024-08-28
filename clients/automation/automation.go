@@ -87,24 +87,8 @@ type ClientOption func(*Client)
 //
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (a Client) Get(ctx context.Context, resourceType automation.ResourceType, id string) (Response, error) {
-	resp, err := a.client.Get(ctx, resourceType, id)
-	if err != nil {
-		return Response{}, fmt.Errorf("failed to get automation resource of type %q with id %q: %w", resourceType, id, err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	if !rest.IsSuccess(resp) {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+func (a Client) Get(ctx context.Context, resourceType automation.ResourceType, id string) (*Response, error) {
+	return api.AsResponseOrError(a.client.Get(ctx, resourceType, id))
 }
 
 // Create creates a new automation object based on the specified resource type.
@@ -119,24 +103,8 @@ func (a Client) Get(ctx context.Context, resourceType automation.ResourceType, i
 //
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (a Client) Create(ctx context.Context, resourceType automation.ResourceType, data []byte) (result Response, err error) {
-	resp, err := a.client.Create(ctx, resourceType, data)
-	if err != nil {
-		return Response{}, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	if !rest.IsSuccess(resp) {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+func (a Client) Create(ctx context.Context, resourceType automation.ResourceType, data []byte) (*Response, error) {
+	return api.AsResponseOrError(a.client.Create(ctx, resourceType, data))
 }
 
 // Update updates an automation object based on the specified resource type and id
@@ -152,27 +120,11 @@ func (a Client) Create(ctx context.Context, resourceType automation.ResourceType
 //
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (a Client) Update(ctx context.Context, resourceType automation.ResourceType, id string, data []byte) (Response, error) {
+func (a Client) Update(ctx context.Context, resourceType automation.ResourceType, id string, data []byte) (*Response, error) {
 	if err := rmIDField(&data); err != nil {
-		return Response{}, fmt.Errorf("unable to remove id field from payload in order to update object with ID %s: %w", id, err)
+		return nil, fmt.Errorf("unable to remove id field from payload in order to update object with ID %s: %w", id, err)
 	}
-	resp, err := a.client.Update(ctx, resourceType, id, data)
-	if err != nil {
-		return Response{}, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	if !rest.IsSuccess(resp) {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+	return api.AsResponseOrError(a.client.Update(ctx, resourceType, id, data))
 }
 
 // List retrieves a list of automation objects of the specified resource
@@ -275,40 +227,25 @@ func (a Client) List(ctx context.Context, resourceType automation.ResourceType) 
 //
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (a Client) Upsert(ctx context.Context, resourceType automation.ResourceType, id string, data []byte) (result Response, err error) {
+func (a Client) Upsert(ctx context.Context, resourceType automation.ResourceType, id string, data []byte) (result *Response, err error) {
 	resp, err := a.Update(ctx, resourceType, id, data)
 	if err != nil {
 		var apiErr api.APIError
 		if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound {
 			return a.createWithID(ctx, resourceType, id, data)
 		}
-		return Response{}, err
+		return nil, err
 	}
 	return resp, nil
 }
 
-func (a Client) createWithID(ctx context.Context, resourceType automation.ResourceType, id string, data []byte) (Response, error) {
+func (a Client) createWithID(ctx context.Context, resourceType automation.ResourceType, id string, data []byte) (*Response, error) {
 	// make sure actual "id" field is set in payload
 	if err := setIDField(id, &data); err != nil {
-		return Response{}, fmt.Errorf("unable to set the id field in order to crate object with id %s: %w", id, err)
+		return nil, fmt.Errorf("unable to set the id field in order to crate object with id %s: %w", id, err)
 	}
 
-	resp, err := a.client.Create(ctx, resourceType, data)
-	if err != nil {
-		return Response{}, err
-	}
-	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	if !rest.IsSuccess(resp) {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+	return api.AsResponseOrError(a.client.Create(ctx, resourceType, data))
 }
 
 // Delete removes an automation object of the specified resource type by its unique identifier (ID).
@@ -325,23 +262,8 @@ func (a Client) createWithID(ctx context.Context, resourceType automation.Resour
 //
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (a Client) Delete(ctx context.Context, resourceType automation.ResourceType, id string) (Response, error) {
-	resp, err := a.client.Delete(ctx, resourceType, id)
-	if err != nil {
-		return Response{}, err
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	if !rest.IsSuccess(resp) {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+func (a Client) Delete(ctx context.Context, resourceType automation.ResourceType, id string) (*Response, error) {
+	return api.AsResponseOrError(a.client.Delete(ctx, resourceType, id))
 }
 
 func unmarshalJSONList(raw *http.Response) (listResponse, error) {
