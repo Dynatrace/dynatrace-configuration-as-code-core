@@ -21,14 +21,14 @@ import (
 
 type RetryFunc func(resp *http.Response) bool
 
-// RequestRetrier represents a component for retrying failed HTTP requests.
-type RequestRetrier struct {
+// RetryOptions represents a component for retrying failed HTTP requests.
+type RetryOptions struct {
 	DelayAfterRetry time.Duration
 	MaxRetries      int
 	ShouldRetryFunc RetryFunc
 }
 
-// RetryIfNotSuccess implements a basic retry function for a RequestRetrier which will retry on any non 2xx status code.
+// RetryIfNotSuccess is a basic retry function which will retry on any non 2xx status code.
 func RetryIfNotSuccess(resp *http.Response) bool {
 	return !(resp.StatusCode >= 200 && resp.StatusCode <= 299)
 }
