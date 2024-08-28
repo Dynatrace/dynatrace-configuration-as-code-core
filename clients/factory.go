@@ -62,7 +62,7 @@ type factory struct {
 	httpListener           *rest.HTTPListener        // The HTTP listener to be set
 	concurrentRequestLimit int                       // The number of allowed concurrent requests
 	rateLimiterEnabled     bool                      // Enables rate limiter for clients
-	requestRetrier         *rest.RequestRetrier      // The retry strategy
+	retryOptions           *rest.RetryOptions        // The retry strategy
 }
 
 // WithOAuthCredentials sets the OAuth2 client credentials configuration for the factory.
@@ -121,9 +121,9 @@ func (f factory) WithRateLimiter(enabled bool) factory {
 	return f
 }
 
-// WithRequestRetrier sets the RequestRetrier for the underlying rest/http client.
-func (f factory) WithRequestRetrier(requestRetrier *rest.RequestRetrier) factory {
-	f.requestRetrier = requestRetrier
+// WithRetryOptions sets the RetryOptions for the underlying rest/http clients.
+func (f factory) WithRetryOptions(retryOptions *rest.RetryOptions) factory {
+	f.retryOptions = retryOptions
 	return f
 }
 
@@ -231,8 +231,8 @@ func (f factory) createRestClient(u string, httpClient *http.Client) (*rest.Clie
 		opts = append(opts, rest.WithRateLimiter())
 	}
 
-	if f.requestRetrier != nil {
-		opts = append(opts, rest.WithRequestRetrier(f.requestRetrier))
+	if f.retryOptions != nil {
+		opts = append(opts, rest.WithRetryOptions(f.retryOptions))
 	}
 
 	restClient := rest.NewClient(parsedURL, httpClient, opts...)

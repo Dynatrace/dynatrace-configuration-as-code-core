@@ -45,10 +45,10 @@ func TestNewClient(t *testing.T) {
 	client = NewClient(baseURL, customHTTPClient)
 	assert.Equal(t, customHTTPClient, client.httpClient, "Expected custom HTTP client to be set")
 
-	// Test WithRequestRetrier
-	retrier := &RequestRetrier{}
-	client = NewClient(baseURL, nil, WithRequestRetrier(retrier))
-	assert.Equal(t, retrier, client.requestRetrier, "Expected RequestRetrier to be set")
+	// Test WithRetryOptions
+	opts := &RetryOptions{}
+	client = NewClient(baseURL, nil, WithRetryOptions(opts))
+	assert.Equal(t, opts, client.retryOptions, "Expected RetryOptions to be set")
 }
 
 func TestClient_CRUD(t *testing.T) {
@@ -310,7 +310,7 @@ func TestClient_WithRetries(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := NewClient(baseURL, nil, WithRequestRetrier(&RequestRetrier{
+	client := NewClient(baseURL, nil, WithRetryOptions(&RetryOptions{
 		MaxRetries: 1,
 		ShouldRetryFunc: func(resp *http.Response) bool {
 			return resp.StatusCode != http.StatusOK
@@ -653,7 +653,7 @@ func TestClient_WithRetriesAndRateLimit(t *testing.T) {
 
 	baseURL, _ := url.Parse(server.URL)
 	client := NewClient(baseURL, nil,
-		WithRequestRetrier(&RequestRetrier{
+		WithRetryOptions(&RetryOptions{
 			MaxRetries:      5,
 			ShouldRetryFunc: RetryIfNotSuccess,
 		}),
@@ -689,7 +689,7 @@ func TestClient_RequestOptionsQueryParams(t *testing.T) {
 	client.GET(ctx, "", RequestOptions{QueryParams: expectedQueryParams})
 }
 
-func TestClient_RequestOptionsCustomRetrier(t *testing.T) {
+func TestClient_RequestOptionsCustomShouldRetryFunc(t *testing.T) {
 	apiHits := 0
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		if apiHits == 0 {
@@ -702,16 +702,11 @@ func TestClient_RequestOptionsCustomRetrier(t *testing.T) {
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
-	client := NewClient(baseURL, server.Client())
+	client := NewClient(baseURL, server.Client(), WithRetryOptions(&RetryOptions{MaxRetries: 1, ShouldRetryFunc: func(resp *http.Response) bool { return false }}))
 
 	ctx := testutils.ContextWithLogger(t)
 
-	resp, err := client.GET(ctx, "", RequestOptions{CustomRetrier: &RequestRetrier{
-		MaxRetries: 1,
-		ShouldRetryFunc: func(resp *http.Response) bool {
-			return resp.StatusCode != http.StatusOK
-		},
-	}})
+	resp, err := client.GET(ctx, "", RequestOptions{CustomShouldRetryFunc: func(resp *http.Response) bool { return resp.StatusCode != http.StatusOK }})
 	if err != nil {
 		t.Fatalf("failed to send GET request: %v", err)
 	}

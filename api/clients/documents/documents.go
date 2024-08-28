@@ -138,7 +138,8 @@ func (c *Client) Delete(ctx context.Context, id string, version int) (*http.Resp
 	}
 
 	resp, err := c.client.DELETE(ctx, path, rest.RequestOptions{
-		QueryParams: map[string][]string{optimisticLockingHeader: {strconv.Itoa(version)}},
+		QueryParams:           map[string][]string{optimisticLockingHeader: {strconv.Itoa(version)}},
+		CustomShouldRetryFunc: rest.RetryOnFailureExcept404,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to delete object: %w", err)

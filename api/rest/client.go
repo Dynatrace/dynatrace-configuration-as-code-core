@@ -39,9 +39,9 @@ type RequestOptions struct {
 	// will be overwritten for the particular request
 	ContentType string
 
-	// CustomRetrier is the request retrier to be used for the request, overriding
-	// the retrier specified for the client.
-	CustomRetrier *RequestRetrier
+	// CustomShouldRetryFunc optionally overrides the ShouldRetryFunc of
+	// the RetryOptions specified for the client.
+	CustomShouldRetryFunc RetryFunc
 }
 
 // Option represents a functional Option for the Client.
@@ -61,10 +61,10 @@ func WithTimeout(timeout time.Duration) Option {
 	}
 }
 
-// WithRequestRetrier sets the RequestRetrier for the Client.
-func WithRequestRetrier(retrier *RequestRetrier) Option {
+// WithRetryOptions sets the RetryOptions for the Client.
+func WithRetryOptions(opts *RetryOptions) Option {
 	return func(c *Client) {
-		c.requestRetrier = retrier
+		c.retryOptions = opts
 	}
 }
 
@@ -80,7 +80,7 @@ func WithHTTPListener(listener *HTTPListener) Option {
 // reached. If the server should not reply with an X-RateLimit-Reset header, a default delay is enforced.
 // Note that a Client with RateLimiter will not automatically retry an API call after a limit was hit, but return the
 // Too Many Requests 429 Response to you.
-// If wish for the Client to retry on errors configure a RequestRetrier as well.
+// If the Client should retry on errors, configure RetryOptions as well.
 func WithRateLimiter() Option {
 	return func(c *Client) {
 		c.rateLimiter = NewRateLimiter()
@@ -95,7 +95,7 @@ type Client struct {
 
 	concurrentRequestLimiter *ConcurrentRequestLimiter // Concurrent request limiter component (optional)
 	timeout                  time.Duration             // Request timeout (optional)
-	requestRetrier           *RequestRetrier           // HTTP request retrier component (optional)
+	retryOptions             *RetryOptions             // Retry options (optional)
 	httpListener             *HTTPListener             // HTTP listener component (optional)
 	rateLimiter              *RateLimiter              // Rate limiter component (optional)
 }
@@ -163,11 +163,6 @@ func (c *Client) BaseURL() *url.URL {
 func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 
-	requestRetrier := c.requestRetrier
-	if options.CustomRetrier != nil {
-		requestRetrier = options.CustomRetrier
-	}
-
 	if c.rateLimiter != nil {
 		c.rateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
 	}
@@ -234,10 +229,18 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 		c.rateLimiter.Update(ctx, response.StatusCode, response.Header)
 	}
 
-	if requestRetrier != nil && requestRetrier.ShouldRetry(response, retryCount) {
-		logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, requestRetrier.DelayAfterRetry.Milliseconds(), retryCount+1, requestRetrier.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", requestRetrier.MaxRetries)
-		time.Sleep(requestRetrier.DelayAfterRetry)
-		return c.sendWithRetries(ctx, req, retryCount+1, options)
+	if c.retryOptions != nil && retryCount < c.retryOptions.MaxRetries {
+
+		shouldRetryFunc := c.retryOptions.ShouldRetryFunc
+		if options.CustomShouldRetryFunc != nil {
+			shouldRetryFunc = options.CustomShouldRetryFunc
+		}
+
+		if (shouldRetryFunc != nil) && shouldRetryFunc(response) {
+			logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, c.retryOptions.DelayAfterRetry.Milliseconds(), retryCount+1, c.retryOptions.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", c.retryOptions.MaxRetries)
+			time.Sleep(c.retryOptions.DelayAfterRetry)
+			return c.sendWithRetries(ctx, req, retryCount+1, options)
+		}
 	}
 	return response, nil
 }

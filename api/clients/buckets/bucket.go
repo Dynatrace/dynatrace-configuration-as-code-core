@@ -61,7 +61,7 @@ func NewClient(client *rest.Client) *Client {
 //   - Response: A Response containing the result of the HTTP call, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
 func (c Client) Create(ctx context.Context, data []byte) (*http.Response, error) {
-	r, err := c.client.POST(ctx, endpointPath, bytes.NewReader(data), rest.RequestOptions{})
+	r, err := c.client.POST(ctx, endpointPath, bytes.NewReader(data), rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new bucket: %w", err)
 	}
@@ -83,7 +83,7 @@ func (c Client) Get(ctx context.Context, bucketName string) (*http.Response, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to create URL: %w", err)
 	}
-	return c.client.GET(ctx, path, rest.RequestOptions{})
+	return c.client.GET(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 }
 
 // List all buckets, by making a HTTP GET request against the API.
@@ -95,7 +95,7 @@ func (c Client) Get(ctx context.Context, bucketName string) (*http.Response, err
 //   - Response: A Response containing the result of the HTTP call, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
 func (c Client) List(ctx context.Context) (*http.Response, error) {
-	return c.client.GET(ctx, endpointPath, rest.RequestOptions{})
+	return c.client.GET(ctx, endpointPath, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 }
 
 // Update a bucket by name, by making a HTTP PUT /<bucketName> request against the API.
@@ -116,7 +116,8 @@ func (c Client) Update(ctx context.Context, bucketName string, bucketVersion str
 	}
 
 	return c.client.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{
-		QueryParams: url.Values{"optimistic-locking-version": []string{bucketVersion}},
+		QueryParams:           url.Values{"optimistic-locking-version": []string{bucketVersion}},
+		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
 	})
 }
 
@@ -137,5 +138,5 @@ func (c Client) Delete(ctx context.Context, bucketName string) (*http.Response, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create URL: %w", err)
 	}
-	return c.client.DELETE(ctx, path, rest.RequestOptions{})
+	return c.client.DELETE(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 }
