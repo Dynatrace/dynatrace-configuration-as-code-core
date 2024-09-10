@@ -1,0 +1,66 @@
+package filtersegements
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
+	"net/http"
+	"net/url"
+)
+
+const endpointPath = "platform/storage/filter-segments/v0.1/filter-segments"
+
+type Client struct {
+	client *rest.Client
+}
+
+func NewClient(client *rest.Client) *Client {
+	c := &Client{
+		client: client,
+	}
+
+	return c
+}
+
+func (c Client) Create(ctx context.Context, data []byte) (*http.Response, error) {
+	r, err := c.client.POST(ctx, endpointPath, bytes.NewReader(data), rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new filter segment: %w", err)
+	}
+
+	return r, nil
+}
+
+func (c Client) Get(ctx context.Context, id string, ro rest.RequestOptions) (*http.Response, error) {
+	path, err := url.JoinPath(endpointPath, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create URL: %w", err)
+	}
+
+	return c.client.GET(ctx, path, ro)
+}
+
+func (c Client) List(ctx context.Context) (*http.Response, error) {
+	return c.client.GET(ctx, endpointPath, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+}
+
+func (c Client) Update(ctx context.Context, id string, data []byte, ro rest.RequestOptions) (*http.Response, error) {
+	path, err := url.JoinPath(endpointPath, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to join URL: %w", err)
+	}
+
+	return c.client.PUT(ctx, path, bytes.NewReader(data), ro)
+}
+
+func (c Client) Delete(ctx context.Context, id string) (*http.Response, error) {
+	if id == "" {
+		return nil, fmt.Errorf("id must be non-empty")
+	}
+	path, err := url.JoinPath(endpointPath, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create URL: %w", err)
+	}
+	return c.client.DELETE(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+}
