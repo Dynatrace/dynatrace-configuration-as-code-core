@@ -59,6 +59,14 @@ func AsResponseOrError(resp *http.Response, err error) (*Response, error) {
 	return &response, nil
 }
 
+func NewResponseFromHTTPResponse(resp *http.Response) Response {
+	return Response{
+		Header:     resp.Header,
+		StatusCode: resp.StatusCode,
+		Request:    NewRequestInfoFromRequest(resp.Request),
+	}
+}
+
 func NewResponseFromHTTPResponseAndBody(resp *http.Response, body []byte) Response {
 	return Response{
 		Header:     resp.Header,
@@ -190,8 +198,9 @@ func NewAPIErrorFromResponseAndBody(resp *http.Response, body []byte) APIError {
 func NewAPIErrorFromResponse(resp *http.Response) error {
 	apiErr := APIError{
 		StatusCode: resp.StatusCode,
-		Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
+		Request:    NewRequestInfoFromRequest(resp.Request),
 	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return errors.Join(apiErr, fmt.Errorf("unable to read API response body: %w", err))
