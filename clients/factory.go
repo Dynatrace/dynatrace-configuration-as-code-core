@@ -18,6 +18,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
+	"time"
+
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/auth"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/accounts"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
@@ -26,9 +30,6 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/openpipeline"
 	"golang.org/x/oauth2/clientcredentials"
-	"net/http"
-	"net/url"
-	"time"
 )
 
 // ErrOAuthCredentialsMissing indicates that no OAuth2 client credentials were provided.
@@ -226,7 +227,10 @@ func (f factory) createRestClient(u string, httpClient *http.Client) (*rest.Clie
 		return nil, fmt.Errorf("failed to parse URL %q: %w", u, err)
 	}
 
-	opts := []rest.Option{rest.WithHTTPListener(f.httpListener)}
+	opts := []rest.Option{
+		rest.WithHTTPListener(f.httpListener),
+		rest.WithConcurrentRequestLimit(f.concurrentRequestLimit),
+	}
 	if f.rateLimiterEnabled {
 		opts = append(opts, rest.WithRateLimiter())
 	}
