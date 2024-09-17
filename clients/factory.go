@@ -128,9 +128,17 @@ func (f factory) WithRetryOptions(retryOptions *rest.RetryOptions) factory {
 	return f
 }
 
-// AccountClient creates and reaturns a new instance of accounts.Client for interacting with the accounts API.
+// AccountClient creates and returns a new instance of accounts.Client for interacting with the accounts API.
 func (f factory) AccountClient() (*accounts.Client, error) {
-	restClient, err := f.createAccountClient()
+	if f.oauthConfig == nil {
+		return nil, ErrOAuthCredentialsMissing
+	}
+
+	if f.accountURL == "" {
+		return nil, ErrAccountURLMissing
+	}
+
+	restClient, err := f.createRestClient(f.accountURL, auth.NewOAuthBasedClient(context.TODO(), *(f.oauthConfig)))
 	if err != nil {
 		return nil, err
 	}
@@ -183,18 +191,6 @@ func (f factory) OpenPipelineClient() (*openpipeline.Client, error) {
 	return openpipeline.NewClient(restClient), nil
 }
 
-func (f factory) createAccountClient() (*rest.Client, error) {
-	if f.oauthConfig == nil {
-		return nil, ErrOAuthCredentialsMissing
-	}
-
-	if f.accountURL == "" {
-		return nil, ErrAccountURLMissing
-	}
-
-	return f.createRestClient(f.accountURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig))
-}
-
 // CreatePlatformClient creates a REST client configured for accessing platform APIs.
 func (f factory) CreatePlatformClient() (*rest.Client, error) {
 	if f.oauthConfig == nil {
@@ -227,6 +223,17 @@ func (f factory) createRestClient(u string, httpClient *http.Client) (*rest.Clie
 		return nil, fmt.Errorf("failed to parse URL %q: %w", u, err)
 	}
 
+	opts := f.restOptions()
+
+	restClient := rest.NewClient(parsedURL, httpClient, opts...)
+	if f.userAgent != "" {
+		restClient.SetHeader("User-Agent", f.userAgent)
+	}
+
+	return restClient, nil
+}
+
+func (f factory) restOptions() []rest.Option {
 	opts := []rest.Option{
 		rest.WithHTTPListener(f.httpListener),
 		rest.WithConcurrentRequestLimit(f.concurrentRequestLimit),
@@ -238,11 +245,5 @@ func (f factory) createRestClient(u string, httpClient *http.Client) (*rest.Clie
 	if f.retryOptions != nil {
 		opts = append(opts, rest.WithRetryOptions(f.retryOptions))
 	}
-
-	restClient := rest.NewClient(parsedURL, httpClient, opts...)
-	if f.userAgent != "" {
-		restClient.SetHeader("User-Agent", f.userAgent)
-	}
-
-	return restClient, nil
+	return opts
 }
