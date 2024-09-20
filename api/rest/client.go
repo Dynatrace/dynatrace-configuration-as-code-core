@@ -117,7 +117,7 @@ func NewClient(baseURL *url.URL, httpClient *http.Client, opts ...Option) *Clien
 
 // Do executes the given request and returns a raw *http.Response
 func (c *Client) Do(req *http.Request) (*http.Response, error) {
-	return c.sendWithRetries(req.Context(), req, 0, RequestOptions{})
+	return c.acquireLockAndSendWithRetries(req.Context(), req, 0, RequestOptions{})
 }
 
 // GET sends a GET request to the specified endpoint.
@@ -160,17 +160,21 @@ func (c *Client) BaseURL() *url.URL {
 	return c.baseURL
 }
 
-func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
-	logger := logr.FromContextOrDiscard(ctx)
-
-	if c.rateLimiter != nil {
-		c.rateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
-	}
+func (c *Client) acquireLockAndSendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
 
 	// Apply concurrent request limiting if concurrentRequestLimiter is set
 	if c.concurrentRequestLimiter != nil {
 		c.concurrentRequestLimiter.Acquire()
 		defer c.concurrentRequestLimiter.Release()
+	}
+
+	return c.sendWithRetries(ctx, req, retryCount, options)
+}
+
+func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
+	logger := logr.FromContextOrDiscard(ctx)
+	if c.rateLimiter != nil {
+		c.rateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
 	}
 
 	// Set Content-Type header accordingly
@@ -257,7 +261,7 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		return nil, err
 	}
 
-	return c.sendWithRetries(ctx, req, 0, options)
+	return c.acquireLockAndSendWithRetries(ctx, req, 0, options)
 }
 
 func isConnectionResetErr(err error) bool {
