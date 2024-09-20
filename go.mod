@@ -1,6 +1,6 @@
-go 1.22
-
 module github.com/dynatrace/dynatrace-configuration-as-code-core
+
+go 1.22.7
 
 require (
 	github.com/go-logr/logr v1.4.2
