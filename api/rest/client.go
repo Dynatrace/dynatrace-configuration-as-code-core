@@ -16,6 +16,7 @@
 package rest
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -203,7 +204,11 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 	}
 	if c.httpListener != nil {
 		reqID = uuid.NewString()
-		c.httpListener.onRequest(reqID, req)
+		cpReq, err := cpReq(req)
+		if err != nil {
+			return nil, err
+		}
+		c.httpListener.onRequest(reqID, cpReq)
 	}
 
 	response, err := c.httpClient.Do(req)
@@ -225,7 +230,11 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 	}
 
 	if c.httpListener != nil {
-		c.httpListener.onResponse(reqID, response, nil)
+		cpResp, err := cpResp(response)
+		if err != nil {
+			return nil, err
+		}
+		c.httpListener.onResponse(reqID, cpResp, nil)
 	}
 
 	// Update the rate limiter with the response headers
@@ -272,4 +281,47 @@ func isConnectionResetErr(err error) bool {
 		return true
 	}
 	return false
+}
+
+func cpResp(resp *http.Response) (*http.Response, error) {
+	var bodyCopy bytes.Buffer
+	if resp.Body != nil {
+		tee := io.TeeReader(resp.Body, &bodyCopy)
+		_, err := io.ReadAll(tee)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	newResp := new(http.Response)
+	*newResp = *resp
+
+	newResp.Body = io.NopCloser(bytes.NewReader(bodyCopy.Bytes()))
+
+	if resp.Body != nil {
+		resp.Body = io.NopCloser(bytes.NewReader(bodyCopy.Bytes()))
+	}
+
+	return newResp, nil
+}
+
+func cpReq(req *http.Request) (*http.Request, error) {
+	var bodyCopy bytes.Buffer
+	if req.Body != nil {
+		tee := io.TeeReader(req.Body, &bodyCopy)
+		_, err := io.ReadAll(tee)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	newReq := req.Clone(req.Context())
+
+	newReq.Body = io.NopCloser(bytes.NewReader(bodyCopy.Bytes()))
+
+	if req.Body != nil {
+		req.Body = io.NopCloser(bytes.NewReader(bodyCopy.Bytes()))
+	}
+
+	return newReq, nil
 }
