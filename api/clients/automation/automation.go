@@ -102,7 +102,7 @@ func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (
 	}
 
 	return a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (*http.Response, error) {
-		return a.client.GET(ctx, path, rest.RequestOptions{})
+		return a.client.GET(ctx, path, options)
 	})
 
 }

@@ -51,6 +51,11 @@ func TestAutomationClient_Get(t *testing.T) {
 						ResponseBody: payload,
 					}
 				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					adminAccessQP := req.URL.Query()["adminAccess"]
+					assert.Len(t, adminAccessQP, 1)
+					assert.Equal(t, "true", adminAccessQP[0])
+				},
 			},
 		}
 
