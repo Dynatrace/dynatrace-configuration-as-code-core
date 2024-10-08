@@ -22,10 +22,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/openpipeline"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/go-logr/logr"
-	"io"
 )
-
-const bodyReadErrMsg = "unable to read API response body"
 
 type Response = api.Response
 
@@ -47,44 +44,21 @@ type Client struct {
 	client *openpipeline.Client
 }
 
-func (c Client) Get(ctx context.Context, id string) (Response, error) {
-	resp, err := c.client.Get(ctx, id, rest.RequestOptions{})
-	if err != nil {
-		return Response{}, fmt.Errorf("failed to get openpipeline resource of type id %q: %w", id, err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	if !rest.IsSuccess(resp) {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+func (c Client) Get(ctx context.Context, id string) (*Response, error) {
+	return api.AsResponseOrError(c.client.Get(ctx, id, rest.RequestOptions{}))
 }
 
 func (c Client) List(ctx context.Context) ([]ListResponse, error) {
-	resp, err := c.client.List(ctx, rest.RequestOptions{})
+	resp, err := api.AsResponseOrError(c.client.List(ctx, rest.RequestOptions{}))
 	if err != nil {
-		return nil, fmt.Errorf("failed to list openpipeline resources: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return nil, api.NewAPIErrorFromResponseAndBody(resp, body)
+		return nil, err
 	}
 
 	var resources []ListResponse
-	err = json.Unmarshal(body, &resources)
+	err = json.Unmarshal(resp.Data, &resources)
 	if err != nil {
 		logr.FromContextOrDiscard(ctx).Error(err, "failed to unmarshal json response")
-		return nil, api.NewAPIErrorFromResponseAndBody(resp, body)
+		return nil, fmt.Errorf("failed to unmarshal json response: %w", err)
 	}
 	return resources, nil
 }
@@ -101,50 +75,34 @@ func (c Client) GetAll(ctx context.Context) ([]Response, error) {
 		if err != nil {
 			return nil, err
 		}
-		resources = append(resources, rr)
+		resources = append(resources, *rr)
 	}
 	return resources, nil
 }
 
-func (c Client) Update(ctx context.Context, id string, data []byte) (Response, error) {
+func (c Client) Update(ctx context.Context, id string, data []byte) (*Response, error) {
 	getResp, err := c.Get(ctx, id)
 	if err != nil {
-		return Response{}, err
+		return nil, err
 	}
 
 	var m map[string]interface{}
 	err = json.Unmarshal(getResp.Data, &m)
 	if err != nil {
-		return Response{}, err
+		return nil, err
 	}
 
 	var d map[string]interface{}
 	err = json.Unmarshal(data, &d)
 	if err != nil {
-		return Response{}, err
+		return nil, err
 	}
 
 	d["version"] = m["version"]
 	data, err = json.Marshal(d)
 	if err != nil {
-		return Response{}, fmt.Errorf("unable to marshal data: %w", err)
+		return nil, fmt.Errorf("unable to marshal data: %w", err)
 	}
 
-	resp, err := c.client.Update(ctx, id, data, rest.RequestOptions{})
-	if err != nil {
-		return Response{}, fmt.Errorf("failed to list openpipeline resources: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	if !rest.IsSuccess(resp) {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+	return api.AsResponseOrError(c.client.Update(ctx, id, data, rest.RequestOptions{}))
 }
