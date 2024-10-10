@@ -94,7 +94,6 @@ func (rl *RateLimiter) Update(ctx context.Context, status int, headers http.Head
 		rl.resetTimeout = &rt
 		ra := rl.Clock.Now().Add(defaultTimeout)
 		rl.resetAt = &ra
-
 		return
 	}
 
@@ -120,13 +119,12 @@ func extractLimit(header http.Header) (rate.Limit, error) {
 // As Dynatrace APIs don't return a time delta, but a Unix timestamp this will return a reset timestamp in server time.
 func extractTimeout(header http.Header) (time.Time, error) {
 	rstr := header.Get(resetHeader)
-	resetMicros, err := strconv.ParseInt(rstr, 10, 64)
+	reset, err := strconv.ParseInt(rstr, 10, 64)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("failed to parse header %q with value %q: %w", resetHeader, rstr, err)
 	}
 
-	reset := time.UnixMicro(resetMicros)
-	return reset, nil
+	return time.Unix(reset, 0), nil
 }
 
 // Wait blocks in case a hard API limit was reached, or the request/second limit was exceeded.

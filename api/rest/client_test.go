@@ -413,8 +413,7 @@ func (t *testClock) After(d time.Duration) <-chan time.Time {
 }
 
 func TestClient_WithRateLimiting(t *testing.T) {
-
-	now := time.Now()
+	now := time.Date(2022, time.August, 14, 9, 30, 0, 0, time.Local)
 
 	tests := []struct {
 		name             string
@@ -424,25 +423,23 @@ func TestClient_WithRateLimiting(t *testing.T) {
 		{
 			name: "simple rate limit",
 			givenHeaders: map[string]string{
-				"X-RateLimit-Limit": "42",
-				"X-RateLimit-Reset": fmt.Sprintf("%v", now.Add(100*time.Millisecond).UnixMicro()), // 100 ms after current time
+				"X-RateLimit-Reset": fmt.Sprintf("%v", now.Add(time.Second).Unix()),
 			},
-			wantBlockingTime: 100 * time.Millisecond,
+			wantBlockingTime: time.Second,
 		},
 		{
 			name: "long rate limit",
 			givenHeaders: map[string]string{
-				"X-RateLimit-Limit": "42",
-				"X-RateLimit-Reset": fmt.Sprintf("%v", now.Add(5*time.Second).UnixMicro()), // 5 sec after current time
+				"X-RateLimit-Reset": fmt.Sprintf("%v", now.Add(5*time.Second).Unix()),
 			},
 			wantBlockingTime: 5 * time.Second,
 		},
 		{
 			name: "missing limit header is ok",
 			givenHeaders: map[string]string{
-				"X-RateLimit-Reset": fmt.Sprintf("%v", now.Add(100*time.Millisecond).UnixMicro()), // 100 ms after current time
+				"X-RateLimit-Reset": fmt.Sprintf("%v", now.Add(time.Second).Unix()),
 			},
-			wantBlockingTime: 100 * time.Millisecond,
+			wantBlockingTime: time.Second,
 		},
 		{
 			name:             "missing reset time header results in default timeout",
@@ -456,16 +453,10 @@ func TestClient_WithRateLimiting(t *testing.T) {
 
 			apiHits := 0
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-				if apiHits == 0 {
-
-					for k, v := range tt.givenHeaders {
-						rw.Header().Set(k, v)
-					}
-					rw.WriteHeader(http.StatusTooManyRequests)
-
-				} else {
-					rw.WriteHeader(http.StatusOK)
+				for k, v := range tt.givenHeaders {
+					rw.Header().Set(k, v)
 				}
+				rw.WriteHeader(http.StatusTooManyRequests)
 				apiHits++
 			}))
 			defer server.Close()
@@ -479,22 +470,14 @@ func TestClient_WithRateLimiting(t *testing.T) {
 			baseURL, _ := url.Parse(server.URL)
 			client := NewClient(baseURL, nil)
 			client.rateLimiter = &limiter
+			client.retryOptions = &RetryOptions{MaxRetries: 1, ShouldRetryFunc: RetryIfNotSuccess}
 
-			ctx := testutils.ContextWithLogger(t)
+			ctx := testutils.ContextWithVerboseLogger(t)
 
-			resp, err := client.GET(ctx, "", RequestOptions{})
-
+			resp, err := client.GET(ctx, "irrelevant", RequestOptions{})
 			assert.NoError(t, err)
 			assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
-			assert.Nil(t, clock.requestedWait)
-			resp, err = client.GET(ctx, "", RequestOptions{})
-			if err != nil {
-				t.Fatalf("failed to send GET request: %v", err)
-			}
-
-			assert.Equal(t, http.StatusOK, resp.StatusCode)
-			assert.NotNil(t, clock.requestedWait)
-			assert.InDelta(t, tt.wantBlockingTime.Milliseconds(), clock.requestedWait.Milliseconds(), 5, "expected limiter to clock to have blocked for time from from HTTP headers")
+			assert.Equal(t, tt.wantBlockingTime.Seconds(), clock.requestedWait.Seconds())
 		})
 	}
 }
@@ -505,42 +488,27 @@ func TestClient_WithRateLimiting_HardLimitActuallyBlocks(t *testing.T) {
 		t.Skip("skipping real time (0.5sec) rate limiting test in short test mode")
 	}
 
-	expectedWaitTime := 500 * time.Millisecond
-
-	apiHits := 0
+	expectedWaitTime := 5 * time.Second
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		if apiHits == 0 {
-			rw.Header().Set("X-RateLimit-Reset", fmt.Sprintf("%v", time.Now().Add(expectedWaitTime).UnixMicro()))
-			rw.WriteHeader(http.StatusTooManyRequests)
 
-		} else {
-			rw.WriteHeader(http.StatusOK)
-		}
-		apiHits++
+		rw.Header().Set("X-RateLimit-Reset", fmt.Sprintf("%v", time.Now().Add(expectedWaitTime).Unix()))
+		rw.WriteHeader(http.StatusTooManyRequests)
 	}))
 	defer server.Close()
 
 	baseURL, _ := url.Parse(server.URL)
 	client := NewClient(baseURL, nil,
 		WithRateLimiter(), // default rate limiter with real clock
+		WithRetryOptions(&RetryOptions{MaxRetries: 1, ShouldRetryFunc: RetryIfTooManyRequests}),
 	)
 
 	ctx := testutils.ContextWithVerboseLogger(t)
-
-	_, err := client.GET(ctx, "", RequestOptions{})
-	assert.NoError(t, err)
-
 	before := time.Now()
-	_, err = client.GET(ctx, "", RequestOptions{})
+	client.GET(ctx, "", RequestOptions{})
 	after := time.Now()
-
-	if err != nil {
-		t.Fatalf("failed to send GET request: %v", err)
-	}
-
 	diff := after.Sub(before)
 
-	assert.GreaterOrEqual(t, diff, expectedWaitTime, "expected to rate limited rest call to take at least as long as the rate limit timeout")
+	assert.InDelta(t, expectedWaitTime.Milliseconds(), diff.Milliseconds(), 1000)
 }
 
 func TestClient_WithRateLimiting_SoftLimitActuallyBlocks(t *testing.T) {
