@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -20,23 +21,26 @@ var _ MappedNullable = &Event{}
 
 // Event struct for Event
 type Event struct {
-	// The UUID of the environment that threw the event.
+	// The UUID of the environment that raised the event.
 	EnvironmentUuid string `json:"environmentUuid"`
-	// The subscription capability name.
+	// The subscription capability that raised the event.
 	Capability string `json:"capability"`
-	// The date the event was fired in `2021-05-01T15:11:00Z` format.
+	// The time when the event was raised, in `2021-05-01T15:11:00Z` format.
 	Date time.Time `json:"date"`
-	// The date the notification was created in `2021-05-01T15:11:00Z` format.
+	// The time when the notification was created, in `2021-05-01T15:11:00Z` format.
 	CreatedAt time.Time `json:"createdAt"`
-	// The severity of the even.
+	// The severity of the event.
 	Severity string `json:"severity"`
 	// The message from the event.
 	Message string `json:"message"`
-	// The type of event: Forecast or usage.
+	// The type of event: forecast or usage.
 	EventType string `json:"eventType"`
 	// The notification level of the event.
-	NotificationLevel string `json:"notificationLevel"`
+	NotificationLevel    string `json:"notificationLevel"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _Event Event
 
 // NewEvent instantiates a new Event object
 // This constructor will assign default values to properties that have it defined,
@@ -273,7 +277,68 @@ func (o Event) ToMap() (map[string]interface{}, error) {
 	toSerialize["message"] = o.Message
 	toSerialize["eventType"] = o.EventType
 	toSerialize["notificationLevel"] = o.NotificationLevel
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *Event) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"environmentUuid",
+		"capability",
+		"date",
+		"createdAt",
+		"severity",
+		"message",
+		"eventType",
+		"notificationLevel",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varEvent := _Event{}
+
+	err = json.Unmarshal(data, &varEvent)
+
+	if err != nil {
+		return err
+	}
+
+	*o = Event(varEvent)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "environmentUuid")
+		delete(additionalProperties, "capability")
+		delete(additionalProperties, "date")
+		delete(additionalProperties, "createdAt")
+		delete(additionalProperties, "severity")
+		delete(additionalProperties, "message")
+		delete(additionalProperties, "eventType")
+		delete(additionalProperties, "notificationLevel")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableEvent struct {

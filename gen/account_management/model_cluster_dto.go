@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the ClusterDto type satisfies the MappedNullable interface at compile time
@@ -20,8 +21,11 @@ var _ MappedNullable = &ClusterDto{}
 // ClusterDto struct for ClusterDto
 type ClusterDto struct {
 	// The UUID of the cluster.
-	ClusterId string `json:"clusterId"`
+	ClusterId            string `json:"clusterId"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _ClusterDto ClusterDto
 
 // NewClusterDto instantiates a new ClusterDto object
 // This constructor will assign default values to properties that have it defined,
@@ -76,7 +80,54 @@ func (o ClusterDto) MarshalJSON() ([]byte, error) {
 func (o ClusterDto) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["clusterId"] = o.ClusterId
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *ClusterDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"clusterId",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varClusterDto := _ClusterDto{}
+
+	err = json.Unmarshal(data, &varClusterDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = ClusterDto(varClusterDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "clusterId")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableClusterDto struct {

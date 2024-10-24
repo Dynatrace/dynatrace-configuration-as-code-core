@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the Condition type satisfies the MappedNullable interface at compile time
@@ -24,8 +25,11 @@ type Condition struct {
 	// The operator of the condition.
 	Operator string `json:"operator"`
 	// A list of reference values of the condition.
-	Values []string `json:"values"`
+	Values               []string `json:"values"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _Condition Condition
 
 // NewCondition instantiates a new Condition object
 // This constructor will assign default values to properties that have it defined,
@@ -132,7 +136,58 @@ func (o Condition) ToMap() (map[string]interface{}, error) {
 	toSerialize["name"] = o.Name
 	toSerialize["operator"] = o.Operator
 	toSerialize["values"] = o.Values
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *Condition) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"name",
+		"operator",
+		"values",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varCondition := _Condition{}
+
+	err = json.Unmarshal(data, &varCondition)
+
+	if err != nil {
+		return err
+	}
+
+	*o = Condition(varCondition)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "name")
+		delete(additionalProperties, "operator")
+		delete(additionalProperties, "values")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableCondition struct {

@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the SubscriptionEnvironmentUsageV2Dto type satisfies the MappedNullable interface at compile time
@@ -19,11 +20,14 @@ var _ MappedNullable = &SubscriptionEnvironmentUsageV2Dto{}
 
 // SubscriptionEnvironmentUsageV2Dto struct for SubscriptionEnvironmentUsageV2Dto
 type SubscriptionEnvironmentUsageV2Dto struct {
-	// The id of the environment
+	// The UUID of the environment
 	EnvironmentId string `json:"environmentId"`
 	// A list of subscription usage for the environment.
-	Usage []SubscriptionUsageDto `json:"usage"`
+	Usage                []SubscriptionUsageDto `json:"usage"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _SubscriptionEnvironmentUsageV2Dto SubscriptionEnvironmentUsageV2Dto
 
 // NewSubscriptionEnvironmentUsageV2Dto instantiates a new SubscriptionEnvironmentUsageV2Dto object
 // This constructor will assign default values to properties that have it defined,
@@ -104,7 +108,56 @@ func (o SubscriptionEnvironmentUsageV2Dto) ToMap() (map[string]interface{}, erro
 	toSerialize := map[string]interface{}{}
 	toSerialize["environmentId"] = o.EnvironmentId
 	toSerialize["usage"] = o.Usage
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *SubscriptionEnvironmentUsageV2Dto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"environmentId",
+		"usage",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varSubscriptionEnvironmentUsageV2Dto := _SubscriptionEnvironmentUsageV2Dto{}
+
+	err = json.Unmarshal(data, &varSubscriptionEnvironmentUsageV2Dto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = SubscriptionEnvironmentUsageV2Dto(varSubscriptionEnvironmentUsageV2Dto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "environmentId")
+		delete(additionalProperties, "usage")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableSubscriptionEnvironmentUsageV2Dto struct {

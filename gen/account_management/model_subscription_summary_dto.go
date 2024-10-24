@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the SubscriptionSummaryDto type satisfies the MappedNullable interface at compile time
@@ -25,15 +26,18 @@ type SubscriptionSummaryDto struct {
 	Type string `json:"type"`
 	// The sub-type of the Dynatrace Platform Subscription.
 	SubType string `json:"subType"`
-	// The name of the Dynatrace Platform Subscription.
+	// The display name of the Dynatrace Platform Subscription.
 	Name string `json:"name"`
 	// The status of the Dynatrace Platform Subscription.
 	Status string `json:"status"`
 	// The start date of the subscription in `2021-05-01` format.
 	StartTime string `json:"startTime"`
 	// The end date of the subscription in `2021-05-01` format.
-	EndTime string `json:"endTime"`
+	EndTime              string `json:"endTime"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _SubscriptionSummaryDto SubscriptionSummaryDto
 
 // NewSubscriptionSummaryDto instantiates a new SubscriptionSummaryDto object
 // This constructor will assign default values to properties that have it defined,
@@ -244,7 +248,66 @@ func (o SubscriptionSummaryDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["status"] = o.Status
 	toSerialize["startTime"] = o.StartTime
 	toSerialize["endTime"] = o.EndTime
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *SubscriptionSummaryDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"uuid",
+		"type",
+		"subType",
+		"name",
+		"status",
+		"startTime",
+		"endTime",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varSubscriptionSummaryDto := _SubscriptionSummaryDto{}
+
+	err = json.Unmarshal(data, &varSubscriptionSummaryDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = SubscriptionSummaryDto(varSubscriptionSummaryDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "uuid")
+		delete(additionalProperties, "type")
+		delete(additionalProperties, "subType")
+		delete(additionalProperties, "name")
+		delete(additionalProperties, "status")
+		delete(additionalProperties, "startTime")
+		delete(additionalProperties, "endTime")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableSubscriptionSummaryDto struct {

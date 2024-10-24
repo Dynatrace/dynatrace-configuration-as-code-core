@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the PermissionsGroupDto type satisfies the MappedNullable interface at compile time
@@ -27,15 +28,18 @@ type PermissionsGroupDto struct {
 	Description *string `json:"description,omitempty"`
 	// A list of values associating this group with the corresponding claim from an identity provider.
 	FederatedAttributeValues []string `json:"federatedAttributeValues,omitempty"`
-	// The identity provider from which the group originates.
+	// The type of the group. `LOCAL`, `SCIM`, `SAML` and `DCS` corresponds to the identity provider from which the group originates. `ALL_USERS` is a special case of `LOCAL` group. It means that group is always assigned to all users in the account.
 	Owner string `json:"owner"`
 	// The date and time of the group creation in `2021-05-01T15:11:00Z` format.
 	CreatedAt string `json:"createdAt"`
 	// The date and time of the most recent group modification in `2021-05-01T15:11:00Z` format.
 	UpdatedAt string `json:"updatedAt"`
 	// A list of permissions assigned to the group.
-	Permissions []PermissionsDto `json:"permissions"`
+	Permissions          []PermissionsDto `json:"permissions"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _PermissionsGroupDto PermissionsGroupDto
 
 // NewPermissionsGroupDto instantiates a new PermissionsGroupDto object
 // This constructor will assign default values to properties that have it defined,
@@ -299,7 +303,65 @@ func (o PermissionsGroupDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["createdAt"] = o.CreatedAt
 	toSerialize["updatedAt"] = o.UpdatedAt
 	toSerialize["permissions"] = o.Permissions
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *PermissionsGroupDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"name",
+		"owner",
+		"createdAt",
+		"updatedAt",
+		"permissions",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varPermissionsGroupDto := _PermissionsGroupDto{}
+
+	err = json.Unmarshal(data, &varPermissionsGroupDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = PermissionsGroupDto(varPermissionsGroupDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "uuid")
+		delete(additionalProperties, "name")
+		delete(additionalProperties, "description")
+		delete(additionalProperties, "federatedAttributeValues")
+		delete(additionalProperties, "owner")
+		delete(additionalProperties, "createdAt")
+		delete(additionalProperties, "updatedAt")
+		delete(additionalProperties, "permissions")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullablePermissionsGroupDto struct {

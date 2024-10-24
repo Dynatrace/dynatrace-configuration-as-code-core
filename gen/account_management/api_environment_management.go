@@ -36,7 +36,7 @@ func (r ApiGetClustersRequest) Execute() (*ClusterListDto, *http.Response, error
 GetClusters Lists all clusters in a managed account
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
+	@param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
 	@return ApiGetClustersRequest
 */
 func (a *EnvironmentManagementAPIService) GetClusters(ctx context.Context, accountUuid string) ApiGetClustersRequest {
@@ -124,6 +124,112 @@ func (a *EnvironmentManagementAPIService) GetClustersExecute(r ApiGetClustersReq
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
+type ApiGetConfigRequest struct {
+	ctx             context.Context
+	ApiService      *EnvironmentManagementAPIService
+	accountUuid     string
+	environmentUuid string
+}
+
+func (r ApiGetConfigRequest) Execute() (*IpConfigDto, *http.Response, error) {
+	return r.ApiService.GetConfigExecute(r)
+}
+
+/*
+GetConfig Get IP configuration for a specific tenant
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param accountUuid
+	@param environmentUuid
+	@return ApiGetConfigRequest
+*/
+func (a *EnvironmentManagementAPIService) GetConfig(ctx context.Context, accountUuid string, environmentUuid string) ApiGetConfigRequest {
+	return ApiGetConfigRequest{
+		ApiService:      a,
+		ctx:             ctx,
+		accountUuid:     accountUuid,
+		environmentUuid: environmentUuid,
+	}
+}
+
+// Execute executes the request
+//
+//	@return IpConfigDto
+func (a *EnvironmentManagementAPIService) GetConfigExecute(r ApiGetConfigRequest) (*IpConfigDto, *http.Response, error) {
+	var (
+		localVarHTTPMethod  = http.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *IpConfigDto
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "EnvironmentManagementAPIService.GetConfig")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/env/v1/accounts/{accountUuid}/environments/{environmentUuid}/ip-allowlist"
+	localVarPath = strings.Replace(localVarPath, "{"+"accountUuid"+"}", url.PathEscape(parameterValueToString(r.accountUuid, "accountUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"environmentUuid"+"}", url.PathEscape(parameterValueToString(r.environmentUuid, "environmentUuid")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
 type ApiGetEnvironmentResourcesRequest struct {
 	ctx         context.Context
 	ApiService  *EnvironmentManagementAPIService
@@ -138,7 +244,7 @@ func (r ApiGetEnvironmentResourcesRequest) Execute() (*EnvironmentResourceDto, *
 GetEnvironmentResources Lists all environments and management zones of an account
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
+	@param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
 	@return ApiGetEnvironmentResourcesRequest
 */
 func (a *EnvironmentManagementAPIService) GetEnvironmentResources(ctx context.Context, accountUuid string) ApiGetEnvironmentResourcesRequest {
@@ -240,7 +346,7 @@ func (r ApiGetEnvironmentsRequest) Execute() (*EnvironmentListDto, *http.Respons
 GetEnvironments Lists all environments in an account
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
+	@param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
 	@return ApiGetEnvironmentsRequest
 */
 func (a *EnvironmentManagementAPIService) GetEnvironments(ctx context.Context, accountUuid string) ApiGetEnvironmentsRequest {
@@ -326,4 +432,110 @@ func (a *EnvironmentManagementAPIService) GetEnvironmentsExecute(r ApiGetEnviron
 	}
 
 	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiSetConfigRequest struct {
+	ctx             context.Context
+	ApiService      *EnvironmentManagementAPIService
+	accountUuid     string
+	environmentUuid string
+	ipConfigDto     *IpConfigDto
+}
+
+// The body of the request. Contains the key and serialized value for setting a ip config for a specific tenant on a specific cluster.
+func (r ApiSetConfigRequest) IpConfigDto(ipConfigDto IpConfigDto) ApiSetConfigRequest {
+	r.ipConfigDto = &ipConfigDto
+	return r
+}
+
+func (r ApiSetConfigRequest) Execute() (*http.Response, error) {
+	return r.ApiService.SetConfigExecute(r)
+}
+
+/*
+SetConfig Set IP configuration for a specific tenant
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param accountUuid
+	@param environmentUuid
+	@return ApiSetConfigRequest
+*/
+func (a *EnvironmentManagementAPIService) SetConfig(ctx context.Context, accountUuid string, environmentUuid string) ApiSetConfigRequest {
+	return ApiSetConfigRequest{
+		ApiService:      a,
+		ctx:             ctx,
+		accountUuid:     accountUuid,
+		environmentUuid: environmentUuid,
+	}
+}
+
+// Execute executes the request
+func (a *EnvironmentManagementAPIService) SetConfigExecute(r ApiSetConfigRequest) (*http.Response, error) {
+	var (
+		localVarHTTPMethod = http.MethodPut
+		localVarPostBody   interface{}
+		formFiles          []formFile
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "EnvironmentManagementAPIService.SetConfig")
+	if err != nil {
+		return nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/env/v1/accounts/{accountUuid}/environments/{environmentUuid}/ip-allowlist"
+	localVarPath = strings.Replace(localVarPath, "{"+"accountUuid"+"}", url.PathEscape(parameterValueToString(r.accountUuid, "accountUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"environmentUuid"+"}", url.PathEscape(parameterValueToString(r.environmentUuid, "environmentUuid")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.ipConfigDto == nil {
+		return nil, reportError("ipConfigDto is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	// body params
+	localVarPostBody = r.ipConfigDto
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarHTTPResponse, newErr
+	}
+
+	return localVarHTTPResponse, nil
 }

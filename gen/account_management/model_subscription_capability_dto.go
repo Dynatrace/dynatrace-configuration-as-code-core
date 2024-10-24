@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the SubscriptionCapabilityDto type satisfies the MappedNullable interface at compile time
@@ -19,11 +20,14 @@ var _ MappedNullable = &SubscriptionCapabilityDto{}
 
 // SubscriptionCapabilityDto struct for SubscriptionCapabilityDto
 type SubscriptionCapabilityDto struct {
-	// The subscription capability key
+	// The key of the subscription capability.
 	Key string `json:"key"`
-	// The subscription capability name
-	Name string `json:"name"`
+	// The display name of the subscription capability.
+	Name                 string `json:"name"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _SubscriptionCapabilityDto SubscriptionCapabilityDto
 
 // NewSubscriptionCapabilityDto instantiates a new SubscriptionCapabilityDto object
 // This constructor will assign default values to properties that have it defined,
@@ -104,7 +108,56 @@ func (o SubscriptionCapabilityDto) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["key"] = o.Key
 	toSerialize["name"] = o.Name
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *SubscriptionCapabilityDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"key",
+		"name",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varSubscriptionCapabilityDto := _SubscriptionCapabilityDto{}
+
+	err = json.Unmarshal(data, &varSubscriptionCapabilityDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = SubscriptionCapabilityDto(varSubscriptionCapabilityDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "key")
+		delete(additionalProperties, "name")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableSubscriptionCapabilityDto struct {

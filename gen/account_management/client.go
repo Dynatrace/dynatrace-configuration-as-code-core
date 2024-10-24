@@ -48,6 +48,8 @@ type APIClient struct {
 
 	// API Services
 
+	AccountSettingsAPI *AccountSettingsAPIService
+
 	DynatracePlatformSubscriptionAPI *DynatracePlatformSubscriptionAPIService
 
 	EnvironmentManagementAPI *EnvironmentManagementAPIService
@@ -81,6 +83,7 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.common.client = c
 
 	// API Services
+	c.AccountSettingsAPI = (*AccountSettingsAPIService)(&c.common)
 	c.DynatracePlatformSubscriptionAPI = (*DynatracePlatformSubscriptionAPIService)(&c.common)
 	c.EnvironmentManagementAPI = (*EnvironmentManagementAPIService)(&c.common)
 	c.GroupManagementAPI = (*GroupManagementAPIService)(&c.common)

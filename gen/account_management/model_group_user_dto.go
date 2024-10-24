@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the GroupUserDto type satisfies the MappedNullable interface at compile time
@@ -32,8 +33,11 @@ type GroupUserDto struct {
 	// The user is (`true`) or is not (`false`) an emergency contact for the account.
 	EmergencyContact *bool `json:"emergencyContact,omitempty"`
 	// A list of groups of which the user is a member.
-	Groups []AccountGroupDto `json:"groups"`
+	Groups               []AccountGroupDto `json:"groups"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _GroupUserDto GroupUserDto
 
 // NewGroupUserDto instantiates a new GroupUserDto object
 // This constructor will assign default values to properties that have it defined,
@@ -280,7 +284,62 @@ func (o GroupUserDto) ToMap() (map[string]interface{}, error) {
 		toSerialize["emergencyContact"] = o.EmergencyContact
 	}
 	toSerialize["groups"] = o.Groups
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *GroupUserDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"uid",
+		"email",
+		"groups",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varGroupUserDto := _GroupUserDto{}
+
+	err = json.Unmarshal(data, &varGroupUserDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = GroupUserDto(varGroupUserDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "uid")
+		delete(additionalProperties, "email")
+		delete(additionalProperties, "name")
+		delete(additionalProperties, "surname")
+		delete(additionalProperties, "userStatus")
+		delete(additionalProperties, "emergencyContact")
+		delete(additionalProperties, "groups")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableGroupUserDto struct {

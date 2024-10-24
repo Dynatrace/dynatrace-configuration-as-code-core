@@ -16,7 +16,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
 )
 
@@ -26,9 +25,9 @@ type PolicyManagementAPIService service
 type ApiAppendLevelPolicyBindingsRequest struct {
 	ctx                                 context.Context
 	ApiService                          *PolicyManagementAPIService
-	levelType                           string
-	levelId                             string
-	policyUuid                          string
+	policyUuid                          interface{}
+	levelId                             interface{}
+	levelType                           interface{}
 	appendLevelPolicyBindingsRequestDto *AppendLevelPolicyBindingsRequestDto
 }
 
@@ -49,18 +48,18 @@ Existing bindings remain unaffected.
 This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
 	@param policyUuid The ID of the required policy.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiAppendLevelPolicyBindingsRequest
 */
-func (a *PolicyManagementAPIService) AppendLevelPolicyBindings(ctx context.Context, levelType string, levelId string, policyUuid string) ApiAppendLevelPolicyBindingsRequest {
+func (a *PolicyManagementAPIService) AppendLevelPolicyBindings(ctx context.Context, policyUuid interface{}, levelId interface{}, levelType interface{}) ApiAppendLevelPolicyBindingsRequest {
 	return ApiAppendLevelPolicyBindingsRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
-		levelId:    levelId,
 		policyUuid: policyUuid,
+		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -78,9 +77,9 @@ func (a *PolicyManagementAPIService) AppendLevelPolicyBindingsExecute(r ApiAppen
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/bindings/{policyUuid}"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"policyUuid"+"}", url.PathEscape(parameterValueToString(r.policyUuid, "policyUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -171,10 +170,10 @@ func (a *PolicyManagementAPIService) AppendLevelPolicyBindingsExecute(r ApiAppen
 type ApiAppendParticularGroupBindingRequest struct {
 	ctx                                 context.Context
 	ApiService                          *PolicyManagementAPIService
-	levelType                           string
-	levelId                             string
-	policyUuid                          string
-	groupUuid                           string
+	groupUuid                           interface{}
+	policyUuid                          interface{}
+	levelId                             interface{}
+	levelType                           interface{}
 	appendLevelPolicyBindingForGroupDto *AppendLevelPolicyBindingForGroupDto
 }
 
@@ -194,20 +193,20 @@ AppendParticularGroupBinding Append policy bindings within a level for a user gr
 This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
-	@param policyUuid The ID of the required policy.
 	@param groupUuid The ID of the required user group.
+	@param policyUuid The ID of the required policy.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiAppendParticularGroupBindingRequest
 */
-func (a *PolicyManagementAPIService) AppendParticularGroupBinding(ctx context.Context, levelType string, levelId string, policyUuid string, groupUuid string) ApiAppendParticularGroupBindingRequest {
+func (a *PolicyManagementAPIService) AppendParticularGroupBinding(ctx context.Context, groupUuid interface{}, policyUuid interface{}, levelId interface{}, levelType interface{}) ApiAppendParticularGroupBindingRequest {
 	return ApiAppendParticularGroupBindingRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
-		levelId:    levelId,
-		policyUuid: policyUuid,
 		groupUuid:  groupUuid,
+		policyUuid: policyUuid,
+		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -225,10 +224,10 @@ func (a *PolicyManagementAPIService) AppendParticularGroupBindingExecute(r ApiAp
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/bindings/{policyUuid}/{groupUuid}"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"policyUuid"+"}", url.PathEscape(parameterValueToString(r.policyUuid, "policyUuid")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"groupUuid"+"}", url.PathEscape(parameterValueToString(r.groupUuid, "groupUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"policyUuid"+"}", url.PathEscape(parameterValueToString(r.policyUuid, "policyUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -319,8 +318,8 @@ func (a *PolicyManagementAPIService) AppendParticularGroupBindingExecute(r ApiAp
 type ApiCreateLevelPolicyRequest struct {
 	ctx                                 context.Context
 	ApiService                          *PolicyManagementAPIService
-	levelType                           string
-	levelId                             string
+	levelId                             interface{}
+	levelType                           interface{}
 	createOrUpdateLevelPolicyRequestDto *CreateOrUpdateLevelPolicyRequestDto
 }
 
@@ -340,16 +339,16 @@ CreateLevelPolicy Creates a new policy
 This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiCreateLevelPolicyRequest
 */
-func (a *PolicyManagementAPIService) CreateLevelPolicy(ctx context.Context, levelType string, levelId string) ApiCreateLevelPolicyRequest {
+func (a *PolicyManagementAPIService) CreateLevelPolicy(ctx context.Context, levelId interface{}, levelType interface{}) ApiCreateLevelPolicyRequest {
 	return ApiCreateLevelPolicyRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
 		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -370,8 +369,8 @@ func (a *PolicyManagementAPIService) CreateLevelPolicyExecute(r ApiCreateLevelPo
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/policies"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -471,14 +470,14 @@ func (a *PolicyManagementAPIService) CreateLevelPolicyExecute(r ApiCreateLevelPo
 type ApiDeleteLevelPolicyRequest struct {
 	ctx        context.Context
 	ApiService *PolicyManagementAPIService
-	levelType  string
-	levelId    string
-	policyUuid string
-	force      *bool
+	force      *interface{}
+	policyUuid interface{}
+	levelId    interface{}
+	levelType  interface{}
 }
 
 // Set to &#x60;true&#x60; to delete a policy that is still in use.
-func (r ApiDeleteLevelPolicyRequest) Force(force bool) ApiDeleteLevelPolicyRequest {
+func (r ApiDeleteLevelPolicyRequest) Force(force interface{}) ApiDeleteLevelPolicyRequest {
 	r.force = &force
 	return r
 }
@@ -493,18 +492,18 @@ DeleteLevelPolicy Deletes a policy
 This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
 	@param policyUuid The ID of the required policy.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiDeleteLevelPolicyRequest
 */
-func (a *PolicyManagementAPIService) DeleteLevelPolicy(ctx context.Context, levelType string, levelId string, policyUuid string) ApiDeleteLevelPolicyRequest {
+func (a *PolicyManagementAPIService) DeleteLevelPolicy(ctx context.Context, policyUuid interface{}, levelId interface{}, levelType interface{}) ApiDeleteLevelPolicyRequest {
 	return ApiDeleteLevelPolicyRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
-		levelId:    levelId,
 		policyUuid: policyUuid,
+		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -522,9 +521,9 @@ func (a *PolicyManagementAPIService) DeleteLevelPolicyExecute(r ApiDeleteLevelPo
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/policies/{policyUuid}"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"policyUuid"+"}", url.PathEscape(parameterValueToString(r.policyUuid, "policyUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -533,7 +532,7 @@ func (a *PolicyManagementAPIService) DeleteLevelPolicyExecute(r ApiDeleteLevelPo
 		return nil, reportError("force is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "force", r.force, "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "force", r.force, "form", "")
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -603,8 +602,8 @@ func (a *PolicyManagementAPIService) DeleteLevelPolicyExecute(r ApiDeleteLevelPo
 type ApiDeleteLevelPolicyBindingsRequest struct {
 	ctx        context.Context
 	ApiService *PolicyManagementAPIService
-	levelType  string
-	levelId    string
+	levelId    interface{}
+	levelType  interface{}
 }
 
 func (r ApiDeleteLevelPolicyBindingsRequest) Execute() (*http.Response, error) {
@@ -617,16 +616,16 @@ DeleteLevelPolicyBindings Deletes all policy bindings from a level
 This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiDeleteLevelPolicyBindingsRequest
 */
-func (a *PolicyManagementAPIService) DeleteLevelPolicyBindings(ctx context.Context, levelType string, levelId string) ApiDeleteLevelPolicyBindingsRequest {
+func (a *PolicyManagementAPIService) DeleteLevelPolicyBindings(ctx context.Context, levelId interface{}, levelType interface{}) ApiDeleteLevelPolicyBindingsRequest {
 	return ApiDeleteLevelPolicyBindingsRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
 		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -644,8 +643,8 @@ func (a *PolicyManagementAPIService) DeleteLevelPolicyBindingsExecute(r ApiDelet
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/bindings"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -731,15 +730,22 @@ func (a *PolicyManagementAPIService) DeleteLevelPolicyBindingsExecute(r ApiDelet
 type ApiDeleteLevelPolicyBindingsForPolicyRequest struct {
 	ctx           context.Context
 	ApiService    *PolicyManagementAPIService
-	levelType     string
-	levelId       string
-	policyUuid    string
-	forceMultiple *bool
+	forceMultiple *interface{}
+	policyUuid    interface{}
+	levelId       interface{}
+	levelType     interface{}
+	queryParams   *map[string]interface{}
 }
 
 // Forces multiple in case delete by parameters and metadata query
-func (r ApiDeleteLevelPolicyBindingsForPolicyRequest) ForceMultiple(forceMultiple bool) ApiDeleteLevelPolicyBindingsForPolicyRequest {
+func (r ApiDeleteLevelPolicyBindingsForPolicyRequest) ForceMultiple(forceMultiple interface{}) ApiDeleteLevelPolicyBindingsForPolicyRequest {
 	r.forceMultiple = &forceMultiple
+	return r
+}
+
+// Key-value pairs for policy template parameters and metadata. Only bindings matching given parameters and metadata will be updated or deleted.
+func (r ApiDeleteLevelPolicyBindingsForPolicyRequest) QueryParams(queryParams map[string]interface{}) ApiDeleteLevelPolicyBindingsForPolicyRequest {
+	r.queryParams = &queryParams
 	return r
 }
 
@@ -753,18 +759,18 @@ DeleteLevelPolicyBindingsForPolicy Deletes all bindings of a policy
 This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
 	@param policyUuid The ID of the required policy.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiDeleteLevelPolicyBindingsForPolicyRequest
 */
-func (a *PolicyManagementAPIService) DeleteLevelPolicyBindingsForPolicy(ctx context.Context, levelType string, levelId string, policyUuid string) ApiDeleteLevelPolicyBindingsForPolicyRequest {
+func (a *PolicyManagementAPIService) DeleteLevelPolicyBindingsForPolicy(ctx context.Context, policyUuid interface{}, levelId interface{}, levelType interface{}) ApiDeleteLevelPolicyBindingsForPolicyRequest {
 	return ApiDeleteLevelPolicyBindingsForPolicyRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
-		levelId:    levelId,
 		policyUuid: policyUuid,
+		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -782,9 +788,9 @@ func (a *PolicyManagementAPIService) DeleteLevelPolicyBindingsForPolicyExecute(r
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/bindings/{policyUuid}"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"policyUuid"+"}", url.PathEscape(parameterValueToString(r.policyUuid, "policyUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -793,7 +799,10 @@ func (a *PolicyManagementAPIService) DeleteLevelPolicyBindingsForPolicyExecute(r
 		return nil, reportError("forceMultiple is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "forceMultiple", r.forceMultiple, "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "forceMultiple", r.forceMultiple, "form", "")
+	if r.queryParams != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "query-params", r.queryParams, "form", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -863,16 +872,23 @@ func (a *PolicyManagementAPIService) DeleteLevelPolicyBindingsForPolicyExecute(r
 type ApiDeleteLevelPolicyBindingsForPolicyAndGroupRequest struct {
 	ctx           context.Context
 	ApiService    *PolicyManagementAPIService
-	levelType     string
-	levelId       string
-	policyUuid    string
-	groupUuid     string
-	forceMultiple *bool
+	forceMultiple *interface{}
+	groupUuid     interface{}
+	policyUuid    interface{}
+	levelId       interface{}
+	levelType     interface{}
+	queryParams   *map[string]interface{}
 }
 
 // Forces multiple in case delete by parameters and metadata query
-func (r ApiDeleteLevelPolicyBindingsForPolicyAndGroupRequest) ForceMultiple(forceMultiple bool) ApiDeleteLevelPolicyBindingsForPolicyAndGroupRequest {
+func (r ApiDeleteLevelPolicyBindingsForPolicyAndGroupRequest) ForceMultiple(forceMultiple interface{}) ApiDeleteLevelPolicyBindingsForPolicyAndGroupRequest {
 	r.forceMultiple = &forceMultiple
+	return r
+}
+
+// Key-value pairs for policy template parameters and metadata. Only bindings matching given parameters and metadata will be updated or deleted.
+func (r ApiDeleteLevelPolicyBindingsForPolicyAndGroupRequest) QueryParams(queryParams map[string]interface{}) ApiDeleteLevelPolicyBindingsForPolicyAndGroupRequest {
+	r.queryParams = &queryParams
 	return r
 }
 
@@ -886,20 +902,20 @@ DeleteLevelPolicyBindingsForPolicyAndGroup Deletes a policy binding from a user 
 This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
-	@param policyUuid The ID of the required policy.
 	@param groupUuid The ID of the required user group.
+	@param policyUuid The ID of the required policy.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiDeleteLevelPolicyBindingsForPolicyAndGroupRequest
 */
-func (a *PolicyManagementAPIService) DeleteLevelPolicyBindingsForPolicyAndGroup(ctx context.Context, levelType string, levelId string, policyUuid string, groupUuid string) ApiDeleteLevelPolicyBindingsForPolicyAndGroupRequest {
+func (a *PolicyManagementAPIService) DeleteLevelPolicyBindingsForPolicyAndGroup(ctx context.Context, groupUuid interface{}, policyUuid interface{}, levelId interface{}, levelType interface{}) ApiDeleteLevelPolicyBindingsForPolicyAndGroupRequest {
 	return ApiDeleteLevelPolicyBindingsForPolicyAndGroupRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
-		levelId:    levelId,
-		policyUuid: policyUuid,
 		groupUuid:  groupUuid,
+		policyUuid: policyUuid,
+		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -917,10 +933,10 @@ func (a *PolicyManagementAPIService) DeleteLevelPolicyBindingsForPolicyAndGroupE
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/bindings/{policyUuid}/{groupUuid}"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"policyUuid"+"}", url.PathEscape(parameterValueToString(r.policyUuid, "policyUuid")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"groupUuid"+"}", url.PathEscape(parameterValueToString(r.groupUuid, "groupUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"policyUuid"+"}", url.PathEscape(parameterValueToString(r.policyUuid, "policyUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -929,7 +945,125 @@ func (a *PolicyManagementAPIService) DeleteLevelPolicyBindingsForPolicyAndGroupE
 		return nil, reportError("forceMultiple is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "forceMultiple", r.forceMultiple, "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "forceMultiple", r.forceMultiple, "form", "")
+	if r.queryParams != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "query-params", r.queryParams, "form", "")
+	}
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		if localVarHTTPResponse.StatusCode == 400 {
+			var v ErrorDto
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 404 {
+			var v ErrorDto
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+		}
+		return localVarHTTPResponse, newErr
+	}
+
+	return localVarHTTPResponse, nil
+}
+
+type ApiDeletePolicyBoundaryRequest struct {
+	ctx                context.Context
+	ApiService         *PolicyManagementAPIService
+	policyBoundaryUuid interface{}
+	accountId          interface{}
+}
+
+func (r ApiDeletePolicyBoundaryRequest) Execute() (*http.Response, error) {
+	return r.ApiService.DeletePolicyBoundaryExecute(r)
+}
+
+/*
+DeletePolicyBoundary Delete policy boundary by uuid within a level
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param policyBoundaryUuid The ID of the required boundary.
+	@param accountId The ID of the policy boundary level. Use the UUID of the account.
+	@return ApiDeletePolicyBoundaryRequest
+*/
+func (a *PolicyManagementAPIService) DeletePolicyBoundary(ctx context.Context, policyBoundaryUuid interface{}, accountId interface{}) ApiDeletePolicyBoundaryRequest {
+	return ApiDeletePolicyBoundaryRequest{
+		ApiService:         a,
+		ctx:                ctx,
+		policyBoundaryUuid: policyBoundaryUuid,
+		accountId:          accountId,
+	}
+}
+
+// Execute executes the request
+func (a *PolicyManagementAPIService) DeletePolicyBoundaryExecute(r ApiDeletePolicyBoundaryRequest) (*http.Response, error) {
+	var (
+		localVarHTTPMethod = http.MethodDelete
+		localVarPostBody   interface{}
+		formFiles          []formFile
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PolicyManagementAPIService.DeletePolicyBoundary")
+	if err != nil {
+		return nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/iam/v1/repo/account/{accountId}/boundaries/{policyBoundaryUuid}"
+	localVarPath = strings.Replace(localVarPath, "{"+"policyBoundaryUuid"+"}", url.PathEscape(parameterValueToString(r.policyBoundaryUuid, "policyBoundaryUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"accountId"+"}", url.PathEscape(parameterValueToString(r.accountId, "accountId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -999,8 +1133,8 @@ func (a *PolicyManagementAPIService) DeleteLevelPolicyBindingsForPolicyAndGroupE
 type ApiGetAllLevelPoliciesBindingsRequest struct {
 	ctx        context.Context
 	ApiService *PolicyManagementAPIService
-	levelType  string
-	levelId    string
+	levelId    interface{}
+	levelType  interface{}
 }
 
 func (r ApiGetAllLevelPoliciesBindingsRequest) Execute() (*LevelPolicyBindingDto, *http.Response, error) {
@@ -1013,16 +1147,16 @@ GetAllLevelPoliciesBindings Lists all policy bindings of a level
 A policy binding shows which user groups use the policy.
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiGetAllLevelPoliciesBindingsRequest
 */
-func (a *PolicyManagementAPIService) GetAllLevelPoliciesBindings(ctx context.Context, levelType string, levelId string) ApiGetAllLevelPoliciesBindingsRequest {
+func (a *PolicyManagementAPIService) GetAllLevelPoliciesBindings(ctx context.Context, levelId interface{}, levelType interface{}) ApiGetAllLevelPoliciesBindingsRequest {
 	return ApiGetAllLevelPoliciesBindingsRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
 		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -1043,8 +1177,8 @@ func (a *PolicyManagementAPIService) GetAllLevelPoliciesBindingsExecute(r ApiGet
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/bindings"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1117,46 +1251,40 @@ func (a *PolicyManagementAPIService) GetAllLevelPoliciesBindingsExecute(r ApiGet
 type ApiGetEffectivePermissionsRequest struct {
 	ctx        context.Context
 	ApiService *PolicyManagementAPIService
-	levelType  string
-	levelId    string
-	entityType *string
-	entityId   *string
-	explain    *bool
-	services   *[]string
-	page       *float32
-	size       *float32
-}
-
-// Required entity type. The following values are available:   * user  * group
-func (r ApiGetEffectivePermissionsRequest) EntityType(entityType string) ApiGetEffectivePermissionsRequest {
-	r.entityType = &entityType
-	return r
+	entityId   *interface{}
+	entityType *interface{}
+	levelId    interface{}
+	levelType  interface{}
+	size       *interface{}
+	page       *interface{}
+	services   *interface{}
 }
 
 // Required entity id.
-func (r ApiGetEffectivePermissionsRequest) EntityId(entityId string) ApiGetEffectivePermissionsRequest {
+func (r ApiGetEffectivePermissionsRequest) EntityId(entityId interface{}) ApiGetEffectivePermissionsRequest {
 	r.entityId = &entityId
 	return r
 }
 
-func (r ApiGetEffectivePermissionsRequest) Explain(explain bool) ApiGetEffectivePermissionsRequest {
-	r.explain = &explain
+// Required entity type. The following values are available:   * user  * group
+func (r ApiGetEffectivePermissionsRequest) EntityType(entityType interface{}) ApiGetEffectivePermissionsRequest {
+	r.entityType = &entityType
 	return r
 }
 
-// Optional services list. Policies for given services will be returned
-func (r ApiGetEffectivePermissionsRequest) Services(services []string) ApiGetEffectivePermissionsRequest {
-	r.services = &services
+func (r ApiGetEffectivePermissionsRequest) Size(size interface{}) ApiGetEffectivePermissionsRequest {
+	r.size = &size
 	return r
 }
 
-func (r ApiGetEffectivePermissionsRequest) Page(page float32) ApiGetEffectivePermissionsRequest {
+func (r ApiGetEffectivePermissionsRequest) Page(page interface{}) ApiGetEffectivePermissionsRequest {
 	r.page = &page
 	return r
 }
 
-func (r ApiGetEffectivePermissionsRequest) Size(size float32) ApiGetEffectivePermissionsRequest {
-	r.size = &size
+// Optional services list. Policies for given services will be returned
+func (r ApiGetEffectivePermissionsRequest) Services(services interface{}) ApiGetEffectivePermissionsRequest {
+	r.services = &services
 	return r
 }
 
@@ -1165,19 +1293,19 @@ func (r ApiGetEffectivePermissionsRequest) Execute() (*EffectivePermissions, *ht
 }
 
 /*
-GetEffectivePermissions Gets effective permissions for a user or group | maturity=EARLY_ADOPTER
+GetEffectivePermissions Gets effective permissions for a user or group
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiGetEffectivePermissionsRequest
 */
-func (a *PolicyManagementAPIService) GetEffectivePermissions(ctx context.Context, levelType string, levelId string) ApiGetEffectivePermissionsRequest {
+func (a *PolicyManagementAPIService) GetEffectivePermissions(ctx context.Context, levelId interface{}, levelType interface{}) ApiGetEffectivePermissionsRequest {
 	return ApiGetEffectivePermissionsRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
 		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -1198,48 +1326,36 @@ func (a *PolicyManagementAPIService) GetEffectivePermissionsExecute(r ApiGetEffe
 	}
 
 	localVarPath := localBasePath + "/iam/v1/resolution/{levelType}/{levelId}/effectivepermissions"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
-	if r.entityType == nil {
-		return localVarReturnValue, nil, reportError("entityType is required and must be specified")
-	}
 	if r.entityId == nil {
 		return localVarReturnValue, nil, reportError("entityId is required and must be specified")
 	}
-	if r.explain == nil {
-		return localVarReturnValue, nil, reportError("explain is required and must be specified")
+	if r.entityType == nil {
+		return localVarReturnValue, nil, reportError("entityType is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "entityType", r.entityType, "")
-	parameterAddToHeaderOrQuery(localVarQueryParams, "entityId", r.entityId, "")
-	parameterAddToHeaderOrQuery(localVarQueryParams, "explain", r.explain, "")
-	if r.services != nil {
-		t := *r.services
-		if reflect.TypeOf(t).Kind() == reflect.Slice {
-			s := reflect.ValueOf(t)
-			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "services;", s.Index(i).Interface(), "multi")
-			}
-		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "services;", t, "multi")
-		}
-	}
-	if r.page != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "")
-	} else {
-		var defaultValue float32 = 1
-		r.page = &defaultValue
-	}
 	if r.size != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "size", r.size, "")
+		parameterAddToHeaderOrQuery(localVarQueryParams, "size", r.size, "form", "")
 	} else {
-		var defaultValue float32 = 100
+		var defaultValue interface{} = 100
 		r.size = &defaultValue
 	}
+	if r.page != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "form", "")
+	} else {
+		var defaultValue interface{} = 1
+		r.page = &defaultValue
+	}
+	if r.services != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "services;", r.services, "form", "")
+	}
+	parameterAddToHeaderOrQuery(localVarQueryParams, "entityId", r.entityId, "form", "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "entityType", r.entityType, "form", "")
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -1307,24 +1423,24 @@ func (a *PolicyManagementAPIService) GetEffectivePermissionsExecute(r ApiGetEffe
 type ApiGetLevelDescendantsPolicyBindingsRequest struct {
 	ctx        context.Context
 	ApiService *PolicyManagementAPIService
-	levelType  string
-	levelId    string
-	policyUuid string
-	page       *float32
-	size       *float32
+	policyUuid interface{}
+	levelId    interface{}
+	levelType  interface{}
+	size       *interface{}
+	page       *interface{}
 }
 
-func (r ApiGetLevelDescendantsPolicyBindingsRequest) Page(page float32) ApiGetLevelDescendantsPolicyBindingsRequest {
-	r.page = &page
-	return r
-}
-
-func (r ApiGetLevelDescendantsPolicyBindingsRequest) Size(size float32) ApiGetLevelDescendantsPolicyBindingsRequest {
+func (r ApiGetLevelDescendantsPolicyBindingsRequest) Size(size interface{}) ApiGetLevelDescendantsPolicyBindingsRequest {
 	r.size = &size
 	return r
 }
 
-func (r ApiGetLevelDescendantsPolicyBindingsRequest) Execute() (*http.Response, error) {
+func (r ApiGetLevelDescendantsPolicyBindingsRequest) Page(page interface{}) ApiGetLevelDescendantsPolicyBindingsRequest {
+	r.page = &page
+	return r
+}
+
+func (r ApiGetLevelDescendantsPolicyBindingsRequest) Execute() (*LevelPolicyBindingDtoList, *http.Response, error) {
 	return r.ApiService.GetLevelDescendantsPolicyBindingsExecute(r)
 }
 
@@ -1334,54 +1450,57 @@ GetLevelDescendantsPolicyBindings Get policy bindings within descendants of a le
 This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.   Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
 	@param policyUuid The ID of the required policy.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.   Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiGetLevelDescendantsPolicyBindingsRequest
 */
-func (a *PolicyManagementAPIService) GetLevelDescendantsPolicyBindings(ctx context.Context, levelType string, levelId string, policyUuid string) ApiGetLevelDescendantsPolicyBindingsRequest {
+func (a *PolicyManagementAPIService) GetLevelDescendantsPolicyBindings(ctx context.Context, policyUuid interface{}, levelId interface{}, levelType interface{}) ApiGetLevelDescendantsPolicyBindingsRequest {
 	return ApiGetLevelDescendantsPolicyBindingsRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
-		levelId:    levelId,
 		policyUuid: policyUuid,
+		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
 // Execute executes the request
-func (a *PolicyManagementAPIService) GetLevelDescendantsPolicyBindingsExecute(r ApiGetLevelDescendantsPolicyBindingsRequest) (*http.Response, error) {
+//
+//	@return LevelPolicyBindingDtoList
+func (a *PolicyManagementAPIService) GetLevelDescendantsPolicyBindingsExecute(r ApiGetLevelDescendantsPolicyBindingsRequest) (*LevelPolicyBindingDtoList, *http.Response, error) {
 	var (
-		localVarHTTPMethod = http.MethodGet
-		localVarPostBody   interface{}
-		formFiles          []formFile
+		localVarHTTPMethod  = http.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *LevelPolicyBindingDtoList
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PolicyManagementAPIService.GetLevelDescendantsPolicyBindings")
 	if err != nil {
-		return nil, &GenericOpenAPIError{error: err.Error()}
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/bindings/descendants/{policyUuid}"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"policyUuid"+"}", url.PathEscape(parameterValueToString(r.policyUuid, "policyUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
-	if r.page != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "")
-	} else {
-		var defaultValue float32 = 1
-		r.page = &defaultValue
-	}
 	if r.size != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "size", r.size, "")
+		parameterAddToHeaderOrQuery(localVarQueryParams, "size", r.size, "form", "")
 	} else {
-		var defaultValue float32 = 100
+		var defaultValue interface{} = 100
 		r.size = &defaultValue
+	}
+	if r.page != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "form", "")
+	} else {
+		var defaultValue interface{} = 1
+		r.page = &defaultValue
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1402,19 +1521,19 @@ func (a *PolicyManagementAPIService) GetLevelDescendantsPolicyBindingsExecute(r 
 	}
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
-		return nil, err
+		return localVarReturnValue, nil, err
 	}
 
 	localVarHTTPResponse, err := a.client.callAPI(req)
 	if err != nil || localVarHTTPResponse == nil {
-		return localVarHTTPResponse, err
+		return localVarReturnValue, localVarHTTPResponse, err
 	}
 
 	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
 	localVarHTTPResponse.Body.Close()
 	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
 	if err != nil {
-		return localVarHTTPResponse, err
+		return localVarReturnValue, localVarHTTPResponse, err
 	}
 
 	if localVarHTTPResponse.StatusCode >= 300 {
@@ -1427,27 +1546,43 @@ func (a *PolicyManagementAPIService) GetLevelDescendantsPolicyBindingsExecute(r 
 			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
 			if err != nil {
 				newErr.error = err.Error()
-				return localVarHTTPResponse, newErr
+				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
 			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 			newErr.model = v
 		}
-		return localVarHTTPResponse, newErr
+		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
 
-	return localVarHTTPResponse, nil
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
 type ApiGetLevelPoliciesRequest struct {
 	ctx        context.Context
 	ApiService *PolicyManagementAPIService
-	levelType  string
-	levelId    string
-	name       *string
+	levelId    interface{}
+	levelType  interface{}
+	categories *interface{}
+	name       *interface{}
+}
+
+// Optional policy categories set. Only policies that match given categories will be returned.
+func (r ApiGetLevelPoliciesRequest) Categories(categories interface{}) ApiGetLevelPoliciesRequest {
+	r.categories = &categories
+	return r
 }
 
 // Optional policy name. Only policies that are of equal name will be returned.
-func (r ApiGetLevelPoliciesRequest) Name(name string) ApiGetLevelPoliciesRequest {
+func (r ApiGetLevelPoliciesRequest) Name(name interface{}) ApiGetLevelPoliciesRequest {
 	r.name = &name
 	return r
 }
@@ -1460,16 +1595,16 @@ func (r ApiGetLevelPoliciesRequest) Execute() (*PolicyDtoList, *http.Response, e
 GetLevelPolicies Lists all native policies of a level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiGetLevelPoliciesRequest
 */
-func (a *PolicyManagementAPIService) GetLevelPolicies(ctx context.Context, levelType string, levelId string) ApiGetLevelPoliciesRequest {
+func (a *PolicyManagementAPIService) GetLevelPolicies(ctx context.Context, levelId interface{}, levelType interface{}) ApiGetLevelPoliciesRequest {
 	return ApiGetLevelPoliciesRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
 		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -1490,15 +1625,18 @@ func (a *PolicyManagementAPIService) GetLevelPoliciesExecute(r ApiGetLevelPolici
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/policies"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if r.categories != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "categories", r.categories, "form", "")
+	}
 	if r.name != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "name", r.name, "")
+		parameterAddToHeaderOrQuery(localVarQueryParams, "name", r.name, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1567,9 +1705,9 @@ func (a *PolicyManagementAPIService) GetLevelPoliciesExecute(r ApiGetLevelPolici
 type ApiGetLevelPolicyRequest struct {
 	ctx        context.Context
 	ApiService *PolicyManagementAPIService
-	levelType  string
-	levelId    string
-	policyUuid string
+	policyUuid interface{}
+	levelId    interface{}
+	levelType  interface{}
 }
 
 func (r ApiGetLevelPolicyRequest) Execute() (*LevelPolicyDto, *http.Response, error) {
@@ -1580,18 +1718,18 @@ func (r ApiGetLevelPolicyRequest) Execute() (*LevelPolicyDto, *http.Response, er
 GetLevelPolicy Gets a policy
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
 	@param policyUuid The ID of the required policy.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiGetLevelPolicyRequest
 */
-func (a *PolicyManagementAPIService) GetLevelPolicy(ctx context.Context, levelType string, levelId string, policyUuid string) ApiGetLevelPolicyRequest {
+func (a *PolicyManagementAPIService) GetLevelPolicy(ctx context.Context, policyUuid interface{}, levelId interface{}, levelType interface{}) ApiGetLevelPolicyRequest {
 	return ApiGetLevelPolicyRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
-		levelId:    levelId,
 		policyUuid: policyUuid,
+		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -1612,9 +1750,9 @@ func (a *PolicyManagementAPIService) GetLevelPolicyExecute(r ApiGetLevelPolicyRe
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/policies/{policyUuid}"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"policyUuid"+"}", url.PathEscape(parameterValueToString(r.policyUuid, "policyUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1687,12 +1825,12 @@ func (a *PolicyManagementAPIService) GetLevelPolicyExecute(r ApiGetLevelPolicyRe
 type ApiGetLevelPolicyBindingsRequest struct {
 	ctx        context.Context
 	ApiService *PolicyManagementAPIService
-	levelType  string
-	levelId    string
-	policyUuid string
+	policyUuid interface{}
+	levelId    interface{}
+	levelType  interface{}
 }
 
-func (r ApiGetLevelPolicyBindingsRequest) Execute() (*http.Response, error) {
+func (r ApiGetLevelPolicyBindingsRequest) Execute() (*LevelPolicyBindingDto, *http.Response, error) {
 	return r.ApiService.GetLevelPolicyBindingsExecute(r)
 }
 
@@ -1702,38 +1840,41 @@ GetLevelPolicyBindings Get policy bindings within a level
 This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
 	@param policyUuid The ID of the required policy.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiGetLevelPolicyBindingsRequest
 */
-func (a *PolicyManagementAPIService) GetLevelPolicyBindings(ctx context.Context, levelType string, levelId string, policyUuid string) ApiGetLevelPolicyBindingsRequest {
+func (a *PolicyManagementAPIService) GetLevelPolicyBindings(ctx context.Context, policyUuid interface{}, levelId interface{}, levelType interface{}) ApiGetLevelPolicyBindingsRequest {
 	return ApiGetLevelPolicyBindingsRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
-		levelId:    levelId,
 		policyUuid: policyUuid,
+		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
 // Execute executes the request
-func (a *PolicyManagementAPIService) GetLevelPolicyBindingsExecute(r ApiGetLevelPolicyBindingsRequest) (*http.Response, error) {
+//
+//	@return LevelPolicyBindingDto
+func (a *PolicyManagementAPIService) GetLevelPolicyBindingsExecute(r ApiGetLevelPolicyBindingsRequest) (*LevelPolicyBindingDto, *http.Response, error) {
 	var (
-		localVarHTTPMethod = http.MethodGet
-		localVarPostBody   interface{}
-		formFiles          []formFile
+		localVarHTTPMethod  = http.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *LevelPolicyBindingDto
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PolicyManagementAPIService.GetLevelPolicyBindings")
 	if err != nil {
-		return nil, &GenericOpenAPIError{error: err.Error()}
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/bindings/{policyUuid}"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"policyUuid"+"}", url.PathEscape(parameterValueToString(r.policyUuid, "policyUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1758,19 +1899,19 @@ func (a *PolicyManagementAPIService) GetLevelPolicyBindingsExecute(r ApiGetLevel
 	}
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
-		return nil, err
+		return localVarReturnValue, nil, err
 	}
 
 	localVarHTTPResponse, err := a.client.callAPI(req)
 	if err != nil || localVarHTTPResponse == nil {
-		return localVarHTTPResponse, err
+		return localVarReturnValue, localVarHTTPResponse, err
 	}
 
 	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
 	localVarHTTPResponse.Body.Close()
 	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
 	if err != nil {
-		return localVarHTTPResponse, err
+		return localVarReturnValue, localVarHTTPResponse, err
 	}
 
 	if localVarHTTPResponse.StatusCode >= 300 {
@@ -1783,27 +1924,36 @@ func (a *PolicyManagementAPIService) GetLevelPolicyBindingsExecute(r ApiGetLevel
 			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
 			if err != nil {
 				newErr.error = err.Error()
-				return localVarHTTPResponse, newErr
+				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
 			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 			newErr.model = v
 		}
-		return localVarHTTPResponse, newErr
+		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
 
-	return localVarHTTPResponse, nil
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
 type ApiGetLevelPolicyBindingsForGroupRequest struct {
 	ctx        context.Context
 	ApiService *PolicyManagementAPIService
-	levelType  string
-	levelId    string
-	policyUuid string
-	groupUuid  string
+	groupUuid  interface{}
+	policyUuid interface{}
+	levelId    interface{}
+	levelType  interface{}
 }
 
-func (r ApiGetLevelPolicyBindingsForGroupRequest) Execute() (*http.Response, error) {
+func (r ApiGetLevelPolicyBindingsForGroupRequest) Execute() (*LevelPolicyBindingDto, *http.Response, error) {
 	return r.ApiService.GetLevelPolicyBindingsForGroupExecute(r)
 }
 
@@ -1813,41 +1963,293 @@ GetLevelPolicyBindingsForGroup Get policy bindings within a level
 This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
-	@param policyUuid The ID of the required policy.
 	@param groupUuid The ID of the required user group.
+	@param policyUuid The ID of the required policy.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiGetLevelPolicyBindingsForGroupRequest
 */
-func (a *PolicyManagementAPIService) GetLevelPolicyBindingsForGroup(ctx context.Context, levelType string, levelId string, policyUuid string, groupUuid string) ApiGetLevelPolicyBindingsForGroupRequest {
+func (a *PolicyManagementAPIService) GetLevelPolicyBindingsForGroup(ctx context.Context, groupUuid interface{}, policyUuid interface{}, levelId interface{}, levelType interface{}) ApiGetLevelPolicyBindingsForGroupRequest {
 	return ApiGetLevelPolicyBindingsForGroupRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
-		levelId:    levelId,
-		policyUuid: policyUuid,
 		groupUuid:  groupUuid,
+		policyUuid: policyUuid,
+		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
 // Execute executes the request
-func (a *PolicyManagementAPIService) GetLevelPolicyBindingsForGroupExecute(r ApiGetLevelPolicyBindingsForGroupRequest) (*http.Response, error) {
+//
+//	@return LevelPolicyBindingDto
+func (a *PolicyManagementAPIService) GetLevelPolicyBindingsForGroupExecute(r ApiGetLevelPolicyBindingsForGroupRequest) (*LevelPolicyBindingDto, *http.Response, error) {
+	var (
+		localVarHTTPMethod  = http.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *LevelPolicyBindingDto
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PolicyManagementAPIService.GetLevelPolicyBindingsForGroup")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/bindings/{policyUuid}/{groupUuid}"
+	localVarPath = strings.Replace(localVarPath, "{"+"groupUuid"+"}", url.PathEscape(parameterValueToString(r.groupUuid, "groupUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"policyUuid"+"}", url.PathEscape(parameterValueToString(r.policyUuid, "policyUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		if localVarHTTPResponse.StatusCode == 404 {
+			var v ErrorDto
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiGetPolicyBoundariesRequest struct {
+	ctx        context.Context
+	ApiService *PolicyManagementAPIService
+	accountId  interface{}
+	size       *interface{}
+	page       *interface{}
+}
+
+func (r ApiGetPolicyBoundariesRequest) Size(size interface{}) ApiGetPolicyBoundariesRequest {
+	r.size = &size
+	return r
+}
+
+func (r ApiGetPolicyBoundariesRequest) Page(page interface{}) ApiGetPolicyBoundariesRequest {
+	r.page = &page
+	return r
+}
+
+func (r ApiGetPolicyBoundariesRequest) Execute() (*PolicyBoundaryDtoList, *http.Response, error) {
+	return r.ApiService.GetPolicyBoundariesExecute(r)
+}
+
+/*
+GetPolicyBoundaries Get a list of policy boundaries within a level
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param accountId The ID of the policy boundary level. Use the UUID of the account.
+	@return ApiGetPolicyBoundariesRequest
+*/
+func (a *PolicyManagementAPIService) GetPolicyBoundaries(ctx context.Context, accountId interface{}) ApiGetPolicyBoundariesRequest {
+	return ApiGetPolicyBoundariesRequest{
+		ApiService: a,
+		ctx:        ctx,
+		accountId:  accountId,
+	}
+}
+
+// Execute executes the request
+//
+//	@return PolicyBoundaryDtoList
+func (a *PolicyManagementAPIService) GetPolicyBoundariesExecute(r ApiGetPolicyBoundariesRequest) (*PolicyBoundaryDtoList, *http.Response, error) {
+	var (
+		localVarHTTPMethod  = http.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *PolicyBoundaryDtoList
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PolicyManagementAPIService.GetPolicyBoundaries")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/iam/v1/repo/account/{accountId}/boundaries"
+	localVarPath = strings.Replace(localVarPath, "{"+"accountId"+"}", url.PathEscape(parameterValueToString(r.accountId, "accountId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	if r.size != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "size", r.size, "form", "")
+	} else {
+		var defaultValue interface{} = 100
+		r.size = &defaultValue
+	}
+	if r.page != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "form", "")
+	} else {
+		var defaultValue interface{} = 1
+		r.page = &defaultValue
+	}
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		if localVarHTTPResponse.StatusCode == 404 {
+			var v ErrorDto
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiGetPolicyBoundaryRequest struct {
+	ctx                context.Context
+	ApiService         *PolicyManagementAPIService
+	policyBoundaryUuid interface{}
+	accountId          interface{}
+}
+
+func (r ApiGetPolicyBoundaryRequest) Execute() (*http.Response, error) {
+	return r.ApiService.GetPolicyBoundaryExecute(r)
+}
+
+/*
+GetPolicyBoundary Get policy boundary within a level
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param policyBoundaryUuid The ID of the required boundary.
+	@param accountId The ID of the policy boundary level. Use the UUID of the account.
+	@return ApiGetPolicyBoundaryRequest
+*/
+func (a *PolicyManagementAPIService) GetPolicyBoundary(ctx context.Context, policyBoundaryUuid interface{}, accountId interface{}) ApiGetPolicyBoundaryRequest {
+	return ApiGetPolicyBoundaryRequest{
+		ApiService:         a,
+		ctx:                ctx,
+		policyBoundaryUuid: policyBoundaryUuid,
+		accountId:          accountId,
+	}
+}
+
+// Execute executes the request
+func (a *PolicyManagementAPIService) GetPolicyBoundaryExecute(r ApiGetPolicyBoundaryRequest) (*http.Response, error) {
 	var (
 		localVarHTTPMethod = http.MethodGet
 		localVarPostBody   interface{}
 		formFiles          []formFile
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PolicyManagementAPIService.GetLevelPolicyBindingsForGroup")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PolicyManagementAPIService.GetPolicyBoundary")
 	if err != nil {
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/bindings/{policyUuid}/{groupUuid}"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"policyUuid"+"}", url.PathEscape(parameterValueToString(r.policyUuid, "policyUuid")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"groupUuid"+"}", url.PathEscape(parameterValueToString(r.groupUuid, "groupUuid")), -1)
+	localVarPath := localBasePath + "/iam/v1/repo/account/{accountId}/boundaries/{policyBoundaryUuid}"
+	localVarPath = strings.Replace(localVarPath, "{"+"policyBoundaryUuid"+"}", url.PathEscape(parameterValueToString(r.policyBoundaryUuid, "policyBoundaryUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"accountId"+"}", url.PathEscape(parameterValueToString(r.accountId, "accountId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1911,8 +2313,8 @@ func (a *PolicyManagementAPIService) GetLevelPolicyBindingsForGroupExecute(r Api
 type ApiGetPolicyOverviewListRequest struct {
 	ctx        context.Context
 	ApiService *PolicyManagementAPIService
-	levelType  string
-	levelId    string
+	levelId    interface{}
+	levelType  interface{}
 }
 
 func (r ApiGetPolicyOverviewListRequest) Execute() (*PolicyOverviewDtoList, *http.Response, error) {
@@ -1925,16 +2327,16 @@ GetPolicyOverviewList Lists all policies for a level, including inherited from h
 This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiGetPolicyOverviewListRequest
 */
-func (a *PolicyManagementAPIService) GetPolicyOverviewList(ctx context.Context, levelType string, levelId string) ApiGetPolicyOverviewListRequest {
+func (a *PolicyManagementAPIService) GetPolicyOverviewList(ctx context.Context, levelId interface{}, levelType interface{}) ApiGetPolicyOverviewListRequest {
 	return ApiGetPolicyOverviewListRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
 		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -1955,8 +2357,8 @@ func (a *PolicyManagementAPIService) GetPolicyOverviewListExecute(r ApiGetPolicy
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/policies/aggregate"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -2029,9 +2431,16 @@ func (a *PolicyManagementAPIService) GetPolicyOverviewListExecute(r ApiGetPolicy
 type ApiGetPolicyUuidsBindingsRequest struct {
 	ctx        context.Context
 	ApiService *PolicyManagementAPIService
-	levelType  string
-	levelId    string
-	groupUuid  string
+	groupUuid  interface{}
+	levelId    interface{}
+	levelType  interface{}
+	details    *interface{}
+}
+
+// Optional parameter to print-out additional details containing boundaries, metadata, parameters.
+func (r ApiGetPolicyUuidsBindingsRequest) Details(details interface{}) ApiGetPolicyUuidsBindingsRequest {
+	r.details = &details
+	return r
 }
 
 func (r ApiGetPolicyUuidsBindingsRequest) Execute() (*PolicyUuidsWithoutMetadataDto, *http.Response, error) {
@@ -2042,18 +2451,18 @@ func (r ApiGetPolicyUuidsBindingsRequest) Execute() (*PolicyUuidsWithoutMetadata
 GetPolicyUuidsBindings Lists all policies for a user group
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
 	@param groupUuid The ID of the required user group.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiGetPolicyUuidsBindingsRequest
 */
-func (a *PolicyManagementAPIService) GetPolicyUuidsBindings(ctx context.Context, levelType string, levelId string, groupUuid string) ApiGetPolicyUuidsBindingsRequest {
+func (a *PolicyManagementAPIService) GetPolicyUuidsBindings(ctx context.Context, groupUuid interface{}, levelId interface{}, levelType interface{}) ApiGetPolicyUuidsBindingsRequest {
 	return ApiGetPolicyUuidsBindingsRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
-		levelId:    levelId,
 		groupUuid:  groupUuid,
+		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -2074,14 +2483,17 @@ func (a *PolicyManagementAPIService) GetPolicyUuidsBindingsExecute(r ApiGetPolic
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/bindings/groups/{groupUuid}"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"groupUuid"+"}", url.PathEscape(parameterValueToString(r.groupUuid, "groupUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if r.details != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "details", r.details, "form", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -2146,12 +2558,286 @@ func (a *PolicyManagementAPIService) GetPolicyUuidsBindingsExecute(r ApiGetPolic
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
+type ApiPostPolicyBoundaryRequest struct {
+	ctx               context.Context
+	ApiService        *PolicyManagementAPIService
+	accountId         interface{}
+	policyBoundaryDto *PolicyBoundaryDto
+}
+
+// The JSON body of the request. Contains new policy boundary
+func (r ApiPostPolicyBoundaryRequest) PolicyBoundaryDto(policyBoundaryDto PolicyBoundaryDto) ApiPostPolicyBoundaryRequest {
+	r.policyBoundaryDto = &policyBoundaryDto
+	return r
+}
+
+func (r ApiPostPolicyBoundaryRequest) Execute() (*PolicyBoundaryOverview, *http.Response, error) {
+	return r.ApiService.PostPolicyBoundaryExecute(r)
+}
+
+/*
+PostPolicyBoundary Create a policy boundary within a level
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param accountId The ID of the policy boundary level. Use the UUID of the account.
+	@return ApiPostPolicyBoundaryRequest
+*/
+func (a *PolicyManagementAPIService) PostPolicyBoundary(ctx context.Context, accountId interface{}) ApiPostPolicyBoundaryRequest {
+	return ApiPostPolicyBoundaryRequest{
+		ApiService: a,
+		ctx:        ctx,
+		accountId:  accountId,
+	}
+}
+
+// Execute executes the request
+//
+//	@return PolicyBoundaryOverview
+func (a *PolicyManagementAPIService) PostPolicyBoundaryExecute(r ApiPostPolicyBoundaryRequest) (*PolicyBoundaryOverview, *http.Response, error) {
+	var (
+		localVarHTTPMethod  = http.MethodPost
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *PolicyBoundaryOverview
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PolicyManagementAPIService.PostPolicyBoundary")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/iam/v1/repo/account/{accountId}/boundaries"
+	localVarPath = strings.Replace(localVarPath, "{"+"accountId"+"}", url.PathEscape(parameterValueToString(r.accountId, "accountId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.policyBoundaryDto == nil {
+		return localVarReturnValue, nil, reportError("policyBoundaryDto is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	// body params
+	localVarPostBody = r.policyBoundaryDto
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		if localVarHTTPResponse.StatusCode == 400 {
+			var v ErrorDto
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 404 {
+			var v ErrorDto
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiPutPolicyBoundaryRequest struct {
+	ctx                context.Context
+	ApiService         *PolicyManagementAPIService
+	policyBoundaryUuid interface{}
+	accountId          interface{}
+	policyBoundaryDto  *PolicyBoundaryDto
+}
+
+// The JSON body of the request. Contains policy boundary
+func (r ApiPutPolicyBoundaryRequest) PolicyBoundaryDto(policyBoundaryDto PolicyBoundaryDto) ApiPutPolicyBoundaryRequest {
+	r.policyBoundaryDto = &policyBoundaryDto
+	return r
+}
+
+func (r ApiPutPolicyBoundaryRequest) Execute() (*PolicyBoundaryOverview, *http.Response, error) {
+	return r.ApiService.PutPolicyBoundaryExecute(r)
+}
+
+/*
+PutPolicyBoundary Update or create a new policy boundary by uuid within a level
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param policyBoundaryUuid The ID of the required boundary.
+	@param accountId The ID of the policy boundary level. Use the UUID of the account.
+	@return ApiPutPolicyBoundaryRequest
+*/
+func (a *PolicyManagementAPIService) PutPolicyBoundary(ctx context.Context, policyBoundaryUuid interface{}, accountId interface{}) ApiPutPolicyBoundaryRequest {
+	return ApiPutPolicyBoundaryRequest{
+		ApiService:         a,
+		ctx:                ctx,
+		policyBoundaryUuid: policyBoundaryUuid,
+		accountId:          accountId,
+	}
+}
+
+// Execute executes the request
+//
+//	@return PolicyBoundaryOverview
+func (a *PolicyManagementAPIService) PutPolicyBoundaryExecute(r ApiPutPolicyBoundaryRequest) (*PolicyBoundaryOverview, *http.Response, error) {
+	var (
+		localVarHTTPMethod  = http.MethodPut
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *PolicyBoundaryOverview
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PolicyManagementAPIService.PutPolicyBoundary")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/iam/v1/repo/account/{accountId}/boundaries/{policyBoundaryUuid}"
+	localVarPath = strings.Replace(localVarPath, "{"+"policyBoundaryUuid"+"}", url.PathEscape(parameterValueToString(r.policyBoundaryUuid, "policyBoundaryUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"accountId"+"}", url.PathEscape(parameterValueToString(r.accountId, "accountId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.policyBoundaryDto == nil {
+		return localVarReturnValue, nil, reportError("policyBoundaryDto is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	// body params
+	localVarPostBody = r.policyBoundaryDto
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		if localVarHTTPResponse.StatusCode == 400 {
+			var v ErrorDto
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 404 {
+			var v ErrorDto
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
 type ApiUpdateLevelPolicyRequest struct {
 	ctx                                 context.Context
 	ApiService                          *PolicyManagementAPIService
-	levelType                           string
-	levelId                             string
-	policyUuid                          string
+	policyUuid                          interface{}
+	levelId                             interface{}
+	levelType                           interface{}
 	createOrUpdateLevelPolicyRequestDto *CreateOrUpdateLevelPolicyRequestDto
 }
 
@@ -2172,18 +2858,18 @@ If the specified policy doesn't exist, a new one is created.
 This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
 	@param policyUuid The ID of the required policy.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiUpdateLevelPolicyRequest
 */
-func (a *PolicyManagementAPIService) UpdateLevelPolicy(ctx context.Context, levelType string, levelId string, policyUuid string) ApiUpdateLevelPolicyRequest {
+func (a *PolicyManagementAPIService) UpdateLevelPolicy(ctx context.Context, policyUuid interface{}, levelId interface{}, levelType interface{}) ApiUpdateLevelPolicyRequest {
 	return ApiUpdateLevelPolicyRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
-		levelId:    levelId,
 		policyUuid: policyUuid,
+		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -2204,9 +2890,9 @@ func (a *PolicyManagementAPIService) UpdateLevelPolicyExecute(r ApiUpdateLevelPo
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/policies/{policyUuid}"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"policyUuid"+"}", url.PathEscape(parameterValueToString(r.policyUuid, "policyUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -2303,69 +2989,85 @@ func (a *PolicyManagementAPIService) UpdateLevelPolicyExecute(r ApiUpdateLevelPo
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiUpdateLevelPolicyBindingsRequest struct {
+type ApiUpdateLevelPolicyBindingForPolicyAndGroupRequest struct {
 	ctx                                 context.Context
 	ApiService                          *PolicyManagementAPIService
-	levelType                           string
-	levelId                             string
-	createLevelPolicyBindingsRequestDto *CreateLevelPolicyBindingsRequestDto
+	groupUuid                           interface{}
+	policyUuid                          interface{}
+	levelId                             interface{}
+	levelType                           interface{}
+	appendLevelPolicyBindingForGroupDto *AppendLevelPolicyBindingForGroupDto
+	queryParams                         *map[string]interface{}
 }
 
-// The JSON body of the request. Contains new policy bindings of a level.    Any existing binding not presented in the request is discarded.
-func (r ApiUpdateLevelPolicyBindingsRequest) CreateLevelPolicyBindingsRequestDto(createLevelPolicyBindingsRequestDto CreateLevelPolicyBindingsRequestDto) ApiUpdateLevelPolicyBindingsRequest {
-	r.createLevelPolicyBindingsRequestDto = &createLevelPolicyBindingsRequestDto
+// The JSON body of the request. Contains parameters and metadata
+func (r ApiUpdateLevelPolicyBindingForPolicyAndGroupRequest) AppendLevelPolicyBindingForGroupDto(appendLevelPolicyBindingForGroupDto AppendLevelPolicyBindingForGroupDto) ApiUpdateLevelPolicyBindingForPolicyAndGroupRequest {
+	r.appendLevelPolicyBindingForGroupDto = &appendLevelPolicyBindingForGroupDto
 	return r
 }
 
-func (r ApiUpdateLevelPolicyBindingsRequest) Execute() (*http.Response, error) {
-	return r.ApiService.UpdateLevelPolicyBindingsExecute(r)
+// Key-value pairs for policy template parameters and metadata. Only bindings matching given parameters and metadata will be updated or deleted.
+func (r ApiUpdateLevelPolicyBindingForPolicyAndGroupRequest) QueryParams(queryParams map[string]interface{}) ApiUpdateLevelPolicyBindingForPolicyAndGroupRequest {
+	r.queryParams = &queryParams
+	return r
+}
+
+func (r ApiUpdateLevelPolicyBindingForPolicyAndGroupRequest) Execute() (*http.Response, error) {
+	return r.ApiService.UpdateLevelPolicyBindingForPolicyAndGroupExecute(r)
 }
 
 /*
-UpdateLevelPolicyBindings Updates policy bindings of a level
+UpdateLevelPolicyBindingForPolicyAndGroup Updates or creates a policy binding for a particular group and policy
 
-The request overwrites all existing bindings.
-
-	This endpoint is unavailable within global level
+This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
-	@return ApiUpdateLevelPolicyBindingsRequest
+	@param groupUuid The ID of the required user group.
+	@param policyUuid The ID of the required policy.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
+	@return ApiUpdateLevelPolicyBindingForPolicyAndGroupRequest
 */
-func (a *PolicyManagementAPIService) UpdateLevelPolicyBindings(ctx context.Context, levelType string, levelId string) ApiUpdateLevelPolicyBindingsRequest {
-	return ApiUpdateLevelPolicyBindingsRequest{
+func (a *PolicyManagementAPIService) UpdateLevelPolicyBindingForPolicyAndGroup(ctx context.Context, groupUuid interface{}, policyUuid interface{}, levelId interface{}, levelType interface{}) ApiUpdateLevelPolicyBindingForPolicyAndGroupRequest {
+	return ApiUpdateLevelPolicyBindingForPolicyAndGroupRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
+		groupUuid:  groupUuid,
+		policyUuid: policyUuid,
 		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
 // Execute executes the request
-func (a *PolicyManagementAPIService) UpdateLevelPolicyBindingsExecute(r ApiUpdateLevelPolicyBindingsRequest) (*http.Response, error) {
+func (a *PolicyManagementAPIService) UpdateLevelPolicyBindingForPolicyAndGroupExecute(r ApiUpdateLevelPolicyBindingForPolicyAndGroupRequest) (*http.Response, error) {
 	var (
 		localVarHTTPMethod = http.MethodPut
 		localVarPostBody   interface{}
 		formFiles          []formFile
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PolicyManagementAPIService.UpdateLevelPolicyBindings")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PolicyManagementAPIService.UpdateLevelPolicyBindingForPolicyAndGroup")
 	if err != nil {
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/bindings"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
+	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/bindings/{policyUuid}/{groupUuid}"
+	localVarPath = strings.Replace(localVarPath, "{"+"groupUuid"+"}", url.PathEscape(parameterValueToString(r.groupUuid, "groupUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"policyUuid"+"}", url.PathEscape(parameterValueToString(r.policyUuid, "policyUuid")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
-	if r.createLevelPolicyBindingsRequestDto == nil {
-		return nil, reportError("createLevelPolicyBindingsRequestDto is required and must be specified")
+	if r.appendLevelPolicyBindingForGroupDto == nil {
+		return nil, reportError("appendLevelPolicyBindingForGroupDto is required and must be specified")
 	}
 
+	if r.queryParams != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "query-params", r.queryParams, "form", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{"application/json"}
 
@@ -2384,7 +3086,7 @@ func (a *PolicyManagementAPIService) UpdateLevelPolicyBindingsExecute(r ApiUpdat
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
 	// body params
-	localVarPostBody = r.createLevelPolicyBindingsRequestDto
+	localVarPostBody = r.appendLevelPolicyBindingForGroupDto
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return nil, err
@@ -2448,9 +3150,9 @@ func (a *PolicyManagementAPIService) UpdateLevelPolicyBindingsExecute(r ApiUpdat
 type ApiUpdatePolicyBindingsToGroupRequest struct {
 	ctx            context.Context
 	ApiService     *PolicyManagementAPIService
-	levelType      string
-	levelId        string
-	groupUuid      string
+	groupUuid      interface{}
+	levelId        interface{}
+	levelType      interface{}
 	policyUuidsDto *PolicyUuidsDto
 }
 
@@ -2471,18 +3173,18 @@ The request overwrites existing policies.
 This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `global`: A global policy applies to all accounts and environments. It is defined and managed by Dynatrace.  * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * global: use the `global` value.  * account: use the UUID of the account.  * environment: use the ID of the environment.
 	@param groupUuid The ID of the required user group.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiUpdatePolicyBindingsToGroupRequest
 */
-func (a *PolicyManagementAPIService) UpdatePolicyBindingsToGroup(ctx context.Context, levelType string, levelId string, groupUuid string) ApiUpdatePolicyBindingsToGroupRequest {
+func (a *PolicyManagementAPIService) UpdatePolicyBindingsToGroup(ctx context.Context, groupUuid interface{}, levelId interface{}, levelType interface{}) ApiUpdatePolicyBindingsToGroupRequest {
 	return ApiUpdatePolicyBindingsToGroupRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
-		levelId:    levelId,
 		groupUuid:  groupUuid,
+		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -2500,9 +3202,9 @@ func (a *PolicyManagementAPIService) UpdatePolicyBindingsToGroupExecute(r ApiUpd
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/bindings/groups/{groupUuid}"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"groupUuid"+"}", url.PathEscape(parameterValueToString(r.groupUuid, "groupUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -2593,9 +3295,9 @@ func (a *PolicyManagementAPIService) UpdatePolicyBindingsToGroupExecute(r ApiUpd
 type ApiValidateLevelPolicyRequest struct {
 	ctx                                 context.Context
 	ApiService                          *PolicyManagementAPIService
-	levelType                           string
-	levelId                             string
-	policyUuid                          string
+	policyUuid                          interface{}
+	levelId                             interface{}
+	levelType                           interface{}
 	createOrUpdateLevelPolicyRequestDto *CreateOrUpdateLevelPolicyRequestDto
 }
 
@@ -2615,18 +3317,18 @@ ValidateLevelPolicy Validates the payload for the `PUT /iam/v1/repo/{levelType}/
 This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
-	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
 	@param policyUuid The ID of the policy to be validated.
+	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiValidateLevelPolicyRequest
 */
-func (a *PolicyManagementAPIService) ValidateLevelPolicy(ctx context.Context, levelType string, levelId string, policyUuid string) ApiValidateLevelPolicyRequest {
+func (a *PolicyManagementAPIService) ValidateLevelPolicy(ctx context.Context, policyUuid interface{}, levelId interface{}, levelType interface{}) ApiValidateLevelPolicyRequest {
 	return ApiValidateLevelPolicyRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
-		levelId:    levelId,
 		policyUuid: policyUuid,
+		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -2647,9 +3349,9 @@ func (a *PolicyManagementAPIService) ValidateLevelPolicyExecute(r ApiValidateLev
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/policies/validation/{policyUuid}"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"policyUuid"+"}", url.PathEscape(parameterValueToString(r.policyUuid, "policyUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -2749,8 +3451,8 @@ func (a *PolicyManagementAPIService) ValidateLevelPolicyExecute(r ApiValidateLev
 type ApiValidateNewLevelPolicyRequest struct {
 	ctx                                 context.Context
 	ApiService                          *PolicyManagementAPIService
-	levelType                           string
-	levelId                             string
+	levelId                             interface{}
+	levelType                           interface{}
 	createOrUpdateLevelPolicyRequestDto *CreateOrUpdateLevelPolicyRequestDto
 }
 
@@ -2770,16 +3472,16 @@ ValidateNewLevelPolicy Validates the payload for the `POST /iam/v1/repo/{levelTy
 This endpoint is unavailable within global level
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@param levelId The ID of the policy level. Use one of the following values, depending on the level type:   * account: use the UUID of the account.  * environment: use the ID of the environment.
+	@param levelType The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available:   * `account`: An account policy applies to all environments of an account.  * `environment`: An environment policy applies to a specific environment.    Each level inherits the policies of the higher level and extends them with its own policies.
 	@return ApiValidateNewLevelPolicyRequest
 */
-func (a *PolicyManagementAPIService) ValidateNewLevelPolicy(ctx context.Context, levelType string, levelId string) ApiValidateNewLevelPolicyRequest {
+func (a *PolicyManagementAPIService) ValidateNewLevelPolicy(ctx context.Context, levelId interface{}, levelType interface{}) ApiValidateNewLevelPolicyRequest {
 	return ApiValidateNewLevelPolicyRequest{
 		ApiService: a,
 		ctx:        ctx,
-		levelType:  levelType,
 		levelId:    levelId,
+		levelType:  levelType,
 	}
 }
 
@@ -2800,8 +3502,8 @@ func (a *PolicyManagementAPIService) ValidateNewLevelPolicyExecute(r ApiValidate
 	}
 
 	localVarPath := localBasePath + "/iam/v1/repo/{levelType}/{levelId}/policies/validation"
-	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"levelId"+"}", url.PathEscape(parameterValueToString(r.levelId, "levelId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"levelType"+"}", url.PathEscape(parameterValueToString(r.levelType, "levelType")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

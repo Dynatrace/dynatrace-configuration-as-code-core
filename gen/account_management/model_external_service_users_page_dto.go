@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the ExternalServiceUsersPageDto type satisfies the MappedNullable interface at compile time
@@ -23,8 +24,11 @@ type ExternalServiceUsersPageDto struct {
 	// Next page key to be used in querying for next results page
 	NextPageKey string `json:"nextPageKey"`
 	// Total number of service users
-	TotalCount float32 `json:"totalCount"`
+	TotalCount           float32 `json:"totalCount"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _ExternalServiceUsersPageDto ExternalServiceUsersPageDto
 
 // NewExternalServiceUsersPageDto instantiates a new ExternalServiceUsersPageDto object
 // This constructor will assign default values to properties that have it defined,
@@ -131,7 +135,58 @@ func (o ExternalServiceUsersPageDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["results"] = o.Results
 	toSerialize["nextPageKey"] = o.NextPageKey
 	toSerialize["totalCount"] = o.TotalCount
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *ExternalServiceUsersPageDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"results",
+		"nextPageKey",
+		"totalCount",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varExternalServiceUsersPageDto := _ExternalServiceUsersPageDto{}
+
+	err = json.Unmarshal(data, &varExternalServiceUsersPageDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = ExternalServiceUsersPageDto(varExternalServiceUsersPageDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "results")
+		delete(additionalProperties, "nextPageKey")
+		delete(additionalProperties, "totalCount")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableExternalServiceUsersPageDto struct {

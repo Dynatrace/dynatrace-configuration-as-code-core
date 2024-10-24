@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the GroupListDto type satisfies the MappedNullable interface at compile time
@@ -20,9 +21,12 @@ var _ MappedNullable = &GroupListDto{}
 // GroupListDto struct for GroupListDto
 type GroupListDto struct {
 	// The number of entries in the list.
-	Count float32       `json:"count"`
-	Items []GetGroupDto `json:"items"`
+	Count                float32       `json:"count"`
+	Items                []GetGroupDto `json:"items"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _GroupListDto GroupListDto
 
 // NewGroupListDto instantiates a new GroupListDto object
 // This constructor will assign default values to properties that have it defined,
@@ -103,7 +107,56 @@ func (o GroupListDto) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["count"] = o.Count
 	toSerialize["items"] = o.Items
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *GroupListDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"count",
+		"items",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varGroupListDto := _GroupListDto{}
+
+	err = json.Unmarshal(data, &varGroupListDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = GroupListDto(varGroupListDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "count")
+		delete(additionalProperties, "items")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableGroupListDto struct {

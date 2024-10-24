@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the EffectiveBinding type satisfies the MappedNullable interface at compile time
@@ -24,8 +25,11 @@ type EffectiveBinding struct {
 	// The type of the level to which the binding applies.
 	LevelType string `json:"levelType"`
 	// The ID of the level to which the binding applies.
-	LevelId string `json:"levelId"`
+	LevelId              string `json:"levelId"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _EffectiveBinding EffectiveBinding
 
 // NewEffectiveBinding instantiates a new EffectiveBinding object
 // This constructor will assign default values to properties that have it defined,
@@ -132,7 +136,58 @@ func (o EffectiveBinding) ToMap() (map[string]interface{}, error) {
 	toSerialize["groupUuid"] = o.GroupUuid
 	toSerialize["levelType"] = o.LevelType
 	toSerialize["levelId"] = o.LevelId
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *EffectiveBinding) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"groupUuid",
+		"levelType",
+		"levelId",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varEffectiveBinding := _EffectiveBinding{}
+
+	err = json.Unmarshal(data, &varEffectiveBinding)
+
+	if err != nil {
+		return err
+	}
+
+	*o = EffectiveBinding(varEffectiveBinding)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "groupUuid")
+		delete(additionalProperties, "levelType")
+		delete(additionalProperties, "levelId")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableEffectiveBinding struct {

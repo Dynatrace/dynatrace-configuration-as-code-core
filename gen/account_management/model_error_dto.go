@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the ErrorDto type satisfies the MappedNullable interface at compile time
@@ -22,9 +23,12 @@ type ErrorDto struct {
 	// The code of the error.
 	Code float32 `json:"code"`
 	// A short description of the error.
-	Message   string            `json:"message"`
-	ErrorsMap map[string]string `json:"errorsMap"`
+	Message              string            `json:"message"`
+	ErrorsMap            map[string]string `json:"errorsMap"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _ErrorDto ErrorDto
 
 // NewErrorDto instantiates a new ErrorDto object
 // This constructor will assign default values to properties that have it defined,
@@ -131,7 +135,58 @@ func (o ErrorDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["code"] = o.Code
 	toSerialize["message"] = o.Message
 	toSerialize["errorsMap"] = o.ErrorsMap
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *ErrorDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"code",
+		"message",
+		"errorsMap",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varErrorDto := _ErrorDto{}
+
+	err = json.Unmarshal(data, &varErrorDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = ErrorDto(varErrorDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "code")
+		delete(additionalProperties, "message")
+		delete(additionalProperties, "errorsMap")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableErrorDto struct {

@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the Statement type satisfies the MappedNullable interface at compile time
@@ -26,8 +27,11 @@ type Statement struct {
 	// A list of granted permissions.
 	Permissions []string `json:"permissions"`
 	// A list of conditions limiting the granted permissions.
-	Conditions []Condition `json:"conditions"`
+	Conditions           []Condition `json:"conditions"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _Statement Statement
 
 // NewStatement instantiates a new Statement object
 // This constructor will assign default values to properties that have it defined,
@@ -160,7 +164,60 @@ func (o Statement) ToMap() (map[string]interface{}, error) {
 	toSerialize["service"] = o.Service
 	toSerialize["permissions"] = o.Permissions
 	toSerialize["conditions"] = o.Conditions
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *Statement) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"effect",
+		"service",
+		"permissions",
+		"conditions",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varStatement := _Statement{}
+
+	err = json.Unmarshal(data, &varStatement)
+
+	if err != nil {
+		return err
+	}
+
+	*o = Statement(varStatement)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "effect")
+		delete(additionalProperties, "service")
+		delete(additionalProperties, "permissions")
+		delete(additionalProperties, "conditions")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableStatement struct {

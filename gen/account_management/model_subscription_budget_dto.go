@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the SubscriptionBudgetDto type satisfies the MappedNullable interface at compile time
@@ -19,13 +20,16 @@ var _ MappedNullable = &SubscriptionBudgetDto{}
 
 // SubscriptionBudgetDto struct for SubscriptionBudgetDto
 type SubscriptionBudgetDto struct {
-	// The total budget for the subscription
+	// The total budget of the subscription.
 	Total float32 `json:"total"`
-	// The total budget used for the subscription
+	// The used budget of the subscription.
 	Used float32 `json:"used"`
-	// The currency code for the subscription
-	CurrencyCode string `json:"currencyCode"`
+	// The currency of the subscription.
+	CurrencyCode         string `json:"currencyCode"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _SubscriptionBudgetDto SubscriptionBudgetDto
 
 // NewSubscriptionBudgetDto instantiates a new SubscriptionBudgetDto object
 // This constructor will assign default values to properties that have it defined,
@@ -132,7 +136,58 @@ func (o SubscriptionBudgetDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["total"] = o.Total
 	toSerialize["used"] = o.Used
 	toSerialize["currencyCode"] = o.CurrencyCode
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *SubscriptionBudgetDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"total",
+		"used",
+		"currencyCode",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varSubscriptionBudgetDto := _SubscriptionBudgetDto{}
+
+	err = json.Unmarshal(data, &varSubscriptionBudgetDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = SubscriptionBudgetDto(varSubscriptionBudgetDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "total")
+		delete(additionalProperties, "used")
+		delete(additionalProperties, "currencyCode")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableSubscriptionBudgetDto struct {
