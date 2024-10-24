@@ -12,6 +12,8 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"bytes"
+	"fmt"
 )
 
 // checks if the GroupUserDto type satisfies the MappedNullable interface at compile time
@@ -27,13 +29,15 @@ type GroupUserDto struct {
 	Name *string `json:"name,omitempty"`
 	// The last name of the user.
 	Surname *string `json:"surname,omitempty"`
-	// The status of this user in Dynatrace:   * `ACTIVE`: The user is active. * `INACTIVE`: The user is deactivated and cannot sign in to Dynatrace.  * `PENDING`: The user received an invitation, but hasn't completed sign-up yet.  * `DELETED`: The user was deleted and cannot sign in to Dynatrace anymore.  * `ECUSTOMS_MANUALLY_BLOCKED`: The user is blocked due to to a trade and export compliance violation.
+	// The status of this user in Dynatrace:   * `ACTIVE`: The user is active. * `INACTIVE`: The user is deactivated and cannot sign in to Dynatrace.  * `PENDING`: The user received an invitation, but hasn't completed sign-up yet.  * `DELETED`: The user was deleted and cannot sign in to Dynatrace anymore.  * `ECUSTOMS_MANUALLY_BLOCKED`: The user is blocked due to to a trade and export compliance violation.  
 	UserStatus *string `json:"userStatus,omitempty"`
 	// The user is (`true`) or is not (`false`) an emergency contact for the account.
 	EmergencyContact *bool `json:"emergencyContact,omitempty"`
 	// A list of groups of which the user is a member.
 	Groups []AccountGroupDto `json:"groups"`
 }
+
+type _GroupUserDto GroupUserDto
 
 // NewGroupUserDto instantiates a new GroupUserDto object
 // This constructor will assign default values to properties that have it defined,
@@ -256,7 +260,7 @@ func (o *GroupUserDto) SetGroups(v []AccountGroupDto) {
 }
 
 func (o GroupUserDto) MarshalJSON() ([]byte, error) {
-	toSerialize, err := o.ToMap()
+	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -281,6 +285,45 @@ func (o GroupUserDto) ToMap() (map[string]interface{}, error) {
 	}
 	toSerialize["groups"] = o.Groups
 	return toSerialize, nil
+}
+
+func (o *GroupUserDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"uid",
+		"email",
+		"groups",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err;
+	}
+
+	for _, requiredProperty := range(requiredProperties) {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varGroupUserDto := _GroupUserDto{}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varGroupUserDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = GroupUserDto(varGroupUserDto)
+
+	return err
 }
 
 type NullableGroupUserDto struct {
@@ -318,3 +361,5 @@ func (v *NullableGroupUserDto) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+

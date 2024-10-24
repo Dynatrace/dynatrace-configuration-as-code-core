@@ -19,19 +19,20 @@ import (
 	"strings"
 )
 
+
 // ServiceUserManagementAPIService ServiceUserManagementAPI service
 type ServiceUserManagementAPIService service
 
 type ApiCreateServiceUserForAccountRequest struct {
-	ctx                context.Context
-	ApiService         *ServiceUserManagementAPIService
-	accountUuid        string
-	serviceUserNameDto *ServiceUserNameDto
+	ctx context.Context
+	ApiService *ServiceUserManagementAPIService
+	accountUuid string
+	serviceUserDto *ServiceUserDto
 }
 
 // The JSON body of the request. Contains the name of the new service user.
-func (r ApiCreateServiceUserForAccountRequest) ServiceUserNameDto(serviceUserNameDto ServiceUserNameDto) ApiCreateServiceUserForAccountRequest {
-	r.serviceUserNameDto = &serviceUserNameDto
+func (r ApiCreateServiceUserForAccountRequest) ServiceUserDto(serviceUserDto ServiceUserDto) ApiCreateServiceUserForAccountRequest {
+	r.serviceUserDto = &serviceUserDto
 	return r
 }
 
@@ -42,27 +43,26 @@ func (r ApiCreateServiceUserForAccountRequest) Execute() (*ServiceUserUuidDto, *
 /*
 CreateServiceUserForAccount Creates a new service user in an account
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@return ApiCreateServiceUserForAccountRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @return ApiCreateServiceUserForAccountRequest
 */
 func (a *ServiceUserManagementAPIService) CreateServiceUserForAccount(ctx context.Context, accountUuid string) ApiCreateServiceUserForAccountRequest {
 	return ApiCreateServiceUserForAccountRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
 	}
 }
 
 // Execute executes the request
-//
-//	@return ServiceUserUuidDto
+//  @return ServiceUserUuidDto
 func (a *ServiceUserManagementAPIService) CreateServiceUserForAccountExecute(r ApiCreateServiceUserForAccountRequest) (*ServiceUserUuidDto, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *ServiceUserUuidDto
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *ServiceUserUuidDto
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ServiceUserManagementAPIService.CreateServiceUserForAccount")
@@ -76,8 +76,8 @@ func (a *ServiceUserManagementAPIService) CreateServiceUserForAccountExecute(r A
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
-	if r.serviceUserNameDto == nil {
-		return localVarReturnValue, nil, reportError("serviceUserNameDto is required and must be specified")
+	if r.serviceUserDto == nil {
+		return localVarReturnValue, nil, reportError("serviceUserDto is required and must be specified")
 	}
 
 	// to determine the Content-Type header
@@ -98,7 +98,7 @@ func (a *ServiceUserManagementAPIService) CreateServiceUserForAccountExecute(r A
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
 	// body params
-	localVarPostBody = r.serviceUserNameDto
+	localVarPostBody = r.serviceUserDto
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err
@@ -137,10 +137,10 @@ func (a *ServiceUserManagementAPIService) CreateServiceUserForAccountExecute(r A
 }
 
 type ApiDeleteUserRequest struct {
-	ctx         context.Context
-	ApiService  *ServiceUserManagementAPIService
+	ctx context.Context
+	ApiService *ServiceUserManagementAPIService
 	accountUuid string
-	userUuid    string
+	userUuid string
 }
 
 func (r ApiDeleteUserRequest) Execute() (*http.Response, error) {
@@ -150,26 +150,26 @@ func (r ApiDeleteUserRequest) Execute() (*http.Response, error) {
 /*
 DeleteUser Removes service user
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@param userUuid The UUID of the required user.
-	@return ApiDeleteUserRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @param userUuid The UUID of the required user.
+ @return ApiDeleteUserRequest
 */
 func (a *ServiceUserManagementAPIService) DeleteUser(ctx context.Context, accountUuid string, userUuid string) ApiDeleteUserRequest {
 	return ApiDeleteUserRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
-		userUuid:    userUuid,
+		userUuid: userUuid,
 	}
 }
 
 // Execute executes the request
 func (a *ServiceUserManagementAPIService) DeleteUserExecute(r ApiDeleteUserRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod = http.MethodDelete
-		localVarPostBody   interface{}
-		formFiles          []formFile
+		localVarHTTPMethod   = http.MethodDelete
+		localVarPostBody     interface{}
+		formFiles            []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ServiceUserManagementAPIService.DeleteUser")
@@ -231,9 +231,23 @@ func (a *ServiceUserManagementAPIService) DeleteUserExecute(r ApiDeleteUserReque
 }
 
 type ApiGetServiceUsersFromAccountRequest struct {
-	ctx         context.Context
-	ApiService  *ServiceUserManagementAPIService
+	ctx context.Context
+	ApiService *ServiceUserManagementAPIService
 	accountUuid string
+	page *float32
+	pageSize *float32
+}
+
+// The number of the requested page. Can be increased as long as **hasNextPage** is true in the response.
+func (r ApiGetServiceUsersFromAccountRequest) Page(page float32) ApiGetServiceUsersFromAccountRequest {
+	r.page = &page
+	return r
+}
+
+// Defines the requested number of entries for the next page.
+func (r ApiGetServiceUsersFromAccountRequest) PageSize(pageSize float32) ApiGetServiceUsersFromAccountRequest {
+	r.pageSize = &pageSize
+	return r
 }
 
 func (r ApiGetServiceUsersFromAccountRequest) Execute() (*ExternalServiceUsersPageDto, *http.Response, error) {
@@ -243,27 +257,26 @@ func (r ApiGetServiceUsersFromAccountRequest) Execute() (*ExternalServiceUsersPa
 /*
 GetServiceUsersFromAccount Get service users assigned to account
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@return ApiGetServiceUsersFromAccountRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @return ApiGetServiceUsersFromAccountRequest
 */
 func (a *ServiceUserManagementAPIService) GetServiceUsersFromAccount(ctx context.Context, accountUuid string) ApiGetServiceUsersFromAccountRequest {
 	return ApiGetServiceUsersFromAccountRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
 	}
 }
 
 // Execute executes the request
-//
-//	@return ExternalServiceUsersPageDto
+//  @return ExternalServiceUsersPageDto
 func (a *ServiceUserManagementAPIService) GetServiceUsersFromAccountExecute(r ApiGetServiceUsersFromAccountRequest) (*ExternalServiceUsersPageDto, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *ExternalServiceUsersPageDto
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *ExternalServiceUsersPageDto
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ServiceUserManagementAPIService.GetServiceUsersFromAccount")
@@ -278,6 +291,12 @@ func (a *ServiceUserManagementAPIService) GetServiceUsersFromAccountExecute(r Ap
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if r.page != nil {
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "page", r.page, "form", "")
+	}
+	if r.pageSize != nil {
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "page-size", r.pageSize, "form", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 

@@ -12,6 +12,8 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"bytes"
+	"fmt"
 )
 
 // checks if the UserEmailDto type satisfies the MappedNullable interface at compile time
@@ -22,6 +24,8 @@ type UserEmailDto struct {
 	// The email address of the user.
 	Email string `json:"email"`
 }
+
+type _UserEmailDto UserEmailDto
 
 // NewUserEmailDto instantiates a new UserEmailDto object
 // This constructor will assign default values to properties that have it defined,
@@ -66,7 +70,7 @@ func (o *UserEmailDto) SetEmail(v string) {
 }
 
 func (o UserEmailDto) MarshalJSON() ([]byte, error) {
-	toSerialize, err := o.ToMap()
+	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -77,6 +81,43 @@ func (o UserEmailDto) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["email"] = o.Email
 	return toSerialize, nil
+}
+
+func (o *UserEmailDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"email",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err;
+	}
+
+	for _, requiredProperty := range(requiredProperties) {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varUserEmailDto := _UserEmailDto{}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varUserEmailDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = UserEmailDto(varUserEmailDto)
+
+	return err
 }
 
 type NullableUserEmailDto struct {
@@ -114,3 +155,5 @@ func (v *NullableUserEmailDto) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+

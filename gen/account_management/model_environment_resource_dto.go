@@ -12,6 +12,8 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"bytes"
+	"fmt"
 )
 
 // checks if the EnvironmentResourceDto type satisfies the MappedNullable interface at compile time
@@ -24,6 +26,8 @@ type EnvironmentResourceDto struct {
 	// A list of management zones in the account.
 	ManagementZoneResources []ManagementZoneResourceDto `json:"managementZoneResources"`
 }
+
+type _EnvironmentResourceDto EnvironmentResourceDto
 
 // NewEnvironmentResourceDto instantiates a new EnvironmentResourceDto object
 // This constructor will assign default values to properties that have it defined,
@@ -93,7 +97,7 @@ func (o *EnvironmentResourceDto) SetManagementZoneResources(v []ManagementZoneRe
 }
 
 func (o EnvironmentResourceDto) MarshalJSON() ([]byte, error) {
-	toSerialize, err := o.ToMap()
+	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -105,6 +109,44 @@ func (o EnvironmentResourceDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["tenantResources"] = o.TenantResources
 	toSerialize["managementZoneResources"] = o.ManagementZoneResources
 	return toSerialize, nil
+}
+
+func (o *EnvironmentResourceDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"tenantResources",
+		"managementZoneResources",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err;
+	}
+
+	for _, requiredProperty := range(requiredProperties) {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varEnvironmentResourceDto := _EnvironmentResourceDto{}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varEnvironmentResourceDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = EnvironmentResourceDto(varEnvironmentResourceDto)
+
+	return err
 }
 
 type NullableEnvironmentResourceDto struct {
@@ -142,3 +184,5 @@ func (v *NullableEnvironmentResourceDto) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+

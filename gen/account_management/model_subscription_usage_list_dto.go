@@ -12,6 +12,8 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"bytes"
+	"fmt"
 )
 
 // checks if the SubscriptionUsageListDto type satisfies the MappedNullable interface at compile time
@@ -19,11 +21,13 @@ var _ MappedNullable = &SubscriptionUsageListDto{}
 
 // SubscriptionUsageListDto struct for SubscriptionUsageListDto
 type SubscriptionUsageListDto struct {
-	// Subscription usage data
+	// Usage data of the subscription.
 	Data []SubscriptionUsageDto `json:"data"`
 	// The time the subscription data was last modified in `2021-05-01T15:11:00Z` format.
 	LastModifiedTime string `json:"lastModifiedTime"`
 }
+
+type _SubscriptionUsageListDto SubscriptionUsageListDto
 
 // NewSubscriptionUsageListDto instantiates a new SubscriptionUsageListDto object
 // This constructor will assign default values to properties that have it defined,
@@ -93,7 +97,7 @@ func (o *SubscriptionUsageListDto) SetLastModifiedTime(v string) {
 }
 
 func (o SubscriptionUsageListDto) MarshalJSON() ([]byte, error) {
-	toSerialize, err := o.ToMap()
+	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -105,6 +109,44 @@ func (o SubscriptionUsageListDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["data"] = o.Data
 	toSerialize["lastModifiedTime"] = o.LastModifiedTime
 	return toSerialize, nil
+}
+
+func (o *SubscriptionUsageListDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"data",
+		"lastModifiedTime",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err;
+	}
+
+	for _, requiredProperty := range(requiredProperties) {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varSubscriptionUsageListDto := _SubscriptionUsageListDto{}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varSubscriptionUsageListDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = SubscriptionUsageListDto(varSubscriptionUsageListDto)
+
+	return err
 }
 
 type NullableSubscriptionUsageListDto struct {
@@ -142,3 +184,5 @@ func (v *NullableSubscriptionUsageListDto) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+
