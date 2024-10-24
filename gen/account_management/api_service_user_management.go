@@ -292,10 +292,10 @@ func (a *ServiceUserManagementAPIService) GetServiceUsersFromAccountExecute(r Ap
 	localVarFormParams := url.Values{}
 
 	if r.page != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "page", r.page, "form", "")
 	}
 	if r.pageSize != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "page-size", r.pageSize, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "page-size", r.pageSize, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

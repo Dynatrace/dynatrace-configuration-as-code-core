@@ -392,7 +392,7 @@ func (a *UserManagementAPIService) GetUsersExecute(r ApiGetUsersRequest) (*UserL
 	localVarFormParams := url.Values{}
 
 	if r.serviceUsers != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "service-users", r.serviceUsers, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "service-users", r.serviceUsers, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -606,10 +606,10 @@ func (a *UserManagementAPIService) RemoveUserFromGroupsExecute(r ApiRemoveUserFr
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "group-uuid", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "group-uuid", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "group-uuid", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "group-uuid", t, "form", "multi")
 		}
 	}
 	// to determine the Content-Type header

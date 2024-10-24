@@ -115,22 +115,22 @@ func (a *DynatracePlatformSubscriptionAPIService) GetCostAllocationBreakdownPage
 	localVarFormParams := url.Values{}
 
 	if r.field != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "field", r.field, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "field", r.field, "form", "")
 	}
 	if r.environmentId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "environment-id", r.environmentId, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "environment-id", r.environmentId, "form", "")
 	}
 	if r.from != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "from", r.from, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "from", r.from, "form", "")
 	}
 	if r.to != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "to", r.to, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "to", r.to, "form", "")
 	}
 	if r.pageSize != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "page-size", r.pageSize, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "page-size", r.pageSize, "form", "")
 	}
 	if r.pageKey != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "page-key", r.pageKey, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "page-key", r.pageKey, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -273,17 +273,17 @@ func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentCostExecute(r Ap
 		return localVarReturnValue, nil, reportError("endTime is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "startTime", r.startTime, "form", "")
-	parameterAddToHeaderOrQuery(localVarQueryParams, "endTime", r.endTime, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "startTime", r.startTime, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "endTime", r.endTime, "form", "")
 	if r.environmentIds != nil {
 		t := *r.environmentIds
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "environmentIds", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "environmentIds", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "environmentIds", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "environmentIds", t, "form", "multi")
 		}
 	}
 	if r.capabilityKeys != nil {
@@ -291,10 +291,10 @@ func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentCostExecute(r Ap
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "capabilityKeys", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "capabilityKeys", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "capabilityKeys", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "capabilityKeys", t, "form", "multi")
 		}
 	}
 	// to determine the Content-Type header
@@ -457,17 +457,17 @@ func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentCostV3Execute(r 
 		return localVarReturnValue, nil, reportError("endTime is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "startTime", r.startTime, "form", "")
-	parameterAddToHeaderOrQuery(localVarQueryParams, "endTime", r.endTime, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "startTime", r.startTime, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "endTime", r.endTime, "form", "")
 	if r.environmentIds != nil {
 		t := *r.environmentIds
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "environmentIds", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "environmentIds", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "environmentIds", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "environmentIds", t, "form", "multi")
 		}
 	}
 	if r.capabilityKeys != nil {
@@ -475,10 +475,10 @@ func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentCostV3Execute(r 
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "capabilityKeys", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "capabilityKeys", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "capabilityKeys", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "capabilityKeys", t, "form", "multi")
 		}
 	}
 	if r.clusterIds != nil {
@@ -486,17 +486,17 @@ func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentCostV3Execute(r 
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "clusterIds", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "clusterIds", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "clusterIds", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "clusterIds", t, "form", "multi")
 		}
 	}
 	if r.pageKey != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "page-key", r.pageKey, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "page-key", r.pageKey, "form", "")
 	}
 	if r.pageSize != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "page-size", r.pageSize, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "page-size", r.pageSize, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -639,17 +639,17 @@ func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentUsageExecute(r A
 		return localVarReturnValue, nil, reportError("endTime is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "startTime", r.startTime, "form", "")
-	parameterAddToHeaderOrQuery(localVarQueryParams, "endTime", r.endTime, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "startTime", r.startTime, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "endTime", r.endTime, "form", "")
 	if r.environmentIds != nil {
 		t := *r.environmentIds
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "environmentIds", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "environmentIds", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "environmentIds", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "environmentIds", t, "form", "multi")
 		}
 	}
 	if r.capabilityKeys != nil {
@@ -657,10 +657,10 @@ func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentUsageExecute(r A
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "capabilityKeys", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "capabilityKeys", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "capabilityKeys", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "capabilityKeys", t, "form", "multi")
 		}
 	}
 	// to determine the Content-Type header
@@ -823,17 +823,17 @@ func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentUsageV3Execute(r
 		return localVarReturnValue, nil, reportError("endTime is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "startTime", r.startTime, "form", "")
-	parameterAddToHeaderOrQuery(localVarQueryParams, "endTime", r.endTime, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "startTime", r.startTime, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "endTime", r.endTime, "form", "")
 	if r.environmentIds != nil {
 		t := *r.environmentIds
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "environmentIds", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "environmentIds", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "environmentIds", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "environmentIds", t, "form", "multi")
 		}
 	}
 	if r.capabilityKeys != nil {
@@ -841,10 +841,10 @@ func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentUsageV3Execute(r
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "capabilityKeys", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "capabilityKeys", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "capabilityKeys", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "capabilityKeys", t, "form", "multi")
 		}
 	}
 	if r.clusterIds != nil {
@@ -852,17 +852,17 @@ func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentUsageV3Execute(r
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "clusterIds", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "clusterIds", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "clusterIds", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "clusterIds", t, "form", "multi")
 		}
 	}
 	if r.pageKey != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "page-key", r.pageKey, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "page-key", r.pageKey, "form", "")
 	}
 	if r.pageSize != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "page-size", r.pageSize, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "page-size", r.pageSize, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -987,13 +987,13 @@ func (a *DynatracePlatformSubscriptionAPIService) GetEventsExecute(r ApiGetEvent
 	localVarFormParams := url.Values{}
 
 	if r.startTime != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "startTime", r.startTime, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "startTime", r.startTime, "form", "")
 	}
 	if r.endTime != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "endTime", r.endTime, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "endTime", r.endTime, "form", "")
 	}
 	if r.eventType != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "eventType", r.eventType, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "eventType", r.eventType, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1332,10 +1332,10 @@ func (a *DynatracePlatformSubscriptionAPIService) GetTotalSubscriptionCostExecut
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "environmentIds", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "environmentIds", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "environmentIds", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "environmentIds", t, "form", "multi")
 		}
 	}
 	if r.capabilityKeys != nil {
@@ -1343,10 +1343,10 @@ func (a *DynatracePlatformSubscriptionAPIService) GetTotalSubscriptionCostExecut
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "capabilityKeys", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "capabilityKeys", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "capabilityKeys", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "capabilityKeys", t, "form", "multi")
 		}
 	}
 	if r.clusterIds != nil {
@@ -1354,10 +1354,10 @@ func (a *DynatracePlatformSubscriptionAPIService) GetTotalSubscriptionCostExecut
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "clusterIds", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "clusterIds", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "clusterIds", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "clusterIds", t, "form", "multi")
 		}
 	}
 	// to determine the Content-Type header
@@ -1491,10 +1491,10 @@ func (a *DynatracePlatformSubscriptionAPIService) GetTotalSubscriptionUsageExecu
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "environmentIds", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "environmentIds", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "environmentIds", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "environmentIds", t, "form", "multi")
 		}
 	}
 	if r.capabilityKeys != nil {
@@ -1502,10 +1502,10 @@ func (a *DynatracePlatformSubscriptionAPIService) GetTotalSubscriptionUsageExecu
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "capabilityKeys", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "capabilityKeys", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "capabilityKeys", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "capabilityKeys", t, "form", "multi")
 		}
 	}
 	if r.clusterIds != nil {
@@ -1513,10 +1513,10 @@ func (a *DynatracePlatformSubscriptionAPIService) GetTotalSubscriptionUsageExecu
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "clusterIds", s.Index(i).Interface(), "form", "multi")
+				parameterAddToHeaderOrQueryEx(localVarQueryParams, "clusterIds", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "clusterIds", t, "form", "multi")
+			parameterAddToHeaderOrQueryEx(localVarQueryParams, "clusterIds", t, "form", "multi")
 		}
 	}
 	// to determine the Content-Type header

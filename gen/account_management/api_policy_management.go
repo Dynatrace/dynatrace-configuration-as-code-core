@@ -114,22 +114,22 @@ func (a *PolicyManagementAPIService) PolicyControllerExecute(r ApiPolicyControll
 	}
 
 	if r.size != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "size", r.size, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "size", r.size, "form", "")
 	} else {
 		var defaultValue interface{} = 100
 		r.size = &defaultValue
 	}
 	if r.page != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "page", r.page, "form", "")
 	} else {
 		var defaultValue interface{} = 1
 		r.page = &defaultValue
 	}
 	if r.services != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "services;", r.services, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "services;", r.services, "form", "")
 	}
-	parameterAddToHeaderOrQuery(localVarQueryParams, "entityId", r.entityId, "form", "")
-	parameterAddToHeaderOrQuery(localVarQueryParams, "entityType", r.entityType, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "entityId", r.entityId, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "entityType", r.entityType, "form", "")
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -377,10 +377,10 @@ func (a *PolicyManagementAPIService) PolicyController_2Execute(r ApiPolicyContro
 	localVarFormParams := url.Values{}
 
 	if r.categories != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "categories", r.categories, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "categories", r.categories, "form", "")
 	}
 	if r.name != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "name", r.name, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "name", r.name, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1029,9 +1029,9 @@ func (a *PolicyManagementAPIService) PolicyController_7Execute(r ApiPolicyContro
 		return nil, reportError("forceMultiple is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "forceMultiple", r.forceMultiple, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "forceMultiple", r.forceMultiple, "form", "")
 	if r.queryParams != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "query-params", r.queryParams, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "query-params", r.queryParams, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1169,13 +1169,13 @@ func (a *PolicyManagementAPIService) PolicyController_8Execute(r ApiPolicyContro
 	localVarFormParams := url.Values{}
 
 	if r.size != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "size", r.size, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "size", r.size, "form", "")
 	} else {
 		var defaultValue interface{} = 100
 		r.size = &defaultValue
 	}
 	if r.page != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "page", r.page, "form", "")
 	} else {
 		var defaultValue interface{} = 1
 		r.page = &defaultValue
@@ -1446,7 +1446,7 @@ func (a *PolicyManagementAPIService) PolicyController_10Execute(r ApiPolicyContr
 	}
 
 	if r.queryParams != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "query-params", r.queryParams, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "query-params", r.queryParams, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{"application/json"}
@@ -1751,9 +1751,9 @@ func (a *PolicyManagementAPIService) PolicyController_12Execute(r ApiPolicyContr
 		return nil, reportError("forceMultiple is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "forceMultiple", r.forceMultiple, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "forceMultiple", r.forceMultiple, "form", "")
 	if r.queryParams != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "query-params", r.queryParams, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "query-params", r.queryParams, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -2032,13 +2032,13 @@ func (a *PolicyManagementAPIService) PolicyController_14Execute(r ApiPolicyContr
 	localVarFormParams := url.Values{}
 
 	if r.size != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "size", r.size, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "size", r.size, "form", "")
 	} else {
 		var defaultValue interface{} = 100
 		r.size = &defaultValue
 	}
 	if r.page != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "page", r.page, "form", "")
 	} else {
 		var defaultValue interface{} = 1
 		r.page = &defaultValue
@@ -3244,7 +3244,7 @@ func (a *PolicyManagementAPIService) PolicyController_23Execute(r ApiPolicyContr
 		return nil, reportError("force is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "force", r.force, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "force", r.force, "form", "")
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -3374,7 +3374,7 @@ func (a *PolicyManagementAPIService) PolicyController_24Execute(r ApiPolicyContr
 	localVarFormParams := url.Values{}
 
 	if r.details != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "details", r.details, "form", "")
+		parameterAddToHeaderOrQueryEx(localVarQueryParams, "details", r.details, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

@@ -447,9 +447,9 @@ func (a *PermissionManagementAPIService) RemoveGroupPermissionsExecute(r ApiRemo
 		return nil, reportError("scopeType is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "scope", r.scope, "form", "")
-	parameterAddToHeaderOrQuery(localVarQueryParams, "permission-name", r.permissionName, "form", "")
-	parameterAddToHeaderOrQuery(localVarQueryParams, "scope-type", r.scopeType, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "scope", r.scope, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "permission-name", r.permissionName, "form", "")
+	parameterAddToHeaderOrQueryEx(localVarQueryParams, "scope-type", r.scopeType, "form", "")
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
