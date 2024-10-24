@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the GroupUserListDto type satisfies the MappedNullable interface at compile time
@@ -20,9 +21,12 @@ var _ MappedNullable = &GroupUserListDto{}
 // GroupUserListDto struct for GroupUserListDto
 type GroupUserListDto struct {
 	// The number of entries in the list.
-	Count float32   `json:"count"`
-	Items []UserDto `json:"items"`
+	Count                float32   `json:"count"`
+	Items                []UserDto `json:"items"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _GroupUserListDto GroupUserListDto
 
 // NewGroupUserListDto instantiates a new GroupUserListDto object
 // This constructor will assign default values to properties that have it defined,
@@ -103,7 +107,56 @@ func (o GroupUserListDto) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["count"] = o.Count
 	toSerialize["items"] = o.Items
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *GroupUserListDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"count",
+		"items",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varGroupUserListDto := _GroupUserListDto{}
+
+	err = json.Unmarshal(data, &varGroupUserListDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = GroupUserListDto(varGroupUserListDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "count")
+		delete(additionalProperties, "items")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableGroupUserListDto struct {

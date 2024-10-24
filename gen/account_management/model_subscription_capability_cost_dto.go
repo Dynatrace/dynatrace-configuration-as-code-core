@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the SubscriptionCapabilityCostDto type satisfies the MappedNullable interface at compile time
@@ -23,15 +24,18 @@ type SubscriptionCapabilityCostDto struct {
 	StartTime string `json:"startTime"`
 	// The end time for the capability cost in `2021-05-01T15:11:00Z` format.
 	EndTime string `json:"endTime"`
-	// The total cost for all the capabilities combined
+	// The total cost for all the capabilities.
 	Value float32 `json:"value"`
-	// The currency code for the cost
+	// The currency of the cost.
 	CurrencyCode string `json:"currencyCode"`
-	// The capability key
+	// The key of the subscription capability.
 	CapabilityKey string `json:"capabilityKey"`
-	// The name of the capability
-	CapabilityName string `json:"capabilityName"`
+	// The display name of the subscription capability.
+	CapabilityName       string `json:"capabilityName"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _SubscriptionCapabilityCostDto SubscriptionCapabilityCostDto
 
 // NewSubscriptionCapabilityCostDto instantiates a new SubscriptionCapabilityCostDto object
 // This constructor will assign default values to properties that have it defined,
@@ -216,7 +220,64 @@ func (o SubscriptionCapabilityCostDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["currencyCode"] = o.CurrencyCode
 	toSerialize["capabilityKey"] = o.CapabilityKey
 	toSerialize["capabilityName"] = o.CapabilityName
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *SubscriptionCapabilityCostDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"startTime",
+		"endTime",
+		"value",
+		"currencyCode",
+		"capabilityKey",
+		"capabilityName",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varSubscriptionCapabilityCostDto := _SubscriptionCapabilityCostDto{}
+
+	err = json.Unmarshal(data, &varSubscriptionCapabilityCostDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = SubscriptionCapabilityCostDto(varSubscriptionCapabilityCostDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "startTime")
+		delete(additionalProperties, "endTime")
+		delete(additionalProperties, "value")
+		delete(additionalProperties, "currencyCode")
+		delete(additionalProperties, "capabilityKey")
+		delete(additionalProperties, "capabilityName")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableSubscriptionCapabilityCostDto struct {

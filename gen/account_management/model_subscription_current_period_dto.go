@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the SubscriptionCurrentPeriodDto type satisfies the MappedNullable interface at compile time
@@ -23,9 +24,12 @@ type SubscriptionCurrentPeriodDto struct {
 	StartTime string `json:"startTime"`
 	// The current period end date in `2021-05-01` format.
 	EndTime string `json:"endTime"`
-	// Days remaining in the current period
-	DaysRemaining float32 `json:"daysRemaining"`
+	// Remaining days in the current period.
+	DaysRemaining        float32 `json:"daysRemaining"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _SubscriptionCurrentPeriodDto SubscriptionCurrentPeriodDto
 
 // NewSubscriptionCurrentPeriodDto instantiates a new SubscriptionCurrentPeriodDto object
 // This constructor will assign default values to properties that have it defined,
@@ -132,7 +136,58 @@ func (o SubscriptionCurrentPeriodDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["startTime"] = o.StartTime
 	toSerialize["endTime"] = o.EndTime
 	toSerialize["daysRemaining"] = o.DaysRemaining
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *SubscriptionCurrentPeriodDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"startTime",
+		"endTime",
+		"daysRemaining",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varSubscriptionCurrentPeriodDto := _SubscriptionCurrentPeriodDto{}
+
+	err = json.Unmarshal(data, &varSubscriptionCurrentPeriodDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = SubscriptionCurrentPeriodDto(varSubscriptionCurrentPeriodDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "startTime")
+		delete(additionalProperties, "endTime")
+		delete(additionalProperties, "daysRemaining")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableSubscriptionCurrentPeriodDto struct {

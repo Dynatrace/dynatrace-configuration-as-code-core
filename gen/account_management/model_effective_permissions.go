@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the EffectivePermissions type satisfies the MappedNullable interface at compile time
@@ -21,7 +22,10 @@ var _ MappedNullable = &EffectivePermissions{}
 type EffectivePermissions struct {
 	// List of effective permissions.
 	EffectivePermissions []EffectivePermission `json:"effectivePermissions"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _EffectivePermissions EffectivePermissions
 
 // NewEffectivePermissions instantiates a new EffectivePermissions object
 // This constructor will assign default values to properties that have it defined,
@@ -76,7 +80,54 @@ func (o EffectivePermissions) MarshalJSON() ([]byte, error) {
 func (o EffectivePermissions) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["effectivePermissions"] = o.EffectivePermissions
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *EffectivePermissions) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"effectivePermissions",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varEffectivePermissions := _EffectivePermissions{}
+
+	err = json.Unmarshal(data, &varEffectivePermissions)
+
+	if err != nil {
+		return err
+	}
+
+	*o = EffectivePermissions(varEffectivePermissions)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "effectivePermissions")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableEffectivePermissions struct {

@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the AccountGroupDto type satisfies the MappedNullable interface at compile time
@@ -23,7 +24,7 @@ type AccountGroupDto struct {
 	GroupName string `json:"groupName"`
 	// The UUID of the user group.
 	Uuid string `json:"uuid"`
-	// The identity provider from which the group originates.
+	// The type of the group. `LOCAL`, `SCIM`, `SAML` and `DCS` corresponds to the identity provider from which the group originates. `ALL_USERS` is a special case of `LOCAL` group. It means that group is always assigned to all users in the account.
 	Owner string `json:"owner"`
 	// The UUID of the Dynatrace account.
 	AccountUUID string `json:"accountUUID"`
@@ -34,8 +35,11 @@ type AccountGroupDto struct {
 	// The date and time of the group creation in `2021-05-01T15:11:00Z` format.
 	CreatedAt string `json:"createdAt"`
 	// The date and time of the most recent modification to the group in `2021-05-01T15:11:00Z` format.
-	UpdatedAt string `json:"updatedAt"`
+	UpdatedAt            string `json:"updatedAt"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _AccountGroupDto AccountGroupDto
 
 // NewAccountGroupDto instantiates a new AccountGroupDto object
 // This constructor will assign default values to properties that have it defined,
@@ -272,7 +276,68 @@ func (o AccountGroupDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["description"] = o.Description
 	toSerialize["createdAt"] = o.CreatedAt
 	toSerialize["updatedAt"] = o.UpdatedAt
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *AccountGroupDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"groupName",
+		"uuid",
+		"owner",
+		"accountUUID",
+		"accountName",
+		"description",
+		"createdAt",
+		"updatedAt",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varAccountGroupDto := _AccountGroupDto{}
+
+	err = json.Unmarshal(data, &varAccountGroupDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = AccountGroupDto(varAccountGroupDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "groupName")
+		delete(additionalProperties, "uuid")
+		delete(additionalProperties, "owner")
+		delete(additionalProperties, "accountUUID")
+		delete(additionalProperties, "accountName")
+		delete(additionalProperties, "description")
+		delete(additionalProperties, "createdAt")
+		delete(additionalProperties, "updatedAt")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableAccountGroupDto struct {

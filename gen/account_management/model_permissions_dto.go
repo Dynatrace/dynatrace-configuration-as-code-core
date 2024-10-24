@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the PermissionsDto type satisfies the MappedNullable interface at compile time
@@ -28,8 +29,11 @@ type PermissionsDto struct {
 	// The date and time of the permission creation in `2021-05-01T15:11:00Z` format.
 	CreatedAt *string `json:"createdAt,omitempty"`
 	// The date and time of the most recent permission modification in `2021-05-01T15:11:00Z` format.
-	UpdatedAt *string `json:"updatedAt,omitempty"`
+	UpdatedAt            *string `json:"updatedAt,omitempty"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _PermissionsDto PermissionsDto
 
 // NewPermissionsDto instantiates a new PermissionsDto object
 // This constructor will assign default values to properties that have it defined,
@@ -206,7 +210,60 @@ func (o PermissionsDto) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.UpdatedAt) {
 		toSerialize["updatedAt"] = o.UpdatedAt
 	}
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *PermissionsDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"permissionName",
+		"scope",
+		"scopeType",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varPermissionsDto := _PermissionsDto{}
+
+	err = json.Unmarshal(data, &varPermissionsDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = PermissionsDto(varPermissionsDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "permissionName")
+		delete(additionalProperties, "scope")
+		delete(additionalProperties, "scopeType")
+		delete(additionalProperties, "createdAt")
+		delete(additionalProperties, "updatedAt")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullablePermissionsDto struct {

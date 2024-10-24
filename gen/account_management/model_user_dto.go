@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the UserDto type satisfies the MappedNullable interface at compile time
@@ -30,8 +31,11 @@ type UserDto struct {
 	// The status of this user in Dynatrace:   * `ACTIVE`: The user is active. * `INACTIVE`: The user is deactivated and cannot sign in to Dynatrace.  * `PENDING`: The user received an invitation, but hasn't completed sign-up yet.  * `DELETED`: The user was deleted and cannot sign in to Dynatrace anymore.  * `ECUSTOMS_MANUALLY_BLOCKED`: The user is blocked due to to a trade and export compliance violation.
 	UserStatus *string `json:"userStatus,omitempty"`
 	// The user is (`true`) or is not (`false`) an emergency contact for the account.
-	EmergencyContact *bool `json:"emergencyContact,omitempty"`
+	EmergencyContact     *bool `json:"emergencyContact,omitempty"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _UserDto UserDto
 
 // NewUserDto instantiates a new UserDto object
 // This constructor will assign default values to properties that have it defined,
@@ -252,7 +256,60 @@ func (o UserDto) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.EmergencyContact) {
 		toSerialize["emergencyContact"] = o.EmergencyContact
 	}
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *UserDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"uid",
+		"email",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varUserDto := _UserDto{}
+
+	err = json.Unmarshal(data, &varUserDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = UserDto(varUserDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "uid")
+		delete(additionalProperties, "email")
+		delete(additionalProperties, "name")
+		delete(additionalProperties, "surname")
+		delete(additionalProperties, "userStatus")
+		delete(additionalProperties, "emergencyContact")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableUserDto struct {

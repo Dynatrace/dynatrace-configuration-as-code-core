@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the Binding type satisfies the MappedNullable interface at compile time
@@ -23,7 +24,14 @@ type Binding struct {
 	PolicyUuid string `json:"policyUuid"`
 	// A list of user groups to which the policy applies.
 	Groups []string `json:"groups"`
+	// Parameters from bound policies
+	Parameters *map[string]string `json:"parameters,omitempty"`
+	// Metadata from bound policies
+	Metadata             *map[string]string `json:"metadata,omitempty"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _Binding Binding
 
 // NewBinding instantiates a new Binding object
 // This constructor will assign default values to properties that have it defined,
@@ -92,6 +100,70 @@ func (o *Binding) SetGroups(v []string) {
 	o.Groups = v
 }
 
+// GetParameters returns the Parameters field value if set, zero value otherwise.
+func (o *Binding) GetParameters() map[string]string {
+	if o == nil || IsNil(o.Parameters) {
+		var ret map[string]string
+		return ret
+	}
+	return *o.Parameters
+}
+
+// GetParametersOk returns a tuple with the Parameters field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Binding) GetParametersOk() (*map[string]string, bool) {
+	if o == nil || IsNil(o.Parameters) {
+		return nil, false
+	}
+	return o.Parameters, true
+}
+
+// HasParameters returns a boolean if a field has been set.
+func (o *Binding) HasParameters() bool {
+	if o != nil && !IsNil(o.Parameters) {
+		return true
+	}
+
+	return false
+}
+
+// SetParameters gets a reference to the given map[string]string and assigns it to the Parameters field.
+func (o *Binding) SetParameters(v map[string]string) {
+	o.Parameters = &v
+}
+
+// GetMetadata returns the Metadata field value if set, zero value otherwise.
+func (o *Binding) GetMetadata() map[string]string {
+	if o == nil || IsNil(o.Metadata) {
+		var ret map[string]string
+		return ret
+	}
+	return *o.Metadata
+}
+
+// GetMetadataOk returns a tuple with the Metadata field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Binding) GetMetadataOk() (*map[string]string, bool) {
+	if o == nil || IsNil(o.Metadata) {
+		return nil, false
+	}
+	return o.Metadata, true
+}
+
+// HasMetadata returns a boolean if a field has been set.
+func (o *Binding) HasMetadata() bool {
+	if o != nil && !IsNil(o.Metadata) {
+		return true
+	}
+
+	return false
+}
+
+// SetMetadata gets a reference to the given map[string]string and assigns it to the Metadata field.
+func (o *Binding) SetMetadata(v map[string]string) {
+	o.Metadata = &v
+}
+
 func (o Binding) MarshalJSON() ([]byte, error) {
 	toSerialize, err := o.ToMap()
 	if err != nil {
@@ -104,7 +176,64 @@ func (o Binding) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["policyUuid"] = o.PolicyUuid
 	toSerialize["groups"] = o.Groups
+	if !IsNil(o.Parameters) {
+		toSerialize["parameters"] = o.Parameters
+	}
+	if !IsNil(o.Metadata) {
+		toSerialize["metadata"] = o.Metadata
+	}
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *Binding) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"policyUuid",
+		"groups",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varBinding := _Binding{}
+
+	err = json.Unmarshal(data, &varBinding)
+
+	if err != nil {
+		return err
+	}
+
+	*o = Binding(varBinding)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "policyUuid")
+		delete(additionalProperties, "groups")
+		delete(additionalProperties, "parameters")
+		delete(additionalProperties, "metadata")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableBinding struct {

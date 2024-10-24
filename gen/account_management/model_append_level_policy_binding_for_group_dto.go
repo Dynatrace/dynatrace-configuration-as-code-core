@@ -22,8 +22,11 @@ type AppendLevelPolicyBindingForGroupDto struct {
 	// Parameters provided for bindings
 	Parameters *map[string]string `json:"parameters,omitempty"`
 	// Metadata provided for bindings
-	Metadata *map[string]string `json:"metadata,omitempty"`
+	Metadata             *map[string]string `json:"metadata,omitempty"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _AppendLevelPolicyBindingForGroupDto AppendLevelPolicyBindingForGroupDto
 
 // NewAppendLevelPolicyBindingForGroupDto instantiates a new AppendLevelPolicyBindingForGroupDto object
 // This constructor will assign default values to properties that have it defined,
@@ -122,7 +125,34 @@ func (o AppendLevelPolicyBindingForGroupDto) ToMap() (map[string]interface{}, er
 	if !IsNil(o.Metadata) {
 		toSerialize["metadata"] = o.Metadata
 	}
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *AppendLevelPolicyBindingForGroupDto) UnmarshalJSON(data []byte) (err error) {
+	varAppendLevelPolicyBindingForGroupDto := _AppendLevelPolicyBindingForGroupDto{}
+
+	err = json.Unmarshal(data, &varAppendLevelPolicyBindingForGroupDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = AppendLevelPolicyBindingForGroupDto(varAppendLevelPolicyBindingForGroupDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "parameters")
+		delete(additionalProperties, "metadata")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableAppendLevelPolicyBindingForGroupDto struct {

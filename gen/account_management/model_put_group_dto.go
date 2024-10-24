@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the PutGroupDto type satisfies the MappedNullable interface at compile time
@@ -25,11 +26,12 @@ type PutGroupDto struct {
 	Name string `json:"name"`
 	// A short description of the user group.
 	Description *string `json:"description,omitempty"`
-	// A list of values associating this group with the corresponding claim from an identity provider. If present, sets `owner` to SAML, otherwise `owner` will be LOCAL
+	// A list of values associating this group with the corresponding claim from an identity provider.    If present and the group has owner = `LOCAL`, then group owner is set to `SAML`.    If missing and the group has owner = `SAML`, then group owner is set to `LOCAL`.    Cannot set this value for groups having owner set to `SCIM` or `ALL_USERS`.
 	FederatedAttributeValues []string `json:"federatedAttributeValues,omitempty"`
-	// The owner type of the group.
-	Owner map[string]interface{} `json:"owner,omitempty"`
+	AdditionalProperties     map[string]interface{}
 }
+
+type _PutGroupDto PutGroupDto
 
 // NewPutGroupDto instantiates a new PutGroupDto object
 // This constructor will assign default values to properties that have it defined,
@@ -169,38 +171,6 @@ func (o *PutGroupDto) SetFederatedAttributeValues(v []string) {
 	o.FederatedAttributeValues = v
 }
 
-// GetOwner returns the Owner field value if set, zero value otherwise.
-func (o *PutGroupDto) GetOwner() map[string]interface{} {
-	if o == nil || IsNil(o.Owner) {
-		var ret map[string]interface{}
-		return ret
-	}
-	return o.Owner
-}
-
-// GetOwnerOk returns a tuple with the Owner field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *PutGroupDto) GetOwnerOk() (map[string]interface{}, bool) {
-	if o == nil || IsNil(o.Owner) {
-		return map[string]interface{}{}, false
-	}
-	return o.Owner, true
-}
-
-// HasOwner returns a boolean if a field has been set.
-func (o *PutGroupDto) HasOwner() bool {
-	if o != nil && !IsNil(o.Owner) {
-		return true
-	}
-
-	return false
-}
-
-// SetOwner gets a reference to the given map[string]interface{} and assigns it to the Owner field.
-func (o *PutGroupDto) SetOwner(v map[string]interface{}) {
-	o.Owner = v
-}
-
 func (o PutGroupDto) MarshalJSON() ([]byte, error) {
 	toSerialize, err := o.ToMap()
 	if err != nil {
@@ -221,10 +191,57 @@ func (o PutGroupDto) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.FederatedAttributeValues) {
 		toSerialize["federatedAttributeValues"] = o.FederatedAttributeValues
 	}
-	if !IsNil(o.Owner) {
-		toSerialize["owner"] = o.Owner
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
 	}
+
 	return toSerialize, nil
+}
+
+func (o *PutGroupDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"name",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varPutGroupDto := _PutGroupDto{}
+
+	err = json.Unmarshal(data, &varPutGroupDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = PutGroupDto(varPutGroupDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "uuid")
+		delete(additionalProperties, "name")
+		delete(additionalProperties, "description")
+		delete(additionalProperties, "federatedAttributeValues")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullablePutGroupDto struct {

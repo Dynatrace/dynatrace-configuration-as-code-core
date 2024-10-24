@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the EnvironmentResourceDto type satisfies the MappedNullable interface at compile time
@@ -23,7 +24,10 @@ type EnvironmentResourceDto struct {
 	TenantResources []TenantResourceDto `json:"tenantResources"`
 	// A list of management zones in the account.
 	ManagementZoneResources []ManagementZoneResourceDto `json:"managementZoneResources"`
+	AdditionalProperties    map[string]interface{}
 }
+
+type _EnvironmentResourceDto EnvironmentResourceDto
 
 // NewEnvironmentResourceDto instantiates a new EnvironmentResourceDto object
 // This constructor will assign default values to properties that have it defined,
@@ -104,7 +108,56 @@ func (o EnvironmentResourceDto) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["tenantResources"] = o.TenantResources
 	toSerialize["managementZoneResources"] = o.ManagementZoneResources
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *EnvironmentResourceDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"tenantResources",
+		"managementZoneResources",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varEnvironmentResourceDto := _EnvironmentResourceDto{}
+
+	err = json.Unmarshal(data, &varEnvironmentResourceDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = EnvironmentResourceDto(varEnvironmentResourceDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "tenantResources")
+		delete(additionalProperties, "managementZoneResources")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableEnvironmentResourceDto struct {

@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the CreateOrUpdateLevelPolicyRequestDto type satisfies the MappedNullable interface at compile time
@@ -24,20 +25,24 @@ type CreateOrUpdateLevelPolicyRequestDto struct {
 	// A short description of the policy.
 	Description string `json:"description"`
 	// A list of tags.
-	Tags []string `json:"tags"`
+	Tags []string `json:"tags,omitempty"`
 	// The [statement](https://dt-url.net/ht03ucb) of the policy.
 	StatementQuery string `json:"statementQuery"`
+	// The category of the policy.
+	Category             *string `json:"category,omitempty"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _CreateOrUpdateLevelPolicyRequestDto CreateOrUpdateLevelPolicyRequestDto
 
 // NewCreateOrUpdateLevelPolicyRequestDto instantiates a new CreateOrUpdateLevelPolicyRequestDto object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewCreateOrUpdateLevelPolicyRequestDto(name string, description string, tags []string, statementQuery string) *CreateOrUpdateLevelPolicyRequestDto {
+func NewCreateOrUpdateLevelPolicyRequestDto(name string, description string, statementQuery string) *CreateOrUpdateLevelPolicyRequestDto {
 	this := CreateOrUpdateLevelPolicyRequestDto{}
 	this.Name = name
 	this.Description = description
-	this.Tags = tags
 	this.StatementQuery = statementQuery
 	return &this
 }
@@ -98,26 +103,34 @@ func (o *CreateOrUpdateLevelPolicyRequestDto) SetDescription(v string) {
 	o.Description = v
 }
 
-// GetTags returns the Tags field value
+// GetTags returns the Tags field value if set, zero value otherwise.
 func (o *CreateOrUpdateLevelPolicyRequestDto) GetTags() []string {
-	if o == nil {
+	if o == nil || IsNil(o.Tags) {
 		var ret []string
 		return ret
 	}
-
 	return o.Tags
 }
 
-// GetTagsOk returns a tuple with the Tags field value
+// GetTagsOk returns a tuple with the Tags field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 func (o *CreateOrUpdateLevelPolicyRequestDto) GetTagsOk() ([]string, bool) {
-	if o == nil {
+	if o == nil || IsNil(o.Tags) {
 		return nil, false
 	}
 	return o.Tags, true
 }
 
-// SetTags sets field value
+// HasTags returns a boolean if a field has been set.
+func (o *CreateOrUpdateLevelPolicyRequestDto) HasTags() bool {
+	if o != nil && !IsNil(o.Tags) {
+		return true
+	}
+
+	return false
+}
+
+// SetTags gets a reference to the given []string and assigns it to the Tags field.
 func (o *CreateOrUpdateLevelPolicyRequestDto) SetTags(v []string) {
 	o.Tags = v
 }
@@ -146,6 +159,38 @@ func (o *CreateOrUpdateLevelPolicyRequestDto) SetStatementQuery(v string) {
 	o.StatementQuery = v
 }
 
+// GetCategory returns the Category field value if set, zero value otherwise.
+func (o *CreateOrUpdateLevelPolicyRequestDto) GetCategory() string {
+	if o == nil || IsNil(o.Category) {
+		var ret string
+		return ret
+	}
+	return *o.Category
+}
+
+// GetCategoryOk returns a tuple with the Category field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateOrUpdateLevelPolicyRequestDto) GetCategoryOk() (*string, bool) {
+	if o == nil || IsNil(o.Category) {
+		return nil, false
+	}
+	return o.Category, true
+}
+
+// HasCategory returns a boolean if a field has been set.
+func (o *CreateOrUpdateLevelPolicyRequestDto) HasCategory() bool {
+	if o != nil && !IsNil(o.Category) {
+		return true
+	}
+
+	return false
+}
+
+// SetCategory gets a reference to the given string and assigns it to the Category field.
+func (o *CreateOrUpdateLevelPolicyRequestDto) SetCategory(v string) {
+	o.Category = &v
+}
+
 func (o CreateOrUpdateLevelPolicyRequestDto) MarshalJSON() ([]byte, error) {
 	toSerialize, err := o.ToMap()
 	if err != nil {
@@ -158,9 +203,67 @@ func (o CreateOrUpdateLevelPolicyRequestDto) ToMap() (map[string]interface{}, er
 	toSerialize := map[string]interface{}{}
 	toSerialize["name"] = o.Name
 	toSerialize["description"] = o.Description
-	toSerialize["tags"] = o.Tags
+	if !IsNil(o.Tags) {
+		toSerialize["tags"] = o.Tags
+	}
 	toSerialize["statementQuery"] = o.StatementQuery
+	if !IsNil(o.Category) {
+		toSerialize["category"] = o.Category
+	}
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *CreateOrUpdateLevelPolicyRequestDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"name",
+		"description",
+		"statementQuery",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varCreateOrUpdateLevelPolicyRequestDto := _CreateOrUpdateLevelPolicyRequestDto{}
+
+	err = json.Unmarshal(data, &varCreateOrUpdateLevelPolicyRequestDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = CreateOrUpdateLevelPolicyRequestDto(varCreateOrUpdateLevelPolicyRequestDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "name")
+		delete(additionalProperties, "description")
+		delete(additionalProperties, "tags")
+		delete(additionalProperties, "statementQuery")
+		delete(additionalProperties, "category")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableCreateOrUpdateLevelPolicyRequestDto struct {

@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the SubscriptionDto type satisfies the MappedNullable interface at compile time
@@ -25,22 +26,28 @@ type SubscriptionDto struct {
 	Type string `json:"type"`
 	// The sub-type of the Dynatrace Platform Subscription.
 	SubType string `json:"subType"`
-	// The name of the Dynatrace Platform Subscription.
+	// The display name of the Dynatrace Platform Subscription.
 	Name string `json:"name"`
 	// The status of the Dynatrace Platform Subscription.
 	Status string `json:"status"`
 	// The start date of the subscription in `2021-05-01` format.
 	StartTime string `json:"startTime"`
 	// The end date of the subscription in `2021-05-01` format.
-	EndTime       string                       `json:"endTime"`
-	Account       SubscriptionAccountDto       `json:"account"`
-	Budget        SubscriptionBudgetDto        `json:"budget"`
+	EndTime string `json:"endTime"`
+	// The account associated with the subscription.
+	Account SubscriptionAccountDto `json:"account"`
+	// The budget associated with the subscription.
+	Budget SubscriptionBudgetDto `json:"budget"`
+	// The current period associated with the subscription.
 	CurrentPeriod SubscriptionCurrentPeriodDto `json:"currentPeriod"`
-	// A list of period data of the subscription.
+	// A list of subscription periods.
 	Periods []SubscriptionPeriodDto `json:"periods"`
 	// A list of subscription capabilities.
-	Capabilities []SubscriptionCapabilityDto `json:"capabilities"`
+	Capabilities         []SubscriptionCapabilityDto `json:"capabilities"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _SubscriptionDto SubscriptionDto
 
 // NewSubscriptionDto instantiates a new SubscriptionDto object
 // This constructor will assign default values to properties that have it defined,
@@ -381,7 +388,76 @@ func (o SubscriptionDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["currentPeriod"] = o.CurrentPeriod
 	toSerialize["periods"] = o.Periods
 	toSerialize["capabilities"] = o.Capabilities
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *SubscriptionDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"uuid",
+		"type",
+		"subType",
+		"name",
+		"status",
+		"startTime",
+		"endTime",
+		"account",
+		"budget",
+		"currentPeriod",
+		"periods",
+		"capabilities",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varSubscriptionDto := _SubscriptionDto{}
+
+	err = json.Unmarshal(data, &varSubscriptionDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = SubscriptionDto(varSubscriptionDto)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "uuid")
+		delete(additionalProperties, "type")
+		delete(additionalProperties, "subType")
+		delete(additionalProperties, "name")
+		delete(additionalProperties, "status")
+		delete(additionalProperties, "startTime")
+		delete(additionalProperties, "endTime")
+		delete(additionalProperties, "account")
+		delete(additionalProperties, "budget")
+		delete(additionalProperties, "currentPeriod")
+		delete(additionalProperties, "periods")
+		delete(additionalProperties, "capabilities")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableSubscriptionDto struct {

@@ -12,6 +12,7 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the EffectivePolicy type satisfies the MappedNullable interface at compile time
@@ -28,8 +29,11 @@ type EffectivePolicy struct {
 	// The type of the level to which the policy applies.
 	LevelType string `json:"levelType"`
 	// The ID of the level to which the policy applies.
-	LevelId string `json:"levelId"`
+	LevelId              string `json:"levelId"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _EffectivePolicy EffectivePolicy
 
 // NewEffectivePolicy instantiates a new EffectivePolicy object
 // This constructor will assign default values to properties that have it defined,
@@ -188,7 +192,62 @@ func (o EffectivePolicy) ToMap() (map[string]interface{}, error) {
 	toSerialize["statementQuery"] = o.StatementQuery
 	toSerialize["levelType"] = o.LevelType
 	toSerialize["levelId"] = o.LevelId
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *EffectivePolicy) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"uuid",
+		"name",
+		"statementQuery",
+		"levelType",
+		"levelId",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err
+	}
+
+	for _, requiredProperty := range requiredProperties {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varEffectivePolicy := _EffectivePolicy{}
+
+	err = json.Unmarshal(data, &varEffectivePolicy)
+
+	if err != nil {
+		return err
+	}
+
+	*o = EffectivePolicy(varEffectivePolicy)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "uuid")
+		delete(additionalProperties, "name")
+		delete(additionalProperties, "statementQuery")
+		delete(additionalProperties, "levelType")
+		delete(additionalProperties, "levelId")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableEffectivePolicy struct {
