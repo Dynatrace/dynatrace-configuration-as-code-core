@@ -12,6 +12,8 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"bytes"
+	"fmt"
 )
 
 // checks if the GroupUserListDto type satisfies the MappedNullable interface at compile time
@@ -20,9 +22,11 @@ var _ MappedNullable = &GroupUserListDto{}
 // GroupUserListDto struct for GroupUserListDto
 type GroupUserListDto struct {
 	// The number of entries in the list.
-	Count float32   `json:"count"`
+	Count float32 `json:"count"`
 	Items []UserDto `json:"items"`
 }
+
+type _GroupUserListDto GroupUserListDto
 
 // NewGroupUserListDto instantiates a new GroupUserListDto object
 // This constructor will assign default values to properties that have it defined,
@@ -92,7 +96,7 @@ func (o *GroupUserListDto) SetItems(v []UserDto) {
 }
 
 func (o GroupUserListDto) MarshalJSON() ([]byte, error) {
-	toSerialize, err := o.ToMap()
+	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -104,6 +108,44 @@ func (o GroupUserListDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["count"] = o.Count
 	toSerialize["items"] = o.Items
 	return toSerialize, nil
+}
+
+func (o *GroupUserListDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"count",
+		"items",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err;
+	}
+
+	for _, requiredProperty := range(requiredProperties) {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varGroupUserListDto := _GroupUserListDto{}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varGroupUserListDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = GroupUserListDto(varGroupUserListDto)
+
+	return err
 }
 
 type NullableGroupUserListDto struct {
@@ -141,3 +183,5 @@ func (v *NullableGroupUserListDto) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+

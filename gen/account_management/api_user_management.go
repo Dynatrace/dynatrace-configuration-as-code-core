@@ -16,18 +16,19 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
+	"reflect"
 )
+
 
 // UserManagementAPIService UserManagementAPI service
 type UserManagementAPIService service
 
 type ApiAddUserToGroupsRequest struct {
-	ctx         context.Context
-	ApiService  *UserManagementAPIService
+	ctx context.Context
+	ApiService *UserManagementAPIService
 	accountUuid string
-	email       string
+	email string
 	requestBody *[]string
 }
 
@@ -44,26 +45,26 @@ func (r ApiAddUserToGroupsRequest) Execute() (*http.Response, error) {
 /*
 AddUserToGroups Adds a user to groups. Any existing group membership remains unaffected.
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@param email The email address of the required user.
-	@return ApiAddUserToGroupsRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @param email The email address of the required user.
+ @return ApiAddUserToGroupsRequest
 */
 func (a *UserManagementAPIService) AddUserToGroups(ctx context.Context, accountUuid string, email string) ApiAddUserToGroupsRequest {
 	return ApiAddUserToGroupsRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
-		email:       email,
+		email: email,
 	}
 }
 
 // Execute executes the request
 func (a *UserManagementAPIService) AddUserToGroupsExecute(r ApiAddUserToGroupsRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod = http.MethodPost
-		localVarPostBody   interface{}
-		formFiles          []formFile
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UserManagementAPIService.AddUserToGroups")
@@ -130,9 +131,9 @@ func (a *UserManagementAPIService) AddUserToGroupsExecute(r ApiAddUserToGroupsRe
 }
 
 type ApiCreateUserForAccountRequest struct {
-	ctx          context.Context
-	ApiService   *UserManagementAPIService
-	accountUuid  string
+	ctx context.Context
+	ApiService *UserManagementAPIService
+	accountUuid string
 	userEmailDto *UserEmailDto
 }
 
@@ -149,14 +150,14 @@ func (r ApiCreateUserForAccountRequest) Execute() (*http.Response, error) {
 /*
 CreateUserForAccount Creates a new user in an account
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@return ApiCreateUserForAccountRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @return ApiCreateUserForAccountRequest
 */
 func (a *UserManagementAPIService) CreateUserForAccount(ctx context.Context, accountUuid string) ApiCreateUserForAccountRequest {
 	return ApiCreateUserForAccountRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
 	}
 }
@@ -164,9 +165,9 @@ func (a *UserManagementAPIService) CreateUserForAccount(ctx context.Context, acc
 // Execute executes the request
 func (a *UserManagementAPIService) CreateUserForAccountExecute(r ApiCreateUserForAccountRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod = http.MethodPost
-		localVarPostBody   interface{}
-		formFiles          []formFile
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UserManagementAPIService.CreateUserForAccount")
@@ -232,10 +233,10 @@ func (a *UserManagementAPIService) CreateUserForAccountExecute(r ApiCreateUserFo
 }
 
 type ApiGetUserGroupsRequest struct {
-	ctx         context.Context
-	ApiService  *UserManagementAPIService
+	ctx context.Context
+	ApiService *UserManagementAPIService
 	accountUuid string
-	email       string
+	email string
 }
 
 func (r ApiGetUserGroupsRequest) Execute() (*GroupUserDto, *http.Response, error) {
@@ -245,29 +246,28 @@ func (r ApiGetUserGroupsRequest) Execute() (*GroupUserDto, *http.Response, error
 /*
 GetUserGroups Lists all groups of a user
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@param email The email address of the required user.
-	@return ApiGetUserGroupsRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @param email The email address of the required user.
+ @return ApiGetUserGroupsRequest
 */
 func (a *UserManagementAPIService) GetUserGroups(ctx context.Context, accountUuid string, email string) ApiGetUserGroupsRequest {
 	return ApiGetUserGroupsRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
-		email:       email,
+		email: email,
 	}
 }
 
 // Execute executes the request
-//
-//	@return GroupUserDto
+//  @return GroupUserDto
 func (a *UserManagementAPIService) GetUserGroupsExecute(r ApiGetUserGroupsRequest) (*GroupUserDto, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *GroupUserDto
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *GroupUserDto
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UserManagementAPIService.GetUserGroups")
@@ -338,9 +338,9 @@ func (a *UserManagementAPIService) GetUserGroupsExecute(r ApiGetUserGroupsReques
 }
 
 type ApiGetUsersRequest struct {
-	ctx          context.Context
-	ApiService   *UserManagementAPIService
-	accountUuid  string
+	ctx context.Context
+	ApiService *UserManagementAPIService
+	accountUuid string
 	serviceUsers *bool
 }
 
@@ -357,27 +357,26 @@ func (r ApiGetUsersRequest) Execute() (*UserListDto, *http.Response, error) {
 /*
 GetUsers Lists all users of an account
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@return ApiGetUsersRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @return ApiGetUsersRequest
 */
 func (a *UserManagementAPIService) GetUsers(ctx context.Context, accountUuid string) ApiGetUsersRequest {
 	return ApiGetUsersRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
 	}
 }
 
 // Execute executes the request
-//
-//	@return UserListDto
+//  @return UserListDto
 func (a *UserManagementAPIService) GetUsersExecute(r ApiGetUsersRequest) (*UserListDto, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *UserListDto
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *UserListDto
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UserManagementAPIService.GetUsers")
@@ -393,7 +392,7 @@ func (a *UserManagementAPIService) GetUsersExecute(r ApiGetUsersRequest) (*UserL
 	localVarFormParams := url.Values{}
 
 	if r.serviceUsers != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "service-users", r.serviceUsers, "")
+		parameterAddToHeaderOrQuery(localVarQueryParams, "service-users", r.serviceUsers, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -450,10 +449,10 @@ func (a *UserManagementAPIService) GetUsersExecute(r ApiGetUsersRequest) (*UserL
 }
 
 type ApiRemoveUserFromAccountRequest struct {
-	ctx         context.Context
-	ApiService  *UserManagementAPIService
+	ctx context.Context
+	ApiService *UserManagementAPIService
 	accountUuid string
-	email       string
+	email string
 }
 
 func (r ApiRemoveUserFromAccountRequest) Execute() (*http.Response, error) {
@@ -463,26 +462,26 @@ func (r ApiRemoveUserFromAccountRequest) Execute() (*http.Response, error) {
 /*
 RemoveUserFromAccount Removes a user from an account
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@param email The email address of the required user.
-	@return ApiRemoveUserFromAccountRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @param email The email address of the required user.
+ @return ApiRemoveUserFromAccountRequest
 */
 func (a *UserManagementAPIService) RemoveUserFromAccount(ctx context.Context, accountUuid string, email string) ApiRemoveUserFromAccountRequest {
 	return ApiRemoveUserFromAccountRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
-		email:       email,
+		email: email,
 	}
 }
 
 // Execute executes the request
 func (a *UserManagementAPIService) RemoveUserFromAccountExecute(r ApiRemoveUserFromAccountRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod = http.MethodDelete
-		localVarPostBody   interface{}
-		formFiles          []formFile
+		localVarHTTPMethod   = http.MethodDelete
+		localVarPostBody     interface{}
+		formFiles            []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UserManagementAPIService.RemoveUserFromAccount")
@@ -544,11 +543,11 @@ func (a *UserManagementAPIService) RemoveUserFromAccountExecute(r ApiRemoveUserF
 }
 
 type ApiRemoveUserFromGroupsRequest struct {
-	ctx         context.Context
-	ApiService  *UserManagementAPIService
+	ctx context.Context
+	ApiService *UserManagementAPIService
 	accountUuid string
-	email       string
-	groupUuid   *[]string
+	email string
+	groupUuid *[]string
 }
 
 // A list of groups the user is no longer a member of.    To specify several groups, use the following format: &#x60;group-uuid&#x3D;aaaaaa&amp;group-uuid&#x3D;bbbb&#x60;.
@@ -564,26 +563,26 @@ func (r ApiRemoveUserFromGroupsRequest) Execute() (*http.Response, error) {
 /*
 RemoveUserFromGroups Removes a user from groups
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@param email The email address of the required user.
-	@return ApiRemoveUserFromGroupsRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @param email The email address of the required user.
+ @return ApiRemoveUserFromGroupsRequest
 */
 func (a *UserManagementAPIService) RemoveUserFromGroups(ctx context.Context, accountUuid string, email string) ApiRemoveUserFromGroupsRequest {
 	return ApiRemoveUserFromGroupsRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
-		email:       email,
+		email: email,
 	}
 }
 
 // Execute executes the request
 func (a *UserManagementAPIService) RemoveUserFromGroupsExecute(r ApiRemoveUserFromGroupsRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod = http.MethodDelete
-		localVarPostBody   interface{}
-		formFiles          []formFile
+		localVarHTTPMethod   = http.MethodDelete
+		localVarPostBody     interface{}
+		formFiles            []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UserManagementAPIService.RemoveUserFromGroups")
@@ -607,10 +606,10 @@ func (a *UserManagementAPIService) RemoveUserFromGroupsExecute(r ApiRemoveUserFr
 		if reflect.TypeOf(t).Kind() == reflect.Slice {
 			s := reflect.ValueOf(t)
 			for i := 0; i < s.Len(); i++ {
-				parameterAddToHeaderOrQuery(localVarQueryParams, "group-uuid", s.Index(i).Interface(), "multi")
+				parameterAddToHeaderOrQuery(localVarQueryParams, "group-uuid", s.Index(i).Interface(), "form", "multi")
 			}
 		} else {
-			parameterAddToHeaderOrQuery(localVarQueryParams, "group-uuid", t, "multi")
+			parameterAddToHeaderOrQuery(localVarQueryParams, "group-uuid", t, "form", "multi")
 		}
 	}
 	// to determine the Content-Type header
@@ -659,10 +658,10 @@ func (a *UserManagementAPIService) RemoveUserFromGroupsExecute(r ApiRemoveUserFr
 }
 
 type ApiReplaceUserGroupsRequest struct {
-	ctx         context.Context
-	ApiService  *UserManagementAPIService
+	ctx context.Context
+	ApiService *UserManagementAPIService
 	accountUuid string
-	email       string
+	email string
 	requestBody *[]string
 }
 
@@ -679,26 +678,26 @@ func (r ApiReplaceUserGroupsRequest) Execute() (*http.Response, error) {
 /*
 ReplaceUserGroups Sets group membership of a user. Any existing membership is overwritten.
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@param email The email address of the required user.
-	@return ApiReplaceUserGroupsRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @param email The email address of the required user.
+ @return ApiReplaceUserGroupsRequest
 */
 func (a *UserManagementAPIService) ReplaceUserGroups(ctx context.Context, accountUuid string, email string) ApiReplaceUserGroupsRequest {
 	return ApiReplaceUserGroupsRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
-		email:       email,
+		email: email,
 	}
 }
 
 // Execute executes the request
 func (a *UserManagementAPIService) ReplaceUserGroupsExecute(r ApiReplaceUserGroupsRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod = http.MethodPut
-		localVarPostBody   interface{}
-		formFiles          []formFile
+		localVarHTTPMethod   = http.MethodPut
+		localVarPostBody     interface{}
+		formFiles            []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UserManagementAPIService.ReplaceUserGroups")

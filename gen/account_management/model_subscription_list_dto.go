@@ -12,6 +12,8 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"bytes"
+	"fmt"
 )
 
 // checks if the SubscriptionListDto type satisfies the MappedNullable interface at compile time
@@ -22,6 +24,8 @@ type SubscriptionListDto struct {
 	// A list of subscriptions of the account.
 	Data []SubscriptionSummaryDto `json:"data"`
 }
+
+type _SubscriptionListDto SubscriptionListDto
 
 // NewSubscriptionListDto instantiates a new SubscriptionListDto object
 // This constructor will assign default values to properties that have it defined,
@@ -66,7 +70,7 @@ func (o *SubscriptionListDto) SetData(v []SubscriptionSummaryDto) {
 }
 
 func (o SubscriptionListDto) MarshalJSON() ([]byte, error) {
-	toSerialize, err := o.ToMap()
+	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -77,6 +81,43 @@ func (o SubscriptionListDto) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["data"] = o.Data
 	return toSerialize, nil
+}
+
+func (o *SubscriptionListDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"data",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err;
+	}
+
+	for _, requiredProperty := range(requiredProperties) {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varSubscriptionListDto := _SubscriptionListDto{}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varSubscriptionListDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = SubscriptionListDto(varSubscriptionListDto)
+
+	return err
 }
 
 type NullableSubscriptionListDto struct {
@@ -114,3 +155,5 @@ func (v *NullableSubscriptionListDto) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+

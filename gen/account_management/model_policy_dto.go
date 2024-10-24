@@ -12,6 +12,8 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"bytes"
+	"fmt"
 )
 
 // checks if the PolicyDto type satisfies the MappedNullable interface at compile time
@@ -26,6 +28,8 @@ type PolicyDto struct {
 	// A short description of the policy.
 	Description string `json:"description"`
 }
+
+type _PolicyDto PolicyDto
 
 // NewPolicyDto instantiates a new PolicyDto object
 // This constructor will assign default values to properties that have it defined,
@@ -120,7 +124,7 @@ func (o *PolicyDto) SetDescription(v string) {
 }
 
 func (o PolicyDto) MarshalJSON() ([]byte, error) {
-	toSerialize, err := o.ToMap()
+	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -133,6 +137,45 @@ func (o PolicyDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["name"] = o.Name
 	toSerialize["description"] = o.Description
 	return toSerialize, nil
+}
+
+func (o *PolicyDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"uuid",
+		"name",
+		"description",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err;
+	}
+
+	for _, requiredProperty := range(requiredProperties) {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varPolicyDto := _PolicyDto{}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varPolicyDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = PolicyDto(varPolicyDto)
+
+	return err
 }
 
 type NullablePolicyDto struct {
@@ -170,3 +213,5 @@ func (v *NullablePolicyDto) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+

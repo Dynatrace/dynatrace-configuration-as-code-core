@@ -19,17 +19,18 @@ import (
 	"strings"
 )
 
+
 // GroupManagementAPIService GroupManagementAPI service
 type GroupManagementAPIService service
 
 type ApiCreateGroupsRequest struct {
-	ctx         context.Context
-	ApiService  *GroupManagementAPIService
+	ctx context.Context
+	ApiService *GroupManagementAPIService
 	accountUuid string
 	putGroupDto *[]PutGroupDto
 }
 
-// The body of the request. Contains a list of configurations for new groups.    Do not specify a UUID. A UUID is assigned automatically by Dynatrace.
+// The body of the request. Contains a list of configurations for new groups.    Do not specify a UUID. A UUID is assigned automatically by Dynatrace. 
 func (r ApiCreateGroupsRequest) PutGroupDto(putGroupDto []PutGroupDto) ApiCreateGroupsRequest {
 	r.putGroupDto = &putGroupDto
 	return r
@@ -42,27 +43,26 @@ func (r ApiCreateGroupsRequest) Execute() ([]GetGroupDto, *http.Response, error)
 /*
 CreateGroups Creates new user groups
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@return ApiCreateGroupsRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @return ApiCreateGroupsRequest
 */
 func (a *GroupManagementAPIService) CreateGroups(ctx context.Context, accountUuid string) ApiCreateGroupsRequest {
 	return ApiCreateGroupsRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
 	}
 }
 
 // Execute executes the request
-//
-//	@return []GetGroupDto
+//  @return []GetGroupDto
 func (a *GroupManagementAPIService) CreateGroupsExecute(r ApiCreateGroupsRequest) ([]GetGroupDto, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue []GetGroupDto
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []GetGroupDto
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "GroupManagementAPIService.CreateGroups")
@@ -137,10 +137,10 @@ func (a *GroupManagementAPIService) CreateGroupsExecute(r ApiCreateGroupsRequest
 }
 
 type ApiDeleteGroupRequest struct {
-	ctx         context.Context
-	ApiService  *GroupManagementAPIService
+	ctx context.Context
+	ApiService *GroupManagementAPIService
 	accountUuid string
-	groupUuid   string
+	groupUuid string
 }
 
 func (r ApiDeleteGroupRequest) Execute() (*http.Response, error) {
@@ -150,26 +150,26 @@ func (r ApiDeleteGroupRequest) Execute() (*http.Response, error) {
 /*
 DeleteGroup Deletes a user group
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@param groupUuid The UUID of the required user group.
-	@return ApiDeleteGroupRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @param groupUuid The UUID of the required user group.
+ @return ApiDeleteGroupRequest
 */
 func (a *GroupManagementAPIService) DeleteGroup(ctx context.Context, accountUuid string, groupUuid string) ApiDeleteGroupRequest {
 	return ApiDeleteGroupRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
-		groupUuid:   groupUuid,
+		groupUuid: groupUuid,
 	}
 }
 
 // Execute executes the request
 func (a *GroupManagementAPIService) DeleteGroupExecute(r ApiDeleteGroupRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod = http.MethodDelete
-		localVarPostBody   interface{}
-		formFiles          []formFile
+		localVarHTTPMethod   = http.MethodDelete
+		localVarPostBody     interface{}
+		formFiles            []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "GroupManagementAPIService.DeleteGroup")
@@ -231,10 +231,10 @@ func (a *GroupManagementAPIService) DeleteGroupExecute(r ApiDeleteGroupRequest) 
 }
 
 type ApiEditGroupRequest struct {
-	ctx         context.Context
-	ApiService  *GroupManagementAPIService
+	ctx context.Context
+	ApiService *GroupManagementAPIService
 	accountUuid string
-	groupUuid   string
+	groupUuid string
 	putGroupDto *PutGroupDto
 }
 
@@ -251,26 +251,26 @@ func (r ApiEditGroupRequest) Execute() (*http.Response, error) {
 /*
 EditGroup Edits a user group
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@param groupUuid The UUID of the required user group.
-	@return ApiEditGroupRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @param groupUuid The UUID of the required user group.
+ @return ApiEditGroupRequest
 */
 func (a *GroupManagementAPIService) EditGroup(ctx context.Context, accountUuid string, groupUuid string) ApiEditGroupRequest {
 	return ApiEditGroupRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
-		groupUuid:   groupUuid,
+		groupUuid: groupUuid,
 	}
 }
 
 // Execute executes the request
 func (a *GroupManagementAPIService) EditGroupExecute(r ApiEditGroupRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod = http.MethodPut
-		localVarPostBody   interface{}
-		formFiles          []formFile
+		localVarHTTPMethod   = http.MethodPut
+		localVarPostBody     interface{}
+		formFiles            []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "GroupManagementAPIService.EditGroup")
@@ -337,8 +337,8 @@ func (a *GroupManagementAPIService) EditGroupExecute(r ApiEditGroupRequest) (*ht
 }
 
 type ApiGetGroupsRequest struct {
-	ctx         context.Context
-	ApiService  *GroupManagementAPIService
+	ctx context.Context
+	ApiService *GroupManagementAPIService
 	accountUuid string
 }
 
@@ -349,27 +349,26 @@ func (r ApiGetGroupsRequest) Execute() (*GroupListDto, *http.Response, error) {
 /*
 GetGroups Lists all user groups of an account
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@return ApiGetGroupsRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @return ApiGetGroupsRequest
 */
 func (a *GroupManagementAPIService) GetGroups(ctx context.Context, accountUuid string) ApiGetGroupsRequest {
 	return ApiGetGroupsRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
 	}
 }
 
 // Execute executes the request
-//
-//	@return GroupListDto
+//  @return GroupListDto
 func (a *GroupManagementAPIService) GetGroupsExecute(r ApiGetGroupsRequest) (*GroupListDto, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *GroupListDto
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *GroupListDto
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "GroupManagementAPIService.GetGroups")
@@ -439,10 +438,10 @@ func (a *GroupManagementAPIService) GetGroupsExecute(r ApiGetGroupsRequest) (*Gr
 }
 
 type ApiGetUsersForGroupRequest struct {
-	ctx         context.Context
-	ApiService  *GroupManagementAPIService
+	ctx context.Context
+	ApiService *GroupManagementAPIService
 	accountUuid string
-	groupUuid   string
+	groupUuid string
 }
 
 func (r ApiGetUsersForGroupRequest) Execute() (*GroupUserListDto, *http.Response, error) {
@@ -452,29 +451,28 @@ func (r ApiGetUsersForGroupRequest) Execute() (*GroupUserListDto, *http.Response
 /*
 GetUsersForGroup Lists all members of a group
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@param groupUuid The UUID of the required user group.
-	@return ApiGetUsersForGroupRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @param groupUuid The UUID of the required user group.
+ @return ApiGetUsersForGroupRequest
 */
 func (a *GroupManagementAPIService) GetUsersForGroup(ctx context.Context, accountUuid string, groupUuid string) ApiGetUsersForGroupRequest {
 	return ApiGetUsersForGroupRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
-		groupUuid:   groupUuid,
+		groupUuid: groupUuid,
 	}
 }
 
 // Execute executes the request
-//
-//	@return GroupUserListDto
+//  @return GroupUserListDto
 func (a *GroupManagementAPIService) GetUsersForGroupExecute(r ApiGetUsersForGroupRequest) (*GroupUserListDto, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *GroupUserListDto
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *GroupUserListDto
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "GroupManagementAPIService.GetUsersForGroup")

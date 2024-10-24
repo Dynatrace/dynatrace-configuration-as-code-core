@@ -12,6 +12,8 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"bytes"
+	"fmt"
 )
 
 // checks if the SubscriptionUsageDto type satisfies the MappedNullable interface at compile time
@@ -19,19 +21,21 @@ var _ MappedNullable = &SubscriptionUsageDto{}
 
 // SubscriptionUsageDto struct for SubscriptionUsageDto
 type SubscriptionUsageDto struct {
-	// The capability key
+	// The key of the subscription capability.
 	CapabilityKey string `json:"capabilityKey"`
-	// The name of the capability
+	// The display name of the subscription capability.
 	CapabilityName string `json:"capabilityName"`
 	// The start time of the capability usage in `2021-05-01T15:11:00Z` format.
 	StartTime string `json:"startTime"`
 	// The end time of the capability usage in `2021-05-01T15:11:00Z` format.
 	EndTime string `json:"endTime"`
-	// The usage for the capability
+	// The subscription usage by the capability.
 	Value float32 `json:"value"`
-	// The unit of measure for the capability usage
+	// The unit of the capability usage.
 	UnitMeasure string `json:"unitMeasure"`
 }
+
+type _SubscriptionUsageDto SubscriptionUsageDto
 
 // NewSubscriptionUsageDto instantiates a new SubscriptionUsageDto object
 // This constructor will assign default values to properties that have it defined,
@@ -201,7 +205,7 @@ func (o *SubscriptionUsageDto) SetUnitMeasure(v string) {
 }
 
 func (o SubscriptionUsageDto) MarshalJSON() ([]byte, error) {
-	toSerialize, err := o.ToMap()
+	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -217,6 +221,48 @@ func (o SubscriptionUsageDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["value"] = o.Value
 	toSerialize["unitMeasure"] = o.UnitMeasure
 	return toSerialize, nil
+}
+
+func (o *SubscriptionUsageDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"capabilityKey",
+		"capabilityName",
+		"startTime",
+		"endTime",
+		"value",
+		"unitMeasure",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err;
+	}
+
+	for _, requiredProperty := range(requiredProperties) {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varSubscriptionUsageDto := _SubscriptionUsageDto{}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varSubscriptionUsageDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = SubscriptionUsageDto(varSubscriptionUsageDto)
+
+	return err
 }
 
 type NullableSubscriptionUsageDto struct {
@@ -254,3 +300,5 @@ func (v *NullableSubscriptionUsageDto) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+

@@ -12,6 +12,8 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"bytes"
+	"fmt"
 )
 
 // checks if the EffectivePolicy type satisfies the MappedNullable interface at compile time
@@ -30,6 +32,8 @@ type EffectivePolicy struct {
 	// The ID of the level to which the policy applies.
 	LevelId string `json:"levelId"`
 }
+
+type _EffectivePolicy EffectivePolicy
 
 // NewEffectivePolicy instantiates a new EffectivePolicy object
 // This constructor will assign default values to properties that have it defined,
@@ -174,7 +178,7 @@ func (o *EffectivePolicy) SetLevelId(v string) {
 }
 
 func (o EffectivePolicy) MarshalJSON() ([]byte, error) {
-	toSerialize, err := o.ToMap()
+	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -189,6 +193,47 @@ func (o EffectivePolicy) ToMap() (map[string]interface{}, error) {
 	toSerialize["levelType"] = o.LevelType
 	toSerialize["levelId"] = o.LevelId
 	return toSerialize, nil
+}
+
+func (o *EffectivePolicy) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"uuid",
+		"name",
+		"statementQuery",
+		"levelType",
+		"levelId",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err;
+	}
+
+	for _, requiredProperty := range(requiredProperties) {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varEffectivePolicy := _EffectivePolicy{}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varEffectivePolicy)
+
+	if err != nil {
+		return err
+	}
+
+	*o = EffectivePolicy(varEffectivePolicy)
+
+	return err
 }
 
 type NullableEffectivePolicy struct {
@@ -226,3 +271,5 @@ func (v *NullableEffectivePolicy) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+

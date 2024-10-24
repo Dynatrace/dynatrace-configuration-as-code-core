@@ -12,6 +12,8 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"bytes"
+	"fmt"
 )
 
 // checks if the PermissionsDto type satisfies the MappedNullable interface at compile time
@@ -30,6 +32,8 @@ type PermissionsDto struct {
 	// The date and time of the most recent permission modification in `2021-05-01T15:11:00Z` format.
 	UpdatedAt *string `json:"updatedAt,omitempty"`
 }
+
+type _PermissionsDto PermissionsDto
 
 // NewPermissionsDto instantiates a new PermissionsDto object
 // This constructor will assign default values to properties that have it defined,
@@ -188,7 +192,7 @@ func (o *PermissionsDto) SetUpdatedAt(v string) {
 }
 
 func (o PermissionsDto) MarshalJSON() ([]byte, error) {
-	toSerialize, err := o.ToMap()
+	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -207,6 +211,45 @@ func (o PermissionsDto) ToMap() (map[string]interface{}, error) {
 		toSerialize["updatedAt"] = o.UpdatedAt
 	}
 	return toSerialize, nil
+}
+
+func (o *PermissionsDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"permissionName",
+		"scope",
+		"scopeType",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err;
+	}
+
+	for _, requiredProperty := range(requiredProperties) {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varPermissionsDto := _PermissionsDto{}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varPermissionsDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = PermissionsDto(varPermissionsDto)
+
+	return err
 }
 
 type NullablePermissionsDto struct {
@@ -244,3 +287,5 @@ func (v *NullablePermissionsDto) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+

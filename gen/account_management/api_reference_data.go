@@ -18,11 +18,12 @@ import (
 	"net/url"
 )
 
+
 // ReferenceDataAPIService ReferenceDataAPI service
 type ReferenceDataAPIService service
 
 type ApiGetPermissionsRequest struct {
-	ctx        context.Context
+	ctx context.Context
 	ApiService *ReferenceDataAPIService
 }
 
@@ -33,25 +34,24 @@ func (r ApiGetPermissionsRequest) Execute() ([]PermissionDto, *http.Response, er
 /*
 GetPermissions Lists all available permissions
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return ApiGetPermissionsRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiGetPermissionsRequest
 */
 func (a *ReferenceDataAPIService) GetPermissions(ctx context.Context) ApiGetPermissionsRequest {
 	return ApiGetPermissionsRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
 // Execute executes the request
-//
-//	@return []PermissionDto
+//  @return []PermissionDto
 func (a *ReferenceDataAPIService) GetPermissionsExecute(r ApiGetPermissionsRequest) ([]PermissionDto, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue []PermissionDto
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []PermissionDto
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ReferenceDataAPIService.GetPermissions")
@@ -120,7 +120,7 @@ func (a *ReferenceDataAPIService) GetPermissionsExecute(r ApiGetPermissionsReque
 }
 
 type ApiGetRegionsRequest struct {
-	ctx        context.Context
+	ctx context.Context
 	ApiService *ReferenceDataAPIService
 }
 
@@ -131,25 +131,24 @@ func (r ApiGetRegionsRequest) Execute() ([]RegionDto, *http.Response, error) {
 /*
 GetRegions Lists all available regions
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return ApiGetRegionsRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiGetRegionsRequest
 */
 func (a *ReferenceDataAPIService) GetRegions(ctx context.Context) ApiGetRegionsRequest {
 	return ApiGetRegionsRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
 // Execute executes the request
-//
-//	@return []RegionDto
+//  @return []RegionDto
 func (a *ReferenceDataAPIService) GetRegionsExecute(r ApiGetRegionsRequest) ([]RegionDto, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue []RegionDto
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []RegionDto
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ReferenceDataAPIService.GetRegions")
@@ -218,7 +217,7 @@ func (a *ReferenceDataAPIService) GetRegionsExecute(r ApiGetRegionsRequest) ([]R
 }
 
 type ApiGetTimezonesRequest struct {
-	ctx        context.Context
+	ctx context.Context
 	ApiService *ReferenceDataAPIService
 }
 
@@ -229,25 +228,24 @@ func (r ApiGetTimezonesRequest) Execute() ([]TimeZoneDto, *http.Response, error)
 /*
 GetTimezones Lists all available time zones
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return ApiGetTimezonesRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiGetTimezonesRequest
 */
 func (a *ReferenceDataAPIService) GetTimezones(ctx context.Context) ApiGetTimezonesRequest {
 	return ApiGetTimezonesRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
 // Execute executes the request
-//
-//	@return []TimeZoneDto
+//  @return []TimeZoneDto
 func (a *ReferenceDataAPIService) GetTimezonesExecute(r ApiGetTimezonesRequest) ([]TimeZoneDto, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue []TimeZoneDto
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []TimeZoneDto
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ReferenceDataAPIService.GetTimezones")

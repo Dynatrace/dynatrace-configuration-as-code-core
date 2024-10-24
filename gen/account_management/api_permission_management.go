@@ -19,14 +19,15 @@ import (
 	"strings"
 )
 
+
 // PermissionManagementAPIService PermissionManagementAPI service
 type PermissionManagementAPIService service
 
 type ApiAddGroupPermissionsRequest struct {
-	ctx            context.Context
-	ApiService     *PermissionManagementAPIService
-	accountUuid    string
-	groupUuid      string
+	ctx context.Context
+	ApiService *PermissionManagementAPIService
+	accountUuid string
+	groupUuid string
 	permissionsDto *[]PermissionsDto
 }
 
@@ -43,26 +44,33 @@ func (r ApiAddGroupPermissionsRequest) Execute() (*http.Response, error) {
 /*
 AddGroupPermissions Assigns permissions to a user group. Existing permissions remain unaffected.
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@param groupUuid The UUID of the required user group.
-	@return ApiAddGroupPermissionsRequest
+Role based access is deprecated and will be removed soon, it is not advised to assign new role based permissions
+        at this moment. Please read the following migration guide to migrate to managing permissions with policies and
+        boundaries: https://dt-url.net/gx03uwa
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @param groupUuid The UUID of the required user group.
+ @return ApiAddGroupPermissionsRequest
+
+Deprecated
 */
 func (a *PermissionManagementAPIService) AddGroupPermissions(ctx context.Context, accountUuid string, groupUuid string) ApiAddGroupPermissionsRequest {
 	return ApiAddGroupPermissionsRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
-		groupUuid:   groupUuid,
+		groupUuid: groupUuid,
 	}
 }
 
 // Execute executes the request
+// Deprecated
 func (a *PermissionManagementAPIService) AddGroupPermissionsExecute(r ApiAddGroupPermissionsRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod = http.MethodPost
-		localVarPostBody   interface{}
-		formFiles          []formFile
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PermissionManagementAPIService.AddGroupPermissions")
@@ -129,10 +137,10 @@ func (a *PermissionManagementAPIService) AddGroupPermissionsExecute(r ApiAddGrou
 }
 
 type ApiGetGroupPermissionsRequest struct {
-	ctx         context.Context
-	ApiService  *PermissionManagementAPIService
+	ctx context.Context
+	ApiService *PermissionManagementAPIService
 	accountUuid string
-	groupUuid   string
+	groupUuid string
 }
 
 func (r ApiGetGroupPermissionsRequest) Execute() (*PermissionsGroupDto, *http.Response, error) {
@@ -142,29 +150,35 @@ func (r ApiGetGroupPermissionsRequest) Execute() (*PermissionsGroupDto, *http.Re
 /*
 GetGroupPermissions Lists all permissions of a user group
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@param groupUuid The UUID of the required user group.
-	@return ApiGetGroupPermissionsRequest
+Role based access is deprecated and will be removed soon, it is not advised to assign new role based permissions
+        at this moment. Please read the following migration guide to migrate to managing permissions with policies and
+        boundaries: https://dt-url.net/gx03uwa
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @param groupUuid The UUID of the required user group.
+ @return ApiGetGroupPermissionsRequest
+
+Deprecated
 */
 func (a *PermissionManagementAPIService) GetGroupPermissions(ctx context.Context, accountUuid string, groupUuid string) ApiGetGroupPermissionsRequest {
 	return ApiGetGroupPermissionsRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
-		groupUuid:   groupUuid,
+		groupUuid: groupUuid,
 	}
 }
 
 // Execute executes the request
-//
-//	@return PermissionsGroupDto
+//  @return PermissionsGroupDto
+// Deprecated
 func (a *PermissionManagementAPIService) GetGroupPermissionsExecute(r ApiGetGroupPermissionsRequest) (*PermissionsGroupDto, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *PermissionsGroupDto
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *PermissionsGroupDto
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PermissionManagementAPIService.GetGroupPermissions")
@@ -235,10 +249,10 @@ func (a *PermissionManagementAPIService) GetGroupPermissionsExecute(r ApiGetGrou
 }
 
 type ApiOverwriteGroupPermissionsRequest struct {
-	ctx            context.Context
-	ApiService     *PermissionManagementAPIService
-	accountUuid    string
-	groupUuid      string
+	ctx context.Context
+	ApiService *PermissionManagementAPIService
+	accountUuid string
+	groupUuid string
 	permissionsDto *[]PermissionsDto
 }
 
@@ -255,26 +269,33 @@ func (r ApiOverwriteGroupPermissionsRequest) Execute() (*http.Response, error) {
 /*
 OverwriteGroupPermissions Sets permissions of a user group. Existing permissions are overwritten.
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@param groupUuid The UUID of the required user group.
-	@return ApiOverwriteGroupPermissionsRequest
+Role based access is deprecated and will be removed soon, it is not advised to assign new role based permissions
+        at this moment. Please read the following migration guide to migrate to managing permissions with policies and
+        boundaries: https://dt-url.net/gx03uwa
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @param groupUuid The UUID of the required user group.
+ @return ApiOverwriteGroupPermissionsRequest
+
+Deprecated
 */
 func (a *PermissionManagementAPIService) OverwriteGroupPermissions(ctx context.Context, accountUuid string, groupUuid string) ApiOverwriteGroupPermissionsRequest {
 	return ApiOverwriteGroupPermissionsRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
-		groupUuid:   groupUuid,
+		groupUuid: groupUuid,
 	}
 }
 
 // Execute executes the request
+// Deprecated
 func (a *PermissionManagementAPIService) OverwriteGroupPermissionsExecute(r ApiOverwriteGroupPermissionsRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod = http.MethodPut
-		localVarPostBody   interface{}
-		formFiles          []formFile
+		localVarHTTPMethod   = http.MethodPut
+		localVarPostBody     interface{}
+		formFiles            []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PermissionManagementAPIService.OverwriteGroupPermissions")
@@ -341,13 +362,13 @@ func (a *PermissionManagementAPIService) OverwriteGroupPermissionsExecute(r ApiO
 }
 
 type ApiRemoveGroupPermissionsRequest struct {
-	ctx            context.Context
-	ApiService     *PermissionManagementAPIService
-	accountUuid    string
-	groupUuid      string
-	scope          *string
+	ctx context.Context
+	ApiService *PermissionManagementAPIService
+	accountUuid string
+	groupUuid string
+	scope *string
 	permissionName *string
-	scopeType      *string
+	scopeType *string
 }
 
 // The scope of the permission to be deleted. Depending on the type of the scope, specify one of the following:    * &#x60;account&#x60;: The UUID of the account.  * &#x60;tenant&#x60;: The ID of the environment.  * &#x60;management-zone&#x60;: The ID of the management zone from an environment in &#x60;{environment-id}:{management-zone-id}&#x60; format.
@@ -375,26 +396,33 @@ func (r ApiRemoveGroupPermissionsRequest) Execute() (*http.Response, error) {
 /*
 RemoveGroupPermissions Removes a permission from a user group
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param accountUuid The ID of the required account.    You can find the UUID on the **Account > Account management API** page, during creation of an OAuth client.
-	@param groupUuid The UUID of the required user group.
-	@return ApiRemoveGroupPermissionsRequest
+Role based access is deprecated and will be removed soon, it is not advised to assign new role based permissions
+        at this moment. Please read the following migration guide to migrate to managing permissions with policies and
+        boundaries: https://dt-url.net/gx03uwa
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+ @param groupUuid The UUID of the required user group.
+ @return ApiRemoveGroupPermissionsRequest
+
+Deprecated
 */
 func (a *PermissionManagementAPIService) RemoveGroupPermissions(ctx context.Context, accountUuid string, groupUuid string) ApiRemoveGroupPermissionsRequest {
 	return ApiRemoveGroupPermissionsRequest{
-		ApiService:  a,
-		ctx:         ctx,
+		ApiService: a,
+		ctx: ctx,
 		accountUuid: accountUuid,
-		groupUuid:   groupUuid,
+		groupUuid: groupUuid,
 	}
 }
 
 // Execute executes the request
+// Deprecated
 func (a *PermissionManagementAPIService) RemoveGroupPermissionsExecute(r ApiRemoveGroupPermissionsRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod = http.MethodDelete
-		localVarPostBody   interface{}
-		formFiles          []formFile
+		localVarHTTPMethod   = http.MethodDelete
+		localVarPostBody     interface{}
+		formFiles            []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PermissionManagementAPIService.RemoveGroupPermissions")
@@ -419,9 +447,9 @@ func (a *PermissionManagementAPIService) RemoveGroupPermissionsExecute(r ApiRemo
 		return nil, reportError("scopeType is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "scope", r.scope, "")
-	parameterAddToHeaderOrQuery(localVarQueryParams, "permission-name", r.permissionName, "")
-	parameterAddToHeaderOrQuery(localVarQueryParams, "scope-type", r.scopeType, "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "scope", r.scope, "form", "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "permission-name", r.permissionName, "form", "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "scope-type", r.scopeType, "form", "")
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 

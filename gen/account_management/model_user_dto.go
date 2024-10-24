@@ -12,6 +12,8 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"bytes"
+	"fmt"
 )
 
 // checks if the UserDto type satisfies the MappedNullable interface at compile time
@@ -27,11 +29,13 @@ type UserDto struct {
 	Name *string `json:"name,omitempty"`
 	// The last name of the user.
 	Surname *string `json:"surname,omitempty"`
-	// The status of this user in Dynatrace:   * `ACTIVE`: The user is active. * `INACTIVE`: The user is deactivated and cannot sign in to Dynatrace.  * `PENDING`: The user received an invitation, but hasn't completed sign-up yet.  * `DELETED`: The user was deleted and cannot sign in to Dynatrace anymore.  * `ECUSTOMS_MANUALLY_BLOCKED`: The user is blocked due to to a trade and export compliance violation.
+	// The status of this user in Dynatrace:   * `ACTIVE`: The user is active. * `INACTIVE`: The user is deactivated and cannot sign in to Dynatrace.  * `PENDING`: The user received an invitation, but hasn't completed sign-up yet.  * `DELETED`: The user was deleted and cannot sign in to Dynatrace anymore.  * `ECUSTOMS_MANUALLY_BLOCKED`: The user is blocked due to to a trade and export compliance violation.  
 	UserStatus *string `json:"userStatus,omitempty"`
 	// The user is (`true`) or is not (`false`) an emergency contact for the account.
 	EmergencyContact *bool `json:"emergencyContact,omitempty"`
 }
+
+type _UserDto UserDto
 
 // NewUserDto instantiates a new UserDto object
 // This constructor will assign default values to properties that have it defined,
@@ -229,7 +233,7 @@ func (o *UserDto) SetEmergencyContact(v bool) {
 }
 
 func (o UserDto) MarshalJSON() ([]byte, error) {
-	toSerialize, err := o.ToMap()
+	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -253,6 +257,44 @@ func (o UserDto) ToMap() (map[string]interface{}, error) {
 		toSerialize["emergencyContact"] = o.EmergencyContact
 	}
 	return toSerialize, nil
+}
+
+func (o *UserDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"uid",
+		"email",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err;
+	}
+
+	for _, requiredProperty := range(requiredProperties) {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varUserDto := _UserDto{}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varUserDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = UserDto(varUserDto)
+
+	return err
 }
 
 type NullableUserDto struct {
@@ -290,3 +332,5 @@ func (v *NullableUserDto) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+

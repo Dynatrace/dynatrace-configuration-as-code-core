@@ -13,6 +13,8 @@ package accountmanagement
 import (
 	"encoding/json"
 	"time"
+	"bytes"
+	"fmt"
 )
 
 // checks if the Forecast type satisfies the MappedNullable interface at compile time
@@ -20,21 +22,23 @@ var _ MappedNullable = &Forecast{}
 
 // Forecast struct for Forecast
 type Forecast struct {
-	// The median of the forecast snapshot.
+	// The median forecasted usage.
 	ForecastMedian float32 `json:"forecastMedian"`
-	// The lower bound for the forecast snapshot.
+	// The lower bound of forecasted usage.
 	ForecastLower float32 `json:"forecastLower"`
-	// The upper bound for the forecast snapshot.
+	// The upper bound of forecasted usage.
 	ForecastUpper float32 `json:"forecastUpper"`
-	// The budget for the forecast snapshot.
+	// The budget quota used in the forecast.
 	Budget float32 `json:"budget"`
-	// The budget percent for the forecast snapshot.
+	// The forecasted usage of the budget, in percent.
 	ForecastBudgetPct float32 `json:"forecastBudgetPct"`
-	// The date the forecast snapshot's budget reached the quota amount.
+	// The date when the forecasted usage consumes all the budget quota.
 	ForecastBudgetDate time.Time `json:"forecastBudgetDate"`
-	// The date the forecast snapshot was created.
+	// The date when the forecast was created.
 	ForecastCreatedAt time.Time `json:"forecastCreatedAt"`
 }
+
+type _Forecast Forecast
 
 // NewForecast instantiates a new Forecast object
 // This constructor will assign default values to properties that have it defined,
@@ -229,7 +233,7 @@ func (o *Forecast) SetForecastCreatedAt(v time.Time) {
 }
 
 func (o Forecast) MarshalJSON() ([]byte, error) {
-	toSerialize, err := o.ToMap()
+	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -246,6 +250,49 @@ func (o Forecast) ToMap() (map[string]interface{}, error) {
 	toSerialize["forecastBudgetDate"] = o.ForecastBudgetDate
 	toSerialize["forecastCreatedAt"] = o.ForecastCreatedAt
 	return toSerialize, nil
+}
+
+func (o *Forecast) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"forecastMedian",
+		"forecastLower",
+		"forecastUpper",
+		"budget",
+		"forecastBudgetPct",
+		"forecastBudgetDate",
+		"forecastCreatedAt",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err;
+	}
+
+	for _, requiredProperty := range(requiredProperties) {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varForecast := _Forecast{}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varForecast)
+
+	if err != nil {
+		return err
+	}
+
+	*o = Forecast(varForecast)
+
+	return err
 }
 
 type NullableForecast struct {
@@ -283,3 +330,5 @@ func (v *NullableForecast) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+

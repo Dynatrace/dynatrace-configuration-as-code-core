@@ -12,6 +12,8 @@ package accountmanagement
 
 import (
 	"encoding/json"
+	"bytes"
+	"fmt"
 )
 
 // checks if the RegionDto type satisfies the MappedNullable interface at compile time
@@ -22,6 +24,8 @@ type RegionDto struct {
 	// The name of the region.
 	Name string `json:"name"`
 }
+
+type _RegionDto RegionDto
 
 // NewRegionDto instantiates a new RegionDto object
 // This constructor will assign default values to properties that have it defined,
@@ -66,7 +70,7 @@ func (o *RegionDto) SetName(v string) {
 }
 
 func (o RegionDto) MarshalJSON() ([]byte, error) {
-	toSerialize, err := o.ToMap()
+	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -77,6 +81,43 @@ func (o RegionDto) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["name"] = o.Name
 	return toSerialize, nil
+}
+
+func (o *RegionDto) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"name",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err;
+	}
+
+	for _, requiredProperty := range(requiredProperties) {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varRegionDto := _RegionDto{}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varRegionDto)
+
+	if err != nil {
+		return err
+	}
+
+	*o = RegionDto(varRegionDto)
+
+	return err
 }
 
 type NullableRegionDto struct {
@@ -114,3 +155,5 @@ func (v *NullableRegionDto) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+
