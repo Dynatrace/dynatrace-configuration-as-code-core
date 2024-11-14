@@ -18,11 +18,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+
+	"github.com/go-logr/logr"
+
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/openpipeline"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
-	"github.com/go-logr/logr"
-	"io"
 )
 
 const bodyReadErrMsg = "unable to read API response body"
@@ -125,6 +127,7 @@ func (c Client) Update(ctx context.Context, id string, data []byte) (Response, e
 	}
 
 	d["version"] = m["version"]
+	d["updateToken"] = m["updateToken"]
 	data, err = json.Marshal(d)
 	if err != nil {
 		return Response{}, fmt.Errorf("unable to marshal data: %w", err)
