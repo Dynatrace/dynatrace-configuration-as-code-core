@@ -108,32 +108,32 @@ func (c Client) GetAll(ctx context.Context) ([]Response, error) {
 	return resources, nil
 }
 
-func (c Client) Update(ctx context.Context, id string, data []byte) (Response, error) {
+func (c Client) Update(ctx context.Context, id string, payload []byte) (Response, error) {
 	getResp, err := c.Get(ctx, id)
 	if err != nil {
 		return Response{}, err
 	}
 
-	var m map[string]interface{}
-	err = json.Unmarshal(getResp.Data, &m)
+	var remoteJson map[string]any
+	err = json.Unmarshal(getResp.Data, &remoteJson)
 	if err != nil {
 		return Response{}, err
 	}
 
-	var d map[string]interface{}
-	err = json.Unmarshal(data, &d)
+	var localJson map[string]any
+	err = json.Unmarshal(payload, &localJson)
 	if err != nil {
 		return Response{}, err
 	}
 
-	d["version"] = m["version"]
-	d["updateToken"] = m["updateToken"]
-	data, err = json.Marshal(d)
+	localJson["version"] = remoteJson["version"]
+	localJson["updateToken"] = remoteJson["updateToken"]
+	payload, err = json.Marshal(localJson)
 	if err != nil {
-		return Response{}, fmt.Errorf("unable to marshal data: %w", err)
+		return Response{}, fmt.Errorf("unable to marshal payload: %w", err)
 	}
 
-	resp, err := c.client.Update(ctx, id, data, rest.RequestOptions{})
+	resp, err := c.client.Update(ctx, id, payload, rest.RequestOptions{})
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to list openpipeline resources: %w", err)
 	}
