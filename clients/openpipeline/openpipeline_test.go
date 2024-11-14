@@ -16,14 +16,16 @@ package openpipeline_test
 
 import (
 	"encoding/json"
+	"io"
+	"net/http"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/openpipeline"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
-	"github.com/stretchr/testify/assert"
-	"io"
-	"net/http"
-	"testing"
 )
 
 func TestOpenPipelineClient_Get(t *testing.T) {
@@ -325,17 +327,18 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 func TestOpenPipelineClient_Update(t *testing.T) {
 
 	const getPayload = `{
-	"id": "bizevents",
-	"editable": true,
-	"version": "1716904550612-4770deb9105b4a5293c1edbcc6bf4412"
-}
-`
+		"id": "bizevents",
+		"editable": true,
+		"version": "1716904550612-4770deb9105b4a5293c1edbcc6bf4412",
+		"updateToken": "my-update-token"
+	}
+	`
 
 	const putPayload = `{
-	"id": "bizevents",
-	"editable": true
-}
-`
+		"id": "bizevents",
+		"editable": true
+	}
+	`
 
 	t.Run("PUT - no ID given", func(t *testing.T) {
 		responses := []testutils.ResponseDef{}
@@ -373,6 +376,7 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 					var m map[string]interface{}
 					json.Unmarshal(body, &m)
 					assert.Equal(t, "1716904550612-4770deb9105b4a5293c1edbcc6bf4412", m["version"])
+					assert.Equal(t, "my-update-token", m["updateToken"])
 				},
 			},
 		}
