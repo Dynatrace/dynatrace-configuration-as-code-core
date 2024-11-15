@@ -23,7 +23,7 @@ type Statement struct {
 	// The effect of the policy (for example, allow something).
 	Effect string `json:"effect"`
 	// The service to which the policy applies.
-	Service string `json:"service"`
+	Service *string `json:"service,omitempty"`
 	// A list of granted permissions.
 	Permissions []string `json:"permissions"`
 	// A list of conditions limiting the granted permissions.
@@ -37,10 +37,9 @@ type _Statement Statement
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewStatement(effect string, service string, permissions []string, conditions []Condition) *Statement {
+func NewStatement(effect string, permissions []string, conditions []Condition) *Statement {
 	this := Statement{}
 	this.Effect = effect
-	this.Service = service
 	this.Permissions = permissions
 	this.Conditions = conditions
 	return &this
@@ -78,28 +77,36 @@ func (o *Statement) SetEffect(v string) {
 	o.Effect = v
 }
 
-// GetService returns the Service field value
+// GetService returns the Service field value if set, zero value otherwise.
 func (o *Statement) GetService() string {
-	if o == nil {
+	if o == nil || IsNil(o.Service) {
 		var ret string
 		return ret
 	}
-
-	return o.Service
+	return *o.Service
 }
 
-// GetServiceOk returns a tuple with the Service field value
+// GetServiceOk returns a tuple with the Service field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 func (o *Statement) GetServiceOk() (*string, bool) {
-	if o == nil {
+	if o == nil || IsNil(o.Service) {
 		return nil, false
 	}
-	return &o.Service, true
+	return o.Service, true
 }
 
-// SetService sets field value
+// HasService returns a boolean if a field has been set.
+func (o *Statement) HasService() bool {
+	if o != nil && !IsNil(o.Service) {
+		return true
+	}
+
+	return false
+}
+
+// SetService gets a reference to the given string and assigns it to the Service field.
 func (o *Statement) SetService(v string) {
-	o.Service = v
+	o.Service = &v
 }
 
 // GetPermissions returns the Permissions field value
@@ -161,7 +168,9 @@ func (o Statement) MarshalJSON() ([]byte, error) {
 func (o Statement) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["effect"] = o.Effect
-	toSerialize["service"] = o.Service
+	if !IsNil(o.Service) {
+		toSerialize["service"] = o.Service
+	}
 	toSerialize["permissions"] = o.Permissions
 	toSerialize["conditions"] = o.Conditions
 
@@ -178,7 +187,6 @@ func (o *Statement) UnmarshalJSON(data []byte) (err error) {
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
 		"effect",
-		"service",
 		"permissions",
 		"conditions",
 	}

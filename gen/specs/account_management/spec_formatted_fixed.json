@@ -5583,7 +5583,6 @@
                 },
                 "required": [
                     "effect",
-                    "service",
                     "permissions",
                     "conditions"
                 ]
@@ -6053,7 +6052,6 @@
                 },
                 "required": [
                     "id",
-                    "name",
                     "active",
                     "url"
                 ]
