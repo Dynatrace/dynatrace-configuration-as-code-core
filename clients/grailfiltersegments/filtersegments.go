@@ -54,7 +54,8 @@ var _ client = (*grailfiltersegements.Client)(nil)
 
 // List gets a complete set of available configs. The Data filed in response is normalized to json list of entries.
 func (c Client) List(ctx context.Context) (Response, error) {
-	resp, err := c.client.List(ctx, rest.RequestOptions{})
+	resp, err := c.client.List(ctx, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	defer closeBody(resp)
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to list filtersegments resources: %w", err)
 	}
@@ -80,7 +81,8 @@ func (c Client) Get(ctx context.Context, id string) (Response, error) {
 		return Response{}, errors.New("missing required id")
 	}
 
-	resp, err := c.client.Get(ctx, id, rest.RequestOptions{})
+	resp, err := c.client.Get(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	defer closeBody(resp)
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to get filtersegment resource with id %s: %w", id, err)
 	}
@@ -89,53 +91,45 @@ func (c Client) Get(ctx context.Context, id string) (Response, error) {
 
 // GetAll gets a complete set of complete configuration for all available filter segments
 func (c Client) GetAll(ctx context.Context) ([]Response, error) {
+	const errMsg = "failed to get all filter segments: %w"
 	listResp, err := c.List(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	type filterSegment struct {
+	var segments []struct {
 		Uid string `json:"uid"`
 	}
-
-	var fsegments []filterSegment
-	if err = json.Unmarshal(listResp.Data, &fsegments); err != nil {
-		return nil, err
+	if err = json.Unmarshal(listResp.Data, &segments); err != nil {
+		return nil, fmt.Errorf(errMsg, err)
 	}
 
 	var result []Response
-	for _, f := range fsegments {
-		resp, err := c.client.Get(ctx, f.Uid, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	for _, s := range segments {
+		resp, err := c.Get(ctx, s.Uid)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get filter segments resource with id %s: %w", f.Uid, err)
+			return nil, fmt.Errorf(errMsg, err)
 		}
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, api.NewAPIErrorFromResponseAndBody(resp, body)
-		}
-		if !rest.IsSuccess(resp) {
-			return nil, api.NewAPIErrorFromResponseAndBody(resp, body)
-		}
-
-		result = append(result, api.NewResponseFromHTTPResponseAndBody(resp, body))
+		result = append(result, resp)
 	}
 
 	return result, nil
-
 }
 
 // Upsert creates a new entry of filter segment on server in case a configuration with an ID doesn't already exist on server. If exists, it updates it.
 func (c Client) Upsert(ctx context.Context, id string, data []byte) (Response, error) {
-	existing, err := c.client.Get(ctx, id, rest.RequestOptions{})
+	const errMsg = "failed to upsert filter segments resource with id %s: %w"
+	existing, err := c.client.Get(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	closeBody(existing)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to get filter segments resource with id %s: %w", id, err)
+		return Response{}, fmt.Errorf(errMsg, id, err)
 	}
 
 	if existing.StatusCode == http.StatusNotFound {
-		resp, err := c.client.Create(ctx, data, rest.RequestOptions{})
+		resp, err := c.client.Create(ctx, data, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+		closeBody(resp)
 		if err != nil {
-			return Response{}, fmt.Errorf("failed to create filter segments resource: %w", err)
+			return Response{}, fmt.Errorf(errMsg, id, err)
 		}
 		return processResponse(resp, nil)
 	}
@@ -145,21 +139,21 @@ func (c Client) Upsert(ctx context.Context, id string, data []byte) (Response, e
 		return Response{}, api.NewAPIErrorFromResponseAndBody(existing, existingResourceBody)
 	}
 
-	type respWithVersion struct {
+	var currentVersion struct {
 		Version int `json:"version"`
 	}
-	var currentVersion respWithVersion
 	err = json.Unmarshal(existingResourceBody, &currentVersion)
 	if err != nil {
-		return Response{}, fmt.Errorf("unable to unmarshal data: %w", err)
+		return Response{}, fmt.Errorf(errMsg, id, err)
 	}
 	if currentVersion.Version == 0 {
 		return Response{}, fmt.Errorf("missing version field in API response")
 	}
 
-	updateResourceResp, err := c.client.Update(ctx, id, data, rest.RequestOptions{QueryParams: map[string][]string{
-		"optimistic-locking-version": {fmt.Sprint(currentVersion.Version)},
-	}})
+	updateResourceResp, err := c.client.Update(ctx, id, data, rest.RequestOptions{
+		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
+		QueryParams:           map[string][]string{"optimistic-locking-version": {fmt.Sprint(currentVersion.Version)}}})
+	closeBody(updateResourceResp)
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to update filter segments resource with id %s and version %d: %w", id, currentVersion.Version, err)
 	}
@@ -168,10 +162,6 @@ func (c Client) Upsert(ctx context.Context, id string, data []byte) (Response, e
 }
 
 func processResponse(httpResponse *http.Response, transform func([]byte) ([]byte, error)) (Response, error) {
-	if httpResponse != nil && httpResponse.Body != nil {
-		defer httpResponse.Body.Close()
-	}
-
 	var body []byte
 	var err error
 
@@ -197,16 +187,21 @@ func (c Client) Delete(ctx context.Context, id string) (Response, error) {
 	if id == "" {
 		return Response{}, errors.New("missing required id")
 	}
-	resp, err := c.client.Delete(ctx, id, rest.RequestOptions{})
+
+	resp, err := c.client.Delete(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	closeBody(resp)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to get filtersegment resource with id %s: %w", id, err)
-	}
-	if resp != nil && resp.Body != nil {
-		defer resp.Body.Close()
+		return Response{}, fmt.Errorf("failed to delete filtersegment resource with id %s: %w", id, err)
 	}
 
 	if !rest.IsSuccess(resp) {
 		return Response{}, api.NewAPIErrorFromResponse(resp)
 	}
-	return api.NewResponseFromHTTPResponse(resp), nil
+	return api.NewResponseFromHTTPResponseAndBody(resp, nil), nil
+}
+
+func closeBody(httpResponse *http.Response) {
+	if httpResponse != nil && httpResponse.Body != nil {
+		_ = httpResponse.Body.Close()
+	}
 }

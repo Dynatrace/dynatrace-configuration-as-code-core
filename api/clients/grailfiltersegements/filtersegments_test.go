@@ -28,6 +28,24 @@ import (
 )
 
 func TestList(t *testing.T) {
+	t.Run("check call", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Log(r.URL.String())
+			require.Equal(t, http.MethodGet, r.Method)
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments:lean", r.URL.Path)
+		}))
+		defer server.Close()
+		u, err := url.Parse(server.URL)
+		require.NoError(t, err)
+
+		c := grailfiltersegements.NewClient(rest.NewClient(u, server.Client()))
+
+		resp, err := c.List(context.TODO(), rest.RequestOptions{})
+		require.NoError(t, err)
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
 	t.Run("add-fields are NOT specified", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			t.Log(r.URL.String())
@@ -68,10 +86,27 @@ func TestList(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
+	t.Run("check call", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Log(r.URL.String())
+			require.Equal(t, http.MethodGet, r.Method)
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
+		}))
+		defer server.Close()
+		u, err := url.Parse(server.URL)
+		require.NoError(t, err)
+
+		c := grailfiltersegements.NewClient(rest.NewClient(u, server.Client()))
+
+		resp, err := c.Get(context.TODO(), "uid", rest.RequestOptions{})
+		require.NoError(t, err)
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
 	t.Run("add-fields are NOT specified", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			t.Log(r.URL.String())
-
 			fields := r.URL.Query()["add-fields"]
 			require.ElementsMatch(t, []string{"INCLUDES", "VARIABLES", "EXTERNALID", "RESOURCECONTEXT"}, fields)
 		}))
@@ -90,7 +125,6 @@ func TestGet(t *testing.T) {
 	t.Run("add-fields are specified by caller", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			t.Log(r.URL.String())
-
 			fields := r.URL.Query()["add-fields"]
 			require.ElementsMatch(t, []string{"user_defined"}, fields)
 		}))
@@ -105,4 +139,58 @@ func TestGet(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 	})
+}
+
+func TestCreate(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Log(r.URL.String())
+		require.Equal(t, http.MethodPost, r.Method)
+		require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments", r.URL.Path)
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	c := grailfiltersegements.NewClient(rest.NewClient(u, server.Client()))
+
+	resp, err := c.Create(context.TODO(), []byte{}, rest.RequestOptions{})
+	require.NoError(t, err)
+
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestUpdate(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Log(r.URL.String())
+		require.Equal(t, http.MethodPut, r.Method)
+		require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	c := grailfiltersegements.NewClient(rest.NewClient(u, server.Client()))
+
+	resp, err := c.Update(context.TODO(), "uid", []byte{}, rest.RequestOptions{})
+	require.NoError(t, err)
+
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestDelete(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Log(r.URL.String())
+		require.Equal(t, http.MethodDelete, r.Method)
+		require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	c := grailfiltersegements.NewClient(rest.NewClient(u, server.Client()))
+
+	resp, err := c.Delete(context.TODO(), "uid", rest.RequestOptions{})
+	require.NoError(t, err)
+
+	require.Equal(t, http.StatusOK, resp.StatusCode)
 }

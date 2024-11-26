@@ -19,6 +19,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -31,6 +32,11 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/grailfiltersegments"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
 )
+
+func TestNewClient(t *testing.T) {
+	actual := grailfiltersegments.NewClient(&rest.Client{})
+	require.IsType(t, grailfiltersegments.Client{}, *actual)
+}
 
 func TestList(t *testing.T) {
 	apiResponse := `{
@@ -56,7 +62,7 @@ func TestList(t *testing.T) {
 
 	mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
 	mockClient.EXPECT().
-		List(gomock.Any(), rest.RequestOptions{}).
+		List(gomock.AssignableToTypeOf(context.Background()), gomock.AssignableToTypeOf(rest.RequestOptions{})).
 		Return(&http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader(apiResponse)),
@@ -91,7 +97,7 @@ func TestGet(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
-			Get(ctx, "uid", gomock.Any()).
+			Get(ctx, "uid", gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusNotFound,
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
@@ -157,7 +163,7 @@ func TestGetAll(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
-			List(ctx, rest.RequestOptions{}).
+			List(ctx, gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusBadRequest,
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
@@ -186,7 +192,7 @@ func TestGetAll(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
-			List(ctx, rest.RequestOptions{}).
+			List(ctx, gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
@@ -242,19 +248,19 @@ func TestGetAll(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
-			List(ctx, rest.RequestOptions{}).
+			List(ctx, gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
 			}, nil)
 		mockClient.EXPECT().
-			Get(ctx, "qW5qn449RsG", gomock.Any()).
+			Get(ctx, "qW5qn449RsG", gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(apiResponse2)),
 			}, nil)
 		mockClient.EXPECT().
-			Get(ctx, "pC7j2sEDzAQ", gomock.Any()).
+			Get(ctx, "pC7j2sEDzAQ", gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(apiResponse3)),
@@ -273,6 +279,37 @@ func TestGetAll(t *testing.T) {
 }
 
 func TestUpsert(t *testing.T) {
+
+	t.Run("unexpected error while checking for status on server", func(t *testing.T) {
+		payload := `{
+  "uid": "qW5qn449RsG",
+  "name": "dev_environment",
+  "description": "only includes data of the dev environment",
+  "variables": {
+    "type": "query",
+    "value": "fetch logs | limit 1"
+  },
+  "isPublic": false,
+  "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
+  "allowedOperations": [
+    "READ",
+    "WRITE",
+    "DELETE"
+  ],
+  "includes": []
+}`
+		ctx := testutils.ContextWithLogger(t)
+		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
+		mockClient.EXPECT().
+			Get(ctx, "uid", gomock.Any()).
+			Return(nil, errors.New("some unexpected error"))
+
+		fsClient := grailfiltersegments.NewTestClient(mockClient)
+		actual, err := fsClient.Upsert(ctx, "uid", []byte(payload))
+
+		require.Error(t, err)
+		require.Empty(t, actual)
+	})
 
 	t.Run("successfully created new entity on server", func(t *testing.T) {
 		payload := `{
@@ -315,7 +352,7 @@ func TestUpsert(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
 			}, nil)
 		mockClient.EXPECT().
-			Create(ctx, []byte(payload), rest.RequestOptions{}).
+			Create(ctx, []byte(payload), gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusCreated,
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
@@ -394,14 +431,20 @@ func TestUpsert(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(apiExistingResource)),
 			}, nil)
 		mockClient.EXPECT().
-			Update(ctx, "uid", []byte(payload), rest.RequestOptions{
-				QueryParams: map[string][]string{
-					"optimistic-locking-version": {"2"}},
-			}).
+			// Update(ctx, "uid", []byte(payload), rest.RequestOptions{
+			// 	QueryParams: map[string][]string{
+			// 		"optimistic-locking-version": {"2"}},
+			// }).
+			Update(ctx, "uid", []byte(payload), gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
-			}, nil)
+			}, nil).
+			Do(func(_, _, _ any, ro any) {
+				require.IsType(t, rest.RequestOptions{}, ro)
+				require.Contains(t, ro.(rest.RequestOptions).QueryParams, "optimistic-locking-version")
+				require.Equal(t, ro.(rest.RequestOptions).QueryParams, url.Values{"optimistic-locking-version": {"2"}})
+			})
 
 		fsClient := grailfiltersegments.NewTestClient(mockClient)
 		resp, err := fsClient.Upsert(ctx, "uid", []byte(payload))
@@ -436,7 +479,7 @@ func TestDelete(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
-			Delete(ctx, "uid", rest.RequestOptions{}).
+			Delete(ctx, "uid", gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusNotFound,
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
@@ -459,7 +502,7 @@ func TestDelete(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
-			Delete(ctx, "uid", rest.RequestOptions{}).
+			Delete(ctx, "uid", gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusNoContent,
 			}, nil)
