@@ -190,8 +190,9 @@ func NewAPIErrorFromResponseAndBody(resp *http.Response, body []byte) APIError {
 func NewAPIErrorFromResponse(resp *http.Response) error {
 	apiErr := APIError{
 		StatusCode: resp.StatusCode,
-		Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
+		Request:    NewRequestInfoFromRequest(resp.Request),
 	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return errors.Join(apiErr, fmt.Errorf("unable to read API response body: %w", err))

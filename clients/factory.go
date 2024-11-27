@@ -28,6 +28,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/grailfiltersegments"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/openpipeline"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -170,6 +171,15 @@ func (f factory) DocumentClient() (*documents.Client, error) {
 		return nil, err
 	}
 	return documents.NewClient(restClient), nil
+}
+
+// FilterSegmentsClient creates and returns a new instance of grailfiltersegments.Client for interacting with the grail filter segments API.
+func (f factory) FilterSegmentsClient() (*grailfiltersegments.Client, error) {
+	restClient, err := f.CreatePlatformClient()
+	if err != nil {
+		return nil, err
+	}
+	return grailfiltersegments.NewClient(restClient), nil
 }
 
 // BucketClientWithRetrySettings creates and returns a new instance of buckets.Client with non-default retry settings.
