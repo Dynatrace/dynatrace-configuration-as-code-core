@@ -435,7 +435,7 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
 	})
 
-	t.Run("PUT - API Call returned with != 2xx", func(t *testing.T) {
+	t.Run("PUT - API Call returns Bad Request", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
@@ -465,5 +465,51 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
 		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+	})
+
+	t.Run("First PUT returns returns Conflict, second succeeds", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusAccepted,
+						ResponseBody: getPayload,
+						ContentType:  "application/json",
+					}
+				},
+			},
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusConflict,
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusAccepted,
+						ResponseBody: getPayload,
+						ContentType:  "application/json",
+					}
+				},
+			},
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusAccepted,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Update(ctx, "bizevents", []byte(putPayload))
+		assert.Nil(t, err)
+		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 	})
 }

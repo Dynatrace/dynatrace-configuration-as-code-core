@@ -17,8 +17,10 @@ package openpipeline
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 
 	"github.com/go-logr/logr"
 
@@ -28,6 +30,7 @@ import (
 )
 
 const bodyReadErrMsg = "unable to read API response body"
+const maxUpdateAttempts = 10
 
 type Response = api.Response
 
@@ -109,6 +112,24 @@ func (c Client) GetAll(ctx context.Context) ([]Response, error) {
 }
 
 func (c Client) Update(ctx context.Context, id string, payload []byte) (Response, error) {
+	var resp api.Response
+	var err error
+
+	for i := 0; i < maxUpdateAttempts; i++ {
+		resp, err = c.update(ctx, id, payload)
+		if err == nil {
+			return resp, nil
+		}
+
+		var apiErr api.APIError
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
+			return resp, err
+		}
+	}
+	return resp, err
+}
+
+func (c Client) update(ctx context.Context, id string, payload []byte) (Response, error) {
 	getResp, err := c.Get(ctx, id)
 	if err != nil {
 		return Response{}, err
