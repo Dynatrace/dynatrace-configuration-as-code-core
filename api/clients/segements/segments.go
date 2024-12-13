@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package grailfiltersegements
+package segements
 
 import (
 	"bytes"
@@ -37,7 +37,7 @@ func NewClient(client *rest.Client) *Client {
 	return c
 }
 
-// List gets the list of the existing filter segments. It uses the ":lean" endpoint to get the minimum necessary data set.
+// List gets the list of the existing segments. It uses the ":lean" endpoint to get the minimum necessary data set.
 // If the field 'add-fields' in [rest.RequestOptions.QueryParams] is not specified, it will be set to "EXTERNALID".
 func (c Client) List(ctx context.Context, ro rest.RequestOptions) (*http.Response, error) {
 	path := endpointPath + ":lean" // minimal set of information is enough
@@ -49,13 +49,13 @@ func (c Client) List(ctx context.Context, ro rest.RequestOptions) (*http.Respons
 
 	r, err := c.client.GET(ctx, path, ro)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get the list of filter segments: %w", err)
+		return nil, fmt.Errorf("failed to get the list of segments: %w", err)
 	}
 
 	return r, nil
 }
 
-// Get filter-segment with UID.
+// Get segment with UID.
 // If the field 'add-fields' in [rest.RequestOptions.QueryParams] is not specified, it will be set to "INCLUDES", "VARIABLES", "EXTERNALID", "RESOURCECONTEXT".
 func (c Client) Get(ctx context.Context, id string, ro rest.RequestOptions) (*http.Response, error) {
 	path, err := url.JoinPath(endpointPath, id)
@@ -79,7 +79,7 @@ func (c Client) Get(ctx context.Context, id string, ro rest.RequestOptions) (*ht
 func (c Client) Create(ctx context.Context, data []byte, ro rest.RequestOptions) (*http.Response, error) {
 	r, err := c.client.POST(ctx, endpointPath, bytes.NewReader(data), ro)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new filter segment: %w", err)
+		return nil, fmt.Errorf("failed to create new segment: %w", err)
 	}
 	return r, nil
 }

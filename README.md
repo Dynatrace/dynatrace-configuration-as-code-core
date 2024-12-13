@@ -26,6 +26,7 @@ The library provides different kinds of clients to interact with Dynatrace in tw
   | Grail buckets       | ✅           |
   | Documents           | ✅           |
   | OpenPipeline        | ✅           |
+  | Segments            | ✅           |
 
 ### Usage
 

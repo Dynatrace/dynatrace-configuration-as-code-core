@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package grailfiltersegments_test
+package segments_test
 
 import (
 	"context"
@@ -29,13 +29,13 @@ import (
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/grailfiltersegments"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/segments"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
 )
 
 func TestNewClient(t *testing.T) {
-	actual := grailfiltersegments.NewClient(&rest.Client{})
-	require.IsType(t, grailfiltersegments.Client{}, *actual)
+	actual := segments.NewClient(&rest.Client{})
+	require.IsType(t, segments.Client{}, *actual)
 }
 
 func TestList(t *testing.T) {
@@ -43,7 +43,7 @@ func TestList(t *testing.T) {
   "filterSegments": [
     {
       "uid": "QElQbQcjq3S",
-      "name": "filter_name",
+      "name": "segment_name",
       "isPublic": false,
       "owner": "userUUID",
       "version": 1
@@ -53,14 +53,14 @@ func TestList(t *testing.T) {
 	expected := `[
     {
       "uid": "QElQbQcjq3S",
-      "name": "filter_name",
+      "name": "segment_name",
       "isPublic": false,
       "owner": "userUUID",
       "version": 1
     }
   ]`
 
-	mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
+	mockClient := segments.NewMockclient(gomock.NewController(t))
 	mockClient.EXPECT().
 		List(gomock.AssignableToTypeOf(context.Background()), gomock.AssignableToTypeOf(rest.RequestOptions{})).
 		Return(&http.Response{
@@ -68,7 +68,7 @@ func TestList(t *testing.T) {
 			Body:       io.NopCloser(strings.NewReader(apiResponse)),
 		}, nil)
 
-	fsClient := grailfiltersegments.NewTestClient(mockClient)
+	fsClient := segments.NewTestClient(mockClient)
 	actual, err := fsClient.List(context.Background())
 
 	require.NoError(t, err)
@@ -78,7 +78,7 @@ func TestList(t *testing.T) {
 func TestGet(t *testing.T) {
 	t.Run("call without ID returns an error", func(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
-		fsClient := grailfiltersegments.NewTestClient(grailfiltersegments.NewMockclient(gomock.NewController(t)))
+		fsClient := segments.NewTestClient(segments.NewMockclient(gomock.NewController(t)))
 		resp, err := fsClient.Get(ctx, "")
 
 		assert.Empty(t, resp)
@@ -90,12 +90,12 @@ func TestGet(t *testing.T) {
 		apiResponse := `{
   "error": {
     "code": 404,
-    "message": "Filter-segment not found",
+    "message": "Segment not found",
     "errorDetails": []
   }
 }`
 		ctx := testutils.ContextWithLogger(t)
-		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
+		mockClient := segments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
 			Get(ctx, "uid", gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
@@ -103,7 +103,7 @@ func TestGet(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
 			}, nil)
 
-		fsClient := grailfiltersegments.NewTestClient(mockClient)
+		fsClient := segments.NewTestClient(mockClient)
 		resp, err := fsClient.Get(ctx, "uid")
 
 		assert.Empty(t, resp)
@@ -139,7 +139,7 @@ func TestGet(t *testing.T) {
   "version": 1
 }`
 		ctx := testutils.ContextWithLogger(t)
-		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
+		mockClient := segments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
 			Get(ctx, "uid", gomock.Any()).
 			Return(&http.Response{
@@ -147,7 +147,7 @@ func TestGet(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
 			}, nil)
 
-		fsClient := grailfiltersegments.NewTestClient(mockClient)
+		fsClient := segments.NewTestClient(mockClient)
 		resp, err := fsClient.Get(ctx, "uid")
 
 		assert.NotEmpty(t, resp)
@@ -161,7 +161,7 @@ func TestGetAll(t *testing.T) {
 	t.Run("getting list fails with error", func(t *testing.T) {
 		apiResponse := `{ "err" : "something went wrong" }`
 		ctx := testutils.ContextWithLogger(t)
-		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
+		mockClient := segments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
 			List(ctx, gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
@@ -169,7 +169,7 @@ func TestGetAll(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
 			}, nil)
 
-		fsClient := grailfiltersegments.NewTestClient(mockClient)
+		fsClient := segments.NewTestClient(mockClient)
 		resp, err := fsClient.GetAll(ctx)
 
 		assert.Empty(t, resp)
@@ -190,7 +190,7 @@ func TestGetAll(t *testing.T) {
 `
 		apiResponse2 := `{ "err" : "something went wrong" }`
 		ctx := testutils.ContextWithLogger(t)
-		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
+		mockClient := segments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
 			List(ctx, gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
@@ -204,7 +204,7 @@ func TestGetAll(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(apiResponse2)),
 			}, nil)
 
-		fsClient := grailfiltersegments.NewTestClient(mockClient)
+		fsClient := segments.NewTestClient(mockClient)
 		resp, err := fsClient.GetAll(ctx)
 
 		assert.Empty(t, resp)
@@ -246,7 +246,7 @@ func TestGetAll(t *testing.T) {
     }`
 
 		ctx := testutils.ContextWithLogger(t)
-		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
+		mockClient := segments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
 			List(ctx, gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
@@ -266,7 +266,7 @@ func TestGetAll(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(apiResponse3)),
 			}, nil)
 
-		fsClient := grailfiltersegments.NewTestClient(mockClient)
+		fsClient := segments.NewTestClient(mockClient)
 		resp, err := fsClient.GetAll(ctx)
 
 		assert.NotEmpty(t, resp)
@@ -299,12 +299,12 @@ func TestUpsert(t *testing.T) {
   "includes": []
 }`
 		ctx := testutils.ContextWithLogger(t)
-		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
+		mockClient := segments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
 			Get(ctx, "uid", gomock.Any()).
 			Return(nil, errors.New("some unexpected error"))
 
-		fsClient := grailfiltersegments.NewTestClient(mockClient)
+		fsClient := segments.NewTestClient(mockClient)
 		actual, err := fsClient.Upsert(ctx, "uid", []byte(payload))
 
 		require.Error(t, err)
@@ -344,7 +344,7 @@ func TestUpsert(t *testing.T) {
 }`
 
 		ctx := testutils.ContextWithLogger(t)
-		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
+		mockClient := segments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
 			Get(ctx, "uid", gomock.Any()).
 			Return(&http.Response{
@@ -358,7 +358,7 @@ func TestUpsert(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
 			}, nil)
 
-		fsClient := grailfiltersegments.NewTestClient(mockClient)
+		fsClient := segments.NewTestClient(mockClient)
 		resp, err := fsClient.Upsert(ctx, "uid", []byte(payload))
 
 		assert.NotEmpty(t, resp)
@@ -423,7 +423,7 @@ func TestUpsert(t *testing.T) {
 }`
 
 		ctx := testutils.ContextWithLogger(t)
-		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
+		mockClient := segments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
 			Get(ctx, "uid", gomock.Any()).
 			Return(&http.Response{
@@ -446,7 +446,7 @@ func TestUpsert(t *testing.T) {
 				require.Equal(t, ro.(rest.RequestOptions).QueryParams, url.Values{"optimistic-locking-version": {"2"}})
 			})
 
-		fsClient := grailfiltersegments.NewTestClient(mockClient)
+		fsClient := segments.NewTestClient(mockClient)
 		resp, err := fsClient.Upsert(ctx, "uid", []byte(payload))
 
 		assert.NotEmpty(t, resp)
@@ -460,7 +460,7 @@ func TestUpsert(t *testing.T) {
 func TestDelete(t *testing.T) {
 	t.Run("call without ID returns an error", func(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
-		fsClient := grailfiltersegments.NewTestClient(grailfiltersegments.NewMockclient(gomock.NewController(t)))
+		fsClient := segments.NewTestClient(segments.NewMockclient(gomock.NewController(t)))
 		resp, err := fsClient.Delete(ctx, "")
 
 		assert.Empty(t, resp)
@@ -472,12 +472,12 @@ func TestDelete(t *testing.T) {
 		apiResponse := `{
 	 "error": {
 	   "code": 404,
-	   "message": "Filter-segment not found",
+	   "message": "Segment not found",
 	   "errorDetails": []
 	 }
 	}`
 		ctx := testutils.ContextWithLogger(t)
-		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
+		mockClient := segments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
 			Delete(ctx, "uid", gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
@@ -485,7 +485,7 @@ func TestDelete(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
 			}, nil)
 
-		fsClient := grailfiltersegments.NewTestClient(mockClient)
+		fsClient := segments.NewTestClient(mockClient)
 		resp, err := fsClient.Delete(ctx, "uid")
 
 		assert.Empty(t, resp)
@@ -500,14 +500,14 @@ func TestDelete(t *testing.T) {
 	t.Run("successfully deleted entity with ID from server", func(t *testing.T) {
 
 		ctx := testutils.ContextWithLogger(t)
-		mockClient := grailfiltersegments.NewMockclient(gomock.NewController(t))
+		mockClient := segments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
 			Delete(ctx, "uid", gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusNoContent,
 			}, nil)
 
-		fsClient := grailfiltersegments.NewTestClient(mockClient)
+		fsClient := segments.NewTestClient(mockClient)
 		resp, err := fsClient.Delete(ctx, "uid")
 
 		assert.NoError(t, err)
