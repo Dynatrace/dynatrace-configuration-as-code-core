@@ -22,15 +22,16 @@ import (
 	"net/url"
 	"time"
 
+	"golang.org/x/oauth2/clientcredentials"
+
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/auth"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/accounts"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/grailfiltersegments"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/openpipeline"
-	"golang.org/x/oauth2/clientcredentials"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/segments"
 )
 
 // ErrOAuthCredentialsMissing indicates that no OAuth2 client credentials were provided.
@@ -173,13 +174,13 @@ func (f factory) DocumentClient() (*documents.Client, error) {
 	return documents.NewClient(restClient), nil
 }
 
-// FilterSegmentsClient creates and returns a new instance of grailfiltersegments.Client for interacting with the grail filter segments API.
-func (f factory) FilterSegmentsClient() (*grailfiltersegments.Client, error) {
+// SegmentsClient creates and returns a new instance of segments.Client for interacting with the segments API.
+func (f factory) SegmentsClient() (*segments.Client, error) {
 	restClient, err := f.CreatePlatformClient()
 	if err != nil {
 		return nil, err
 	}
-	return grailfiltersegments.NewClient(restClient), nil
+	return segments.NewClient(restClient), nil
 }
 
 // BucketClientWithRetrySettings creates and returns a new instance of buckets.Client with non-default retry settings.

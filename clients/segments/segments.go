@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package grailfiltersegments
+package segments
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 	"net/http"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/grailfiltersegements"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/segements"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
@@ -31,7 +31,7 @@ type Response = api.Response
 
 func NewClient(client *rest.Client) *Client {
 	c := &Client{
-		client: grailfiltersegements.NewClient(client),
+		client: segements.NewClient(client),
 	}
 	return c
 }
@@ -41,7 +41,7 @@ type Client struct {
 	client client
 }
 
-//go:generate mockgen -source filtersegments.go -package=grailfiltersegments -destination=client_mock.go
+//go:generate mockgen -source segments.go -package=segments -destination=client_mock.go
 type client interface {
 	List(ctx context.Context, ro rest.RequestOptions) (*http.Response, error)
 	Get(ctx context.Context, id string, ro rest.RequestOptions) (*http.Response, error)
@@ -50,14 +50,14 @@ type client interface {
 	Delete(ctx context.Context, id string, ro rest.RequestOptions) (*http.Response, error)
 }
 
-var _ client = (*grailfiltersegements.Client)(nil)
+var _ client = (*segements.Client)(nil)
 
 // List gets a complete set of available configs. The Data filed in response is normalized to json list of entries.
 func (c Client) List(ctx context.Context) (Response, error) {
 	resp, err := c.client.List(ctx, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	defer closeBody(resp)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to list filtersegments resources: %w", err)
+		return Response{}, fmt.Errorf("failed to list segments resources: %w", err)
 	}
 	return processResponse(resp, normalizeListResponse)
 }
@@ -75,7 +75,7 @@ func normalizeListResponse(source []byte) ([]byte, error) {
 	return body, nil
 }
 
-// Get gets a complete configuration of filter segment with an ID
+// Get gets a complete configuration of segment with an ID
 func (c Client) Get(ctx context.Context, id string) (Response, error) {
 	if id == "" {
 		return Response{}, errors.New("missing required id")
@@ -84,14 +84,14 @@ func (c Client) Get(ctx context.Context, id string) (Response, error) {
 	resp, err := c.client.Get(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	defer closeBody(resp)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to get filtersegment resource with id %s: %w", id, err)
+		return Response{}, fmt.Errorf("failed to get segment resource with id %s: %w", id, err)
 	}
 	return processResponse(resp, nil)
 }
 
-// GetAll gets a complete set of complete configuration for all available filter segments
+// GetAll gets a complete set of complete configuration for all available segments
 func (c Client) GetAll(ctx context.Context) ([]Response, error) {
-	const errMsg = "failed to get all filter segments: %w"
+	const errMsg = "failed to get all segments: %w"
 	listResp, err := c.List(ctx)
 	if err != nil {
 		return nil, err
@@ -116,9 +116,9 @@ func (c Client) GetAll(ctx context.Context) ([]Response, error) {
 	return result, nil
 }
 
-// Upsert creates a new entry of filter segment on server in case a configuration with an ID doesn't already exist on server. If exists, it updates it.
+// Upsert creates a new entry of segment on server in case a configuration with an ID doesn't already exist on server. If exists, it updates it.
 func (c Client) Upsert(ctx context.Context, id string, data []byte) (Response, error) {
-	const errMsg = "failed to upsert filter segments resource with id %s: %w"
+	const errMsg = "failed to upsert segments resource with id %s: %w"
 	existing, err := c.client.Get(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	closeBody(existing)
 	if err != nil {
@@ -155,7 +155,7 @@ func (c Client) Upsert(ctx context.Context, id string, data []byte) (Response, e
 		QueryParams:           map[string][]string{"optimistic-locking-version": {fmt.Sprint(currentVersion.Version)}}})
 	closeBody(updateResourceResp)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to update filter segments resource with id %s and version %d: %w", id, currentVersion.Version, err)
+		return Response{}, fmt.Errorf("failed to update segments resource with id %s and version %d: %w", id, currentVersion.Version, err)
 	}
 
 	return processResponse(updateResourceResp, nil)
@@ -182,7 +182,7 @@ func processResponse(httpResponse *http.Response, transform func([]byte) ([]byte
 	return api.NewResponseFromHTTPResponseAndBody(httpResponse, body), nil
 }
 
-// Delete removes configuration for filter segment with given ID from a server.
+// Delete removes configuration for segment with given ID from a server.
 func (c Client) Delete(ctx context.Context, id string) (Response, error) {
 	if id == "" {
 		return Response{}, errors.New("missing required id")
@@ -191,7 +191,7 @@ func (c Client) Delete(ctx context.Context, id string) (Response, error) {
 	resp, err := c.client.Delete(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	closeBody(resp)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to delete filtersegment resource with id %s: %w", id, err)
+		return Response{}, fmt.Errorf("failed to delete segment resource with id %s: %w", id, err)
 	}
 
 	if !rest.IsSuccess(resp) {
