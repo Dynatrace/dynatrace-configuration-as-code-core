@@ -49,7 +49,7 @@ func (c Client) List(ctx context.Context, ro rest.RequestOptions) (*http.Respons
 
 	r, err := c.client.GET(ctx, path, ro)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get the list of segments: %w", err)
+		return nil, fmt.Errorf("failed to list segments: %w", err)
 	}
 
 	return r, nil
@@ -60,7 +60,7 @@ func (c Client) List(ctx context.Context, ro rest.RequestOptions) (*http.Respons
 func (c Client) Get(ctx context.Context, id string, ro rest.RequestOptions) (*http.Response, error) {
 	path, err := url.JoinPath(endpointPath, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create URL: %w", err)
+		return nil, fmt.Errorf("failed to join URL: %w", err)
 	}
 
 	// set default behavior to pick request for all information
@@ -70,7 +70,7 @@ func (c Client) Get(ctx context.Context, id string, ro rest.RequestOptions) (*ht
 
 	r, err := c.client.GET(ctx, path, ro)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get configuration with ID %s: %w", id, err)
+		return nil, fmt.Errorf("failed to get segment with ID %s: %w", id, err)
 	}
 
 	return r, nil
@@ -92,7 +92,7 @@ func (c Client) Update(ctx context.Context, id string, data []byte, ro rest.Requ
 
 	r, err := c.client.PUT(ctx, path, bytes.NewReader(data), ro)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update configuration with ID %s: %w", id, err)
+		return nil, fmt.Errorf("failed to update segment with ID %s: %w", id, err)
 	}
 	return r, nil
 }
@@ -101,14 +101,15 @@ func (c Client) Delete(ctx context.Context, id string, ro rest.RequestOptions) (
 	if id == "" {
 		return nil, fmt.Errorf("id must be non-empty")
 	}
+
 	path, err := url.JoinPath(endpointPath, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create URL: %w", err)
+		return nil, fmt.Errorf("failed to join URL: %w", err)
 	}
 
 	r, err := c.client.DELETE(ctx, path, ro)
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete configuration with ID %s: %w", id, err)
+		return nil, fmt.Errorf("failed to delete segment with ID %s: %w", id, err)
 	}
 	return r, nil
 }
