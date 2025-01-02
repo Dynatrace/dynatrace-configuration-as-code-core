@@ -58,6 +58,10 @@ func (c Client) List(ctx context.Context, ro rest.RequestOptions) (*http.Respons
 // Get segment with UID.
 // If the field 'add-fields' in [rest.RequestOptions.QueryParams] is not specified, it will be set to "INCLUDES", "VARIABLES", "EXTERNALID", "RESOURCECONTEXT".
 func (c Client) Get(ctx context.Context, id string, ro rest.RequestOptions) (*http.Response, error) {
+	if id == "" {
+		return nil, fmt.Errorf("id must be non-empty")
+	}
+
 	path, err := url.JoinPath(endpointPath, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to join URL: %w", err)
@@ -85,6 +89,10 @@ func (c Client) Create(ctx context.Context, data []byte, ro rest.RequestOptions)
 }
 
 func (c Client) Update(ctx context.Context, id string, data []byte, ro rest.RequestOptions) (*http.Response, error) {
+	if id == "" {
+		return nil, fmt.Errorf("id must be non-empty")
+	}
+
 	path, err := url.JoinPath(endpointPath, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to join URL: %w", err)

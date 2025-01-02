@@ -21,10 +21,12 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/segments"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
 )
 
 func TestList(t *testing.T) {
@@ -104,6 +106,19 @@ func TestGet(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
+	t.Run("Returns error for missing id", func(t *testing.T) {
+		responses := []testutils.ResponseDef{}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Get(ctx, "", rest.RequestOptions{})
+		assert.Zero(t, resp)
+		assert.ErrorContains(t, err, "id")
+	})
+
 	t.Run("add-fields are NOT specified", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			t.Log(r.URL.String())
@@ -160,37 +175,69 @@ func TestCreate(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Log(r.URL.String())
-		require.Equal(t, http.MethodPut, r.Method)
-		require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
-	}))
-	defer server.Close()
-	u, err := url.Parse(server.URL)
-	require.NoError(t, err)
 
-	c := segments.NewClient(rest.NewClient(u, server.Client()))
+	t.Run("check call", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Log(r.URL.String())
+			require.Equal(t, http.MethodPut, r.Method)
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
+		}))
+		defer server.Close()
+		u, err := url.Parse(server.URL)
+		require.NoError(t, err)
 
-	resp, err := c.Update(context.TODO(), "uid", []byte{}, rest.RequestOptions{})
-	require.NoError(t, err)
+		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+		resp, err := c.Update(context.TODO(), "uid", []byte{}, rest.RequestOptions{})
+		require.NoError(t, err)
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("Returns error for missing id", func(t *testing.T) {
+		responses := []testutils.ResponseDef{}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Update(ctx, "", []byte{}, rest.RequestOptions{})
+		assert.Zero(t, resp)
+		assert.ErrorContains(t, err, "id")
+	})
 }
 
 func TestDelete(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Log(r.URL.String())
-		require.Equal(t, http.MethodDelete, r.Method)
-		require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
-	}))
-	defer server.Close()
-	u, err := url.Parse(server.URL)
-	require.NoError(t, err)
+	t.Run("check call", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Log(r.URL.String())
+			require.Equal(t, http.MethodDelete, r.Method)
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
+		}))
+		defer server.Close()
+		u, err := url.Parse(server.URL)
+		require.NoError(t, err)
 
-	c := segments.NewClient(rest.NewClient(u, server.Client()))
+		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
-	resp, err := c.Delete(context.TODO(), "uid", rest.RequestOptions{})
-	require.NoError(t, err)
+		resp, err := c.Delete(context.TODO(), "uid", rest.RequestOptions{})
+		require.NoError(t, err)
 
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("Returns error for missing id", func(t *testing.T) {
+		responses := []testutils.ResponseDef{}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Delete(ctx, "", rest.RequestOptions{})
+		assert.Zero(t, resp)
+		assert.ErrorContains(t, err, "id")
+	})
+
 }
