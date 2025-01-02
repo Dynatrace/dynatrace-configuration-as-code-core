@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package segements_test
+package segments_test
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/segements"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/segments"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
@@ -38,7 +38,7 @@ func TestList(t *testing.T) {
 		u, err := url.Parse(server.URL)
 		require.NoError(t, err)
 
-		c := segements.NewClient(rest.NewClient(u, server.Client()))
+		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
 		resp, err := c.List(context.TODO(), rest.RequestOptions{})
 		require.NoError(t, err)
@@ -57,7 +57,7 @@ func TestList(t *testing.T) {
 		u, err := url.Parse(server.URL)
 		require.NoError(t, err)
 
-		c := segements.NewClient(rest.NewClient(u, server.Client()))
+		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
 		resp, err := c.List(context.TODO(), rest.RequestOptions{})
 		require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestList(t *testing.T) {
 		u, err := url.Parse(server.URL)
 		require.NoError(t, err)
 
-		c := segements.NewClient(rest.NewClient(u, server.Client()))
+		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
 		resp, err := c.List(context.TODO(), rest.RequestOptions{QueryParams: url.Values{"add-fields": []string{"user_defined"}}})
 		require.NoError(t, err)
@@ -96,7 +96,7 @@ func TestGet(t *testing.T) {
 		u, err := url.Parse(server.URL)
 		require.NoError(t, err)
 
-		c := segements.NewClient(rest.NewClient(u, server.Client()))
+		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
 		resp, err := c.Get(context.TODO(), "uid", rest.RequestOptions{})
 		require.NoError(t, err)
@@ -114,7 +114,7 @@ func TestGet(t *testing.T) {
 		u, err := url.Parse(server.URL)
 		require.NoError(t, err)
 
-		c := segements.NewClient(rest.NewClient(u, server.Client()))
+		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
 		resp, err := c.Get(context.TODO(), "id", rest.RequestOptions{})
 		require.NoError(t, err)
@@ -132,7 +132,7 @@ func TestGet(t *testing.T) {
 		u, err := url.Parse(server.URL)
 		require.NoError(t, err)
 
-		c := segements.NewClient(rest.NewClient(u, server.Client()))
+		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
 		resp, err := c.Get(context.TODO(), "id", rest.RequestOptions{QueryParams: url.Values{"add-fields": []string{"user_defined"}}})
 		require.NoError(t, err)
@@ -151,7 +151,7 @@ func TestCreate(t *testing.T) {
 	u, err := url.Parse(server.URL)
 	require.NoError(t, err)
 
-	c := segements.NewClient(rest.NewClient(u, server.Client()))
+	c := segments.NewClient(rest.NewClient(u, server.Client()))
 
 	resp, err := c.Create(context.TODO(), []byte{}, rest.RequestOptions{})
 	require.NoError(t, err)
@@ -169,7 +169,7 @@ func TestUpdate(t *testing.T) {
 	u, err := url.Parse(server.URL)
 	require.NoError(t, err)
 
-	c := segements.NewClient(rest.NewClient(u, server.Client()))
+	c := segments.NewClient(rest.NewClient(u, server.Client()))
 
 	resp, err := c.Update(context.TODO(), "uid", []byte{}, rest.RequestOptions{})
 	require.NoError(t, err)
@@ -187,7 +187,7 @@ func TestDelete(t *testing.T) {
 	u, err := url.Parse(server.URL)
 	require.NoError(t, err)
 
-	c := segements.NewClient(rest.NewClient(u, server.Client()))
+	c := segments.NewClient(rest.NewClient(u, server.Client()))
 
 	resp, err := c.Delete(context.TODO(), "uid", rest.RequestOptions{})
 	require.NoError(t, err)
