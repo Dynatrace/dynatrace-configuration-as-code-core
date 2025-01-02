@@ -17,7 +17,6 @@ package segments
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -77,10 +76,6 @@ func normalizeListResponse(source []byte) ([]byte, error) {
 
 // Get gets a complete configuration of segment with an ID
 func (c Client) Get(ctx context.Context, id string) (Response, error) {
-	if id == "" {
-		return Response{}, errors.New("missing required id")
-	}
-
 	resp, err := c.client.Get(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	defer closeBody(resp)
 	if err != nil {
@@ -184,10 +179,6 @@ func processResponse(httpResponse *http.Response, transform func([]byte) ([]byte
 
 // Delete removes configuration for segment with given ID from a server.
 func (c Client) Delete(ctx context.Context, id string) (Response, error) {
-	if id == "" {
-		return Response{}, errors.New("missing required id")
-	}
-
 	resp, err := c.client.Delete(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	closeBody(resp)
 	if err != nil {

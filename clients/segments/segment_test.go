@@ -76,16 +76,6 @@ func TestList(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	t.Run("call without ID returns an error", func(t *testing.T) {
-		ctx := testutils.ContextWithLogger(t)
-		fsClient := segments.NewTestClient(segments.NewMockclient(gomock.NewController(t)))
-		resp, err := fsClient.Get(ctx, "")
-
-		assert.Empty(t, resp)
-		assert.Error(t, err)
-		assert.ErrorContains(t, err, "missing required id")
-	})
-
 	t.Run("ID doesn't exists on server returns error", func(t *testing.T) {
 		apiResponse := `{
   "error": {
@@ -458,16 +448,6 @@ func TestUpsert(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	t.Run("call without ID returns an error", func(t *testing.T) {
-		ctx := testutils.ContextWithLogger(t)
-		fsClient := segments.NewTestClient(segments.NewMockclient(gomock.NewController(t)))
-		resp, err := fsClient.Delete(ctx, "")
-
-		assert.Empty(t, resp)
-		assert.Error(t, err)
-		assert.ErrorContains(t, err, "missing required id")
-	})
-
 	t.Run("ID doesn't exists on server returns error", func(t *testing.T) {
 		apiResponse := `{
 	 "error": {
