@@ -23,7 +23,7 @@ import (
 	"net/http"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/segements"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/segments"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
@@ -31,7 +31,7 @@ type Response = api.Response
 
 func NewClient(client *rest.Client) *Client {
 	c := &Client{
-		client: segements.NewClient(client),
+		client: segments.NewClient(client),
 	}
 	return c
 }
@@ -50,7 +50,7 @@ type client interface {
 	Delete(ctx context.Context, id string, ro rest.RequestOptions) (*http.Response, error)
 }
 
-var _ client = (*segements.Client)(nil)
+var _ client = (*segments.Client)(nil)
 
 // List gets a complete set of available configs. The Data filed in response is normalized to json list of entries.
 func (c Client) List(ctx context.Context) (Response, error) {
