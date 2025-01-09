@@ -238,5 +238,4 @@ func TestDelete(t *testing.T) {
 		assert.Zero(t, resp)
 		assert.ErrorContains(t, err, "id")
 	})
-
 }
