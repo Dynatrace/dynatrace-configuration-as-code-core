@@ -1,5 +1,5 @@
 // @license
-// Copyright 2023 Dynatrace LLC
+// Copyright 2024 Dynatrace LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -12,19 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
-Package clients contains simple CRUD clients for the Dynatrace API.
+package slo
 
-For 'smarter' clients with extended functionality see package [github.com/dynatrace/dynatrace-configuration-as-code-core/clients].
+import "encoding/json"
 
-In general, the CRUD clients make a single API call per operation, but in some cases may make several if the Dynatrace API requires it.
+func NewTestClient(client client) *Client {
+	return &Client{client: client}
+}
 
-Clients implement the following methods:
-
-  - List
-  - Get
-  - Create
-  - Update
-  - Delete
-*/
-package clients
+func UnmarshallFromListResponse(in json.RawMessage) (string, [][]byte, error) {
+	return unmarshallFromListResponse(in)
+}

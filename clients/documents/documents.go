@@ -159,9 +159,7 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 			queryParams["page-key"] = []string{*result.NextPageKey}
 		}
 
-		ro := rest.RequestOptions{
-			QueryParams: queryParams,
-		}
+		ro := rest.RequestOptions{QueryParams: queryParams}
 
 		resp, err := c.client.List(ctx, ro)
 		if err != nil {
