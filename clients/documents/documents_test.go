@@ -21,14 +21,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
+
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	docApi "github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 )
 
 func TestDocumentClient_Get(t *testing.T) {
@@ -430,6 +431,57 @@ This is the document content
 		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.JSONEq(t, expected, string(resp.Data))
+	})
+
+	t.Run("Update - Existing document found with arbitrary document-kind", func(t *testing.T) {
+		const someArbitraryDocumentType = "my-super-awesome-document-kind"
+
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, request *http.Request) testutils.Response {
+
+					payload := strings.ReplaceAll(getPayload, documents.Dashboard, someArbitraryDocumentType)
+
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payload,
+						ContentType:  "multipart/form-data;boundary=Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy",
+					}
+				},
+			},
+			{
+				PATCH: func(t *testing.T, req *http.Request) testutils.Response {
+					if err := req.ParseMultipartForm(32 << 10); err != nil { // 32 kb
+						t.Fatalf("Unable to parse multipart form data: %s", err)
+					}
+
+					assert.Equal(t, []string{someArbitraryDocumentType}, req.MultipartForm.Value["type"])
+					assert.Equal(t, []string{"false"}, req.MultipartForm.Value["isPrivate"])
+					assert.Equal(t, []string{"my-dashboard"}, req.MultipartForm.Value["name"])
+
+					payload := strings.ReplaceAll(patchPayload, documents.Dashboard, someArbitraryDocumentType)
+
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payload,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", false, []byte(documentContent), someArbitraryDocumentType)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		expected := strings.ReplaceAll(expected, documents.Dashboard, someArbitraryDocumentType)
+
 		assert.JSONEq(t, expected, string(resp.Data))
 	})
 

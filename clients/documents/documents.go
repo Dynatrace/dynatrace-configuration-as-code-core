@@ -30,19 +30,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
+
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
-	"github.com/go-logr/logr"
 )
 
 const bodyReadErrMsg = "unable to read API response body"
 
-type DocumentType string
+// DocumentType defines the *known* types of documents. It is possible to pass an arbitrary string in consumers
+// to download any kind of document.
+type DocumentType = string
 
 const (
 	Dashboard DocumentType = "dashboard"
 	Notebook  DocumentType = "notebook"
+	Launchpad DocumentType = "launchpad"
 )
 
 // Client is the HTTP client to be used for interacting with the Document API
@@ -199,7 +203,7 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 
 func (c Client) Create(ctx context.Context, name string, isPrivate bool, externalId string, data []byte, documentType DocumentType) (api.Response, error) {
 	d := documents.Document{
-		Kind:       string(documentType),
+		Kind:       documentType,
 		Name:       name,
 		Public:     !isPrivate,
 		ExternalID: externalId,
@@ -245,7 +249,7 @@ func (c Client) Update(ctx context.Context, id string, name string, isPrivate bo
 	}
 
 	d := documents.Document{
-		Kind:    string(documentType),
+		Kind:    documentType,
 		Name:    name,
 		Public:  !isPrivate,
 		Content: data,
