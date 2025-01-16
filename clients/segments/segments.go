@@ -28,6 +28,9 @@ import (
 
 type Response = api.Response
 
+const errMsg = "failed to %s segments: %w"
+const errMsgWithId = "failed to %s segments resource with id %s: %w"
+
 func NewClient(client *rest.Client) *Client {
 	c := &Client{
 		client: segments.NewClient(client),
@@ -56,7 +59,7 @@ func (c Client) List(ctx context.Context) (Response, error) {
 	resp, err := c.client.List(ctx, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	defer closeBody(resp)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to list segments resources: %w", err)
+		return Response{}, fmt.Errorf(errMsg, "list", err)
 	}
 	return processResponse(resp, normalizeListResponse)
 }
@@ -79,14 +82,13 @@ func (c Client) Get(ctx context.Context, id string) (Response, error) {
 	resp, err := c.client.Get(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	defer closeBody(resp)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to get segment resource with id %s: %w", id, err)
+		return Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
 	}
 	return processResponse(resp, nil)
 }
 
 // GetAll gets a complete set of complete configuration for all available segments
 func (c Client) GetAll(ctx context.Context) ([]Response, error) {
-	const errMsg = "failed to get all segments: %w"
 	listResp, err := c.List(ctx)
 	if err != nil {
 		return nil, err
@@ -96,14 +98,14 @@ func (c Client) GetAll(ctx context.Context) ([]Response, error) {
 		Uid string `json:"uid"`
 	}
 	if err = json.Unmarshal(listResp.Data, &segments); err != nil {
-		return nil, fmt.Errorf(errMsg, err)
+		return nil, fmt.Errorf(errMsg, "get all", err)
 	}
 
 	var result []Response
 	for _, s := range segments {
 		resp, err := c.Get(ctx, s.Uid)
 		if err != nil {
-			return nil, fmt.Errorf(errMsg, err)
+			return nil, fmt.Errorf(errMsg, "get all", err)
 		}
 		result = append(result, resp)
 	}
@@ -129,7 +131,7 @@ func (c Client) Upsert(ctx context.Context, id string, data []byte) (Response, e
 		resp, err := c.client.Create(ctx, data, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 		closeBody(resp)
 		if err != nil {
-			return Response{}, fmt.Errorf(errMsg, id, err)
+			return Response{}, fmt.Errorf(errMsgWithId, "upsert", id, err)
 		}
 		return processResponse(resp, nil)
 	}
@@ -146,7 +148,7 @@ func (c Client) Upsert(ctx context.Context, id string, data []byte) (Response, e
 
 	err = json.Unmarshal(existingResourceBody, &getResponse)
 	if err != nil {
-		return Response{}, fmt.Errorf(errMsg, id, err)
+		return Response{}, fmt.Errorf(errMsgWithId, "upsert", id, err)
 	}
 	if getResponse.Version == 0 {
 		return Response{}, fmt.Errorf("missing version field in API response")
@@ -195,7 +197,7 @@ func (c Client) Delete(ctx context.Context, id string) (Response, error) {
 	resp, err := c.client.Delete(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	closeBody(resp)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to delete segment resource with id %s: %w", id, err)
+		return Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)
 	}
 
 	if !rest.IsSuccess(resp) {
