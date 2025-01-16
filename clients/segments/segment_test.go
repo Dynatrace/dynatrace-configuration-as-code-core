@@ -16,6 +16,7 @@ package segments_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -303,7 +304,6 @@ func TestUpsert(t *testing.T) {
 
 	t.Run("successfully created new entity on server", func(t *testing.T) {
 		payload := `{
-  "uid": "qW5qn449RsG",
   "name": "dev_environment",
   "description": "only includes data of the dev environment",
   "variables": {
@@ -311,7 +311,6 @@ func TestUpsert(t *testing.T) {
     "value": "fetch logs | limit 1"
   },
   "isPublic": false,
-  "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
   "allowedOperations": [
     "READ",
     "WRITE",
@@ -336,12 +335,6 @@ func TestUpsert(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		mockClient := segments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
-			Get(ctx, "uid", gomock.Any()).
-			Return(&http.Response{
-				StatusCode: http.StatusNotFound,
-				Body:       io.NopCloser(strings.NewReader(apiResponse)),
-			}, nil)
-		mockClient.EXPECT().
 			Create(ctx, []byte(payload), gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusCreated,
@@ -349,7 +342,7 @@ func TestUpsert(t *testing.T) {
 			}, nil)
 
 		fsClient := segments.NewTestClient(mockClient)
-		resp, err := fsClient.Upsert(ctx, "uid", []byte(payload))
+		resp, err := fsClient.Upsert(ctx, "", []byte(payload))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
@@ -359,21 +352,17 @@ func TestUpsert(t *testing.T) {
 
 	t.Run("successfully updated existing entity on server", func(t *testing.T) {
 		payload := `{
-  "uid": "qW5qn449RsG",
-  "name": "dev_environment",
-  "description": "only includes data of the dev environment",
-  "variables": {
-    "type": "query",
-    "value": "fetch logs | limit 1"
-  },
-  "isPublic": false,
-  "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
-  "allowedOperations": [
-    "READ",
-    "WRITE",
-    "DELETE"
-  ],
-  "includes": []
+  "allowedOperations" : [ "READ", "WRITE", "DELETE" ],
+  "description" : "only includes data of the dev environment",
+  "includes" : [ ],
+  "isPublic" : false,
+  "name" : "dev_environment",
+  "owner" : "2f321c04-566e-4779-b576-3c033b8cd9e9",
+  "uid" : "uid",
+  "variables" : {
+    "type" : "query",
+    "value" : "fetch logs | limit 1"
+  }
 }`
 
 		apiExistingResource := `{
@@ -385,7 +374,7 @@ func TestUpsert(t *testing.T) {
     "value": "fetch logs | limit 1"
   },
   "isPublic": false,
-  "owner": "john.doe",
+  "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
   "includes": [
     {
       "filter": "here goes the filter",
@@ -398,19 +387,7 @@ func TestUpsert(t *testing.T) {
   ],
   "version": 2
 }`
-		apiResponse := `{
-  "uid": "oKZQWWV0FpR",
-  "name": "dev_environment",
-  "description": "only includes data of the dev environment",
-  "variables": {
-    "type": "query",
-    "value": "fetch logs | limit 1"
-  },
-  "isPublic": false,
-  "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
-  "includes": [],
-  "version": 2
-}`
+		apiResponse := `{}`
 
 		ctx := testutils.ContextWithLogger(t)
 		mockClient := segments.NewMockclient(gomock.NewController(t))
@@ -421,19 +398,14 @@ func TestUpsert(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(apiExistingResource)),
 			}, nil)
 		mockClient.EXPECT().
-			// Update(ctx, "uid", []byte(payload), rest.RequestOptions{
-			// 	QueryParams: map[string][]string{
-			// 		"optimistic-locking-version": {"2"}},
-			// }).
-			Update(ctx, "uid", []byte(payload), gomock.AssignableToTypeOf(rest.RequestOptions{})).
+			Update(ctx, "uid", gomock.Any(), gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
 			}, nil).
-			Do(func(_, _, _ any, ro any) {
-				require.IsType(t, rest.RequestOptions{}, ro)
-				require.Contains(t, ro.(rest.RequestOptions).QueryParams, "optimistic-locking-version")
-				require.Equal(t, ro.(rest.RequestOptions).QueryParams, url.Values{"optimistic-locking-version": {"2"}})
+			Do(func(_, _, payload any, ro any) {
+				assertVersionParam(t, ro, "2")
+				assertRequestPayload(payload, t, "uid", "2f321c04-566e-4779-b576-3c033b8cd9e9")
 			})
 
 		fsClient := segments.NewTestClient(mockClient)
@@ -444,7 +416,70 @@ func TestUpsert(t *testing.T) {
 		assert.Equal(t, apiResponse, string(resp.Data))
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
+	t.Run("successfully updated existing entity on server, payload without owner and uid", func(t *testing.T) {
+		payload := `{
+  "allowedOperations" : [ "READ", "WRITE", "DELETE" ],
+  "description" : "only includes data of the dev environment",
+  "includes" : [ ],
+  "isPublic" : false,
+  "name" : "dev_environment",
+  "variables" : {
+    "type" : "query",
+    "value" : "fetch logs | limit 1"
+  }
+}`
 
+		apiExistingResource := `{
+  "uid": "D82a1jdA23a",
+  "name": "dev_environment",
+  "description": "only includes data of the dev environment",
+  "variables": {
+    "type": "query",
+    "value": "fetch logs | limit 1"
+  },
+  "isPublic": false,
+  "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
+  "includes": [
+    {
+      "filter": "here goes the filter",
+      "dataObject": "logs"
+    },
+    {
+      "filter": "here goes another filter",
+      "dataObject": "events"
+    }
+  ],
+  "version": 2
+}`
+		apiResponse := `{}`
+
+		ctx := testutils.ContextWithLogger(t)
+		mockClient := segments.NewMockclient(gomock.NewController(t))
+		mockClient.EXPECT().
+			Get(ctx, "uid", gomock.Any()).
+			Return(&http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(apiExistingResource)),
+			}, nil)
+		mockClient.EXPECT().
+			Update(ctx, "uid", gomock.Any(), gomock.AssignableToTypeOf(rest.RequestOptions{})).
+			Return(&http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(apiResponse)),
+			}, nil).
+			Do(func(_, _, payload any, ro any) {
+				assertVersionParam(t, ro, "2")
+				assertRequestPayload(payload, t, "uid", "2f321c04-566e-4779-b576-3c033b8cd9e9")
+			})
+
+		fsClient := segments.NewTestClient(mockClient)
+		resp, err := fsClient.Upsert(ctx, "uid", []byte(payload))
+
+		assert.NotEmpty(t, resp)
+		assert.NoError(t, err)
+		assert.Equal(t, apiResponse, string(resp.Data))
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
 }
 
 func TestDelete(t *testing.T) {
@@ -493,4 +528,27 @@ func TestDelete(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, resp.StatusCode, http.StatusNoContent)
 	})
+}
+
+func assertVersionParam(t *testing.T, ro any, version string) {
+	require.IsType(t, rest.RequestOptions{}, ro)
+	require.Contains(t, ro.(rest.RequestOptions).QueryParams, "optimistic-locking-version")
+	require.Equal(t, ro.(rest.RequestOptions).QueryParams, url.Values{"optimistic-locking-version": {version}})
+}
+
+func assertRequestPayload(payload any, t *testing.T, expectedUID string, expectedOwner string) {
+	data, ok := payload.([]byte)
+	if !ok {
+		t.Error("invalid payload type")
+	}
+	var testRequest struct {
+		Owner string `json:"owner"`
+		UID   string `json:"uid"`
+	}
+	err := json.Unmarshal(data, &testRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, testRequest.Owner, expectedOwner)
+	assert.Equal(t, testRequest.UID, expectedUID)
 }
