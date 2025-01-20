@@ -5964,7 +5964,6 @@
                 },
                 "required": [
                     "results",
-                    "nextPageKey",
                     "totalCount"
                 ]
             },

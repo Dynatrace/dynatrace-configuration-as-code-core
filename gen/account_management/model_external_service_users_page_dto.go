@@ -22,7 +22,7 @@ var _ MappedNullable = &ExternalServiceUsersPageDto{}
 type ExternalServiceUsersPageDto struct {
 	Results []ExternalServiceUserDto `json:"results"`
 	// Next page key to be used in querying for next results page
-	NextPageKey string `json:"nextPageKey"`
+	NextPageKey *string `json:"nextPageKey,omitempty"`
 	// Total number of service users
 	TotalCount           float32 `json:"totalCount"`
 	AdditionalProperties map[string]interface{}
@@ -34,10 +34,9 @@ type _ExternalServiceUsersPageDto ExternalServiceUsersPageDto
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewExternalServiceUsersPageDto(results []ExternalServiceUserDto, nextPageKey string, totalCount float32) *ExternalServiceUsersPageDto {
+func NewExternalServiceUsersPageDto(results []ExternalServiceUserDto, totalCount float32) *ExternalServiceUsersPageDto {
 	this := ExternalServiceUsersPageDto{}
 	this.Results = results
-	this.NextPageKey = nextPageKey
 	this.TotalCount = totalCount
 	return &this
 }
@@ -74,28 +73,36 @@ func (o *ExternalServiceUsersPageDto) SetResults(v []ExternalServiceUserDto) {
 	o.Results = v
 }
 
-// GetNextPageKey returns the NextPageKey field value
+// GetNextPageKey returns the NextPageKey field value if set, zero value otherwise.
 func (o *ExternalServiceUsersPageDto) GetNextPageKey() string {
-	if o == nil {
+	if o == nil || IsNil(o.NextPageKey) {
 		var ret string
 		return ret
 	}
-
-	return o.NextPageKey
+	return *o.NextPageKey
 }
 
-// GetNextPageKeyOk returns a tuple with the NextPageKey field value
+// GetNextPageKeyOk returns a tuple with the NextPageKey field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 func (o *ExternalServiceUsersPageDto) GetNextPageKeyOk() (*string, bool) {
-	if o == nil {
+	if o == nil || IsNil(o.NextPageKey) {
 		return nil, false
 	}
-	return &o.NextPageKey, true
+	return o.NextPageKey, true
 }
 
-// SetNextPageKey sets field value
+// HasNextPageKey returns a boolean if a field has been set.
+func (o *ExternalServiceUsersPageDto) HasNextPageKey() bool {
+	if o != nil && !IsNil(o.NextPageKey) {
+		return true
+	}
+
+	return false
+}
+
+// SetNextPageKey gets a reference to the given string and assigns it to the NextPageKey field.
 func (o *ExternalServiceUsersPageDto) SetNextPageKey(v string) {
-	o.NextPageKey = v
+	o.NextPageKey = &v
 }
 
 // GetTotalCount returns the TotalCount field value
@@ -133,7 +140,9 @@ func (o ExternalServiceUsersPageDto) MarshalJSON() ([]byte, error) {
 func (o ExternalServiceUsersPageDto) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["results"] = o.Results
-	toSerialize["nextPageKey"] = o.NextPageKey
+	if !IsNil(o.NextPageKey) {
+		toSerialize["nextPageKey"] = o.NextPageKey
+	}
 	toSerialize["totalCount"] = o.TotalCount
 
 	for key, value := range o.AdditionalProperties {
@@ -149,7 +158,6 @@ func (o *ExternalServiceUsersPageDto) UnmarshalJSON(data []byte) (err error) {
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
 		"results",
-		"nextPageKey",
 		"totalCount",
 	}
 
