@@ -19,14 +19,15 @@ package documents
 import "encoding/json"
 
 type Metadata struct {
-	ID         string `json:"id"`
-	ExternalID string `json:"externalId"`
-	Actor      string `json:"actor"`
-	Owner      string `json:"owner"`
-	Name       string `json:"name"`
-	Type       string `json:"type"`
-	Version    int    `json:"version"`
-	IsPrivate  bool   `json:"isPrivate"`
+	ID          string  `json:"id"`
+	ExternalID  string  `json:"externalId"`
+	Actor       string  `json:"actor"`
+	Owner       string  `json:"owner"`
+	Name        string  `json:"name"`
+	Type        string  `json:"type"`
+	Version     int     `json:"version"`
+	IsPrivate   bool    `json:"isPrivate"`
+	OriginAppID *string `json:"originAppId,omitempty"`
 }
 
 func UnmarshallMetadata(b []byte) (Metadata, error) {

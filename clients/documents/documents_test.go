@@ -55,7 +55,8 @@ Content-Type: application/json
 	"externalId": "extId",
     "type": "dashboard",
     "version": 1,
-    "owner": "12341234-1234-1234-1234-12341234"
+    "owner": "12341234-1234-1234-1234-12341234",
+	"originAppId": "mytest.app"
 }
 --Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy
 Content-Disposition: form-data; name="content"; filename="my-test-db"
@@ -104,6 +105,8 @@ This is the document content
 		assert.Equal(t, "dashboard", resp.Type)
 		assert.Equal(t, 1, resp.Version)
 		assert.Equal(t, "12341234-1234-1234-1234-12341234", resp.Owner)
+		assert.NotNil(t, resp.OriginAppID)
+		assert.Equal(t, "mytest.app", *resp.OriginAppID)
 		assert.Equal(t, "This is the document content", string(resp.Data))
 		assert.NotZero(t, resp.Request)
 		assert.Nil(t, err)
