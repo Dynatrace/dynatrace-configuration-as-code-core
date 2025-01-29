@@ -117,9 +117,7 @@ func (c Client) GetAll(ctx context.Context) ([]Response, error) {
 // In the first step GET is called to get mandatory data by the API(owner, uid and version), this is then added to payload.
 func (c Client) Update(ctx context.Context, id string, data []byte) (Response, error) {
 	existing, err := c.client.Get(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
-	if existing != nil {
-		defer existing.Body.Close()
-	}
+	closeBody(existing)
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
 	}
