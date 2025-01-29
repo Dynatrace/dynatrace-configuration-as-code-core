@@ -113,34 +113,19 @@ func (c Client) GetAll(ctx context.Context) ([]Response, error) {
 	return result, nil
 }
 
-// Update puts the content of the segment to the server using http PUT to update segment by id.
-// In the first step GET is called to get mandatory data by the API(owner, uid and version), this is then added to payload.
 func (c Client) Update(ctx context.Context, id string, data []byte) (Response, error) {
-	existing, err := c.client.Get(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
-	closeBody(existing)
+	existing, err := c.Get(ctx, id)
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
-	}
-	if !rest.IsSuccess(existing) {
-		return Response{}, api.NewAPIErrorFromResponse(existing)
-	}
-
-	existingResourceBody, err := io.ReadAll(existing.Body)
-	if err != nil {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(existing, existingResourceBody)
 	}
 
 	var getResponse struct {
 		Version int    `json:"version"`
 		Owner   string `json:"owner"`
 	}
-
-	err = json.Unmarshal(existingResourceBody, &getResponse)
-	if err != nil {
+	err = json.Unmarshal(existing.Data, &getResponse)
+	if err != nil || getResponse.Version == 0 || getResponse.Owner == "" {
 		return Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
-	}
-	if getResponse.Version == 0 {
-		return Response{}, fmt.Errorf("missing version field in API response")
 	}
 
 	//Adds uid and owner if not set(they are mandatory from the API)
@@ -152,7 +137,8 @@ func (c Client) Update(ctx context.Context, id string, data []byte) (Response, e
 	updateResourceResp, err := c.client.Update(ctx, id, data, rest.RequestOptions{
 		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
 		QueryParams:           map[string][]string{"optimistic-locking-version": {fmt.Sprint(getResponse.Version)}}})
-	closeBody(updateResourceResp)
+
+	defer closeBody(updateResourceResp)
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to update segments resource with id %s and version %d: %w", id, getResponse.Version, err)
 	}
@@ -160,7 +146,7 @@ func (c Client) Update(ctx context.Context, id string, data []byte) (Response, e
 	return processResponse(updateResourceResp, nil)
 }
 
-// Create posts the content of the segment to the server using http POST to create new segment.
+// Create creates a new segment entry on the server
 func (c Client) Create(ctx context.Context, data []byte) (Response, error) {
 	resp, err := c.client.Create(ctx, data, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	defer closeBody(resp)
