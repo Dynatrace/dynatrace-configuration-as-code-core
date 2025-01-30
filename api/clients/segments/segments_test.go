@@ -176,7 +176,7 @@ func TestCreate(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 
-	t.Run("check call", func(t *testing.T) {
+	t.Run("add owner and uid", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			t.Log(r.URL.String())
 			require.Equal(t, http.MethodPut, r.Method)
@@ -193,7 +193,6 @@ func TestUpdate(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 	})
-
 	t.Run("Returns error for missing id", func(t *testing.T) {
 		responses := []testutils.ResponseDef{}
 		server := testutils.NewHTTPTestServer(t, responses)

@@ -269,39 +269,7 @@ func TestGetAll(t *testing.T) {
 	})
 }
 
-func TestUpsert(t *testing.T) {
-
-	t.Run("unexpected error while checking for status on server", func(t *testing.T) {
-		payload := `{
-  "uid": "qW5qn449RsG",
-  "name": "dev_environment",
-  "description": "only includes data of the dev environment",
-  "variables": {
-    "type": "query",
-    "value": "fetch logs | limit 1"
-  },
-  "isPublic": false,
-  "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
-  "allowedOperations": [
-    "READ",
-    "WRITE",
-    "DELETE"
-  ],
-  "includes": []
-}`
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := segments.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			Get(ctx, "uid", gomock.Any()).
-			Return(nil, errors.New("some unexpected error"))
-
-		fsClient := segments.NewTestClient(mockClient)
-		actual, err := fsClient.Upsert(ctx, "uid", []byte(payload))
-
-		require.Error(t, err)
-		require.Empty(t, actual)
-	})
-
+func TestCreate(t *testing.T) {
 	t.Run("successfully created new entity on server", func(t *testing.T) {
 		payload := `{
   "name": "dev_environment",
@@ -342,12 +310,46 @@ func TestUpsert(t *testing.T) {
 			}, nil)
 
 		fsClient := segments.NewTestClient(mockClient)
-		resp, err := fsClient.Upsert(ctx, "", []byte(payload))
+		resp, err := fsClient.Create(ctx, []byte(payload))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
 		assert.Equal(t, apiResponse, string(resp.Data))
 		assert.Equal(t, http.StatusCreated, resp.StatusCode)
+	})
+}
+
+func TestUpdate(t *testing.T) {
+
+	t.Run("unexpected error while checking for status on server", func(t *testing.T) {
+		payload := `{
+  "uid": "qW5qn449RsG",
+  "name": "dev_environment",
+  "description": "only includes data of the dev environment",
+  "variables": {
+    "type": "query",
+    "value": "fetch logs | limit 1"
+  },
+  "isPublic": false,
+  "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
+  "allowedOperations": [
+    "READ",
+    "WRITE",
+    "DELETE"
+  ],
+  "includes": []
+}`
+		ctx := testutils.ContextWithLogger(t)
+		mockClient := segments.NewMockclient(gomock.NewController(t))
+		mockClient.EXPECT().
+			Get(ctx, "uid", gomock.Any()).
+			Return(nil, errors.New("some unexpected error"))
+
+		fsClient := segments.NewTestClient(mockClient)
+		actual, err := fsClient.Update(ctx, "uid", []byte(payload))
+
+		require.Error(t, err)
+		require.Empty(t, actual)
 	})
 
 	t.Run("successfully updated existing entity on server", func(t *testing.T) {
@@ -409,7 +411,7 @@ func TestUpsert(t *testing.T) {
 			})
 
 		fsClient := segments.NewTestClient(mockClient)
-		resp, err := fsClient.Upsert(ctx, "uid", []byte(payload))
+		resp, err := fsClient.Update(ctx, "uid", []byte(payload))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
@@ -456,24 +458,24 @@ func TestUpsert(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		mockClient := segments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
-			Get(ctx, "uid", gomock.Any()).
+			Get(ctx, "D82a1jdA23a", gomock.Any()).
 			Return(&http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(apiExistingResource)),
 			}, nil)
 		mockClient.EXPECT().
-			Update(ctx, "uid", gomock.Any(), gomock.AssignableToTypeOf(rest.RequestOptions{})).
+			Update(ctx, "D82a1jdA23a", gomock.Any(), gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
 			}, nil).
 			Do(func(_, _, payload any, ro any) {
 				assertVersionParam(t, ro, "2")
-				assertRequestPayload(payload, t, "uid", "2f321c04-566e-4779-b576-3c033b8cd9e9")
+				assertRequestPayload(payload, t, "D82a1jdA23a", "2f321c04-566e-4779-b576-3c033b8cd9e9")
 			})
 
 		fsClient := segments.NewTestClient(mockClient)
-		resp, err := fsClient.Upsert(ctx, "uid", []byte(payload))
+		resp, err := fsClient.Update(ctx, "D82a1jdA23a", []byte(payload))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)

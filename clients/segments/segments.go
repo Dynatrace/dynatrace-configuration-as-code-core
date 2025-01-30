@@ -113,62 +113,48 @@ func (c Client) GetAll(ctx context.Context) ([]Response, error) {
 	return result, nil
 }
 
-// Upsert creates a new entry of segment on server in case a configuration with an ID doesn't already exist on server. If exists, it updates it.
-// If the method is provided with id = "" creat will be called.
-func (c Client) Upsert(ctx context.Context, id string, data []byte) (Response, error) {
-	//To allow passing empty id for direct call to create without GET
-	existing := &http.Response{StatusCode: http.StatusNotFound}
-	var err error
-	if id != "" {
-		existing, err = c.client.Get(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
-		closeBody(existing)
-		if err != nil {
-			return Response{}, fmt.Errorf(errMsgWithId, "upsert", id, err)
-		}
-	}
-
-	if existing.StatusCode == http.StatusNotFound {
-		resp, err := c.client.Create(ctx, data, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
-		closeBody(resp)
-		if err != nil {
-			return Response{}, fmt.Errorf(errMsgWithId, "upsert", id, err)
-		}
-		return processResponse(resp, nil)
-	}
-
-	existingResourceBody, err := io.ReadAll(existing.Body)
+func (c Client) Update(ctx context.Context, id string, data []byte) (Response, error) {
+	existing, err := c.Get(ctx, id)
 	if err != nil {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(existing, existingResourceBody)
+		return Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
 	}
 
 	var getResponse struct {
 		Version int    `json:"version"`
 		Owner   string `json:"owner"`
 	}
-
-	err = json.Unmarshal(existingResourceBody, &getResponse)
-	if err != nil {
-		return Response{}, fmt.Errorf(errMsgWithId, "upsert", id, err)
-	}
-	if getResponse.Version == 0 {
-		return Response{}, fmt.Errorf("missing version field in API response")
+	err = json.Unmarshal(existing.Data, &getResponse)
+	if err != nil || getResponse.Version == 0 || getResponse.Owner == "" {
+		return Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
 	}
 
-	//Adds uid and owner if not set
+	//Adds uid and owner if not set(they are mandatory from the API)
 	data, err = addOwnerAndUIDIfNotSet(data, getResponse.Owner, id)
 	if err != nil {
-		return Response{}, fmt.Errorf(errMsgWithId, "upsert", id, err)
+		return Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
 	}
 
 	updateResourceResp, err := c.client.Update(ctx, id, data, rest.RequestOptions{
 		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
 		QueryParams:           map[string][]string{"optimistic-locking-version": {fmt.Sprint(getResponse.Version)}}})
-	closeBody(updateResourceResp)
+
+	defer closeBody(updateResourceResp)
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to update segments resource with id %s and version %d: %w", id, getResponse.Version, err)
 	}
 
 	return processResponse(updateResourceResp, nil)
+}
+
+// Create creates a new segment entry on the server
+func (c Client) Create(ctx context.Context, data []byte) (Response, error) {
+	resp, err := c.client.Create(ctx, data, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	defer closeBody(resp)
+	if err != nil {
+		return Response{}, fmt.Errorf(errMsg, "create", err)
+	}
+
+	return processResponse(resp, nil)
 }
 
 func processResponse(httpResponse *http.Response, transform func([]byte) ([]byte, error)) (Response, error) {
