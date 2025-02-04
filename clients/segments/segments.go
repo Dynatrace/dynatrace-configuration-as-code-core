@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
@@ -61,7 +60,7 @@ func (c Client) List(ctx context.Context) (Response, error) {
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsg, "list", err)
 	}
-	return processResponse(resp, normalizeListResponse)
+	return api.ProcessResponse(resp, normalizeListResponse)
 }
 
 // normalizeListResponse transform received json response to contain just a JSON list of elements
@@ -84,7 +83,7 @@ func (c Client) Get(ctx context.Context, id string) (Response, error) {
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
 	}
-	return processResponse(resp, nil)
+	return api.ProcessResponse(resp)
 }
 
 // GetAll gets a complete set of complete configuration for all available segments
@@ -128,8 +127,8 @@ func (c Client) Update(ctx context.Context, id string, data []byte) (Response, e
 		return Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
 	}
 
-	//Adds owner if not set(they are mandatory from the API),
-	//and always override uid with the uid that is getting updated
+	// Adds owner if not set(they are mandatory from the API),
+	// and always override uid with the uid that is getting updated
 	data, err = addOwnerAndUIDIfNotSet(data, getResponse.Owner, id)
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
@@ -144,7 +143,7 @@ func (c Client) Update(ctx context.Context, id string, data []byte) (Response, e
 		return Response{}, fmt.Errorf("failed to update segments resource with id %s and version %d: %w", id, getResponse.Version, err)
 	}
 
-	return processResponse(updateResourceResp, nil)
+	return api.ProcessResponse(updateResourceResp)
 }
 
 // Create creates a new segment entry on the server
@@ -155,28 +154,7 @@ func (c Client) Create(ctx context.Context, data []byte) (Response, error) {
 		return Response{}, fmt.Errorf(errMsg, "create", err)
 	}
 
-	return processResponse(resp, nil)
-}
-
-func processResponse(httpResponse *http.Response, transform func([]byte) ([]byte, error)) (Response, error) {
-	var body []byte
-	var err error
-
-	if body, err = io.ReadAll(httpResponse.Body); err != nil {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(httpResponse, body)
-	}
-
-	if !rest.IsSuccess(httpResponse) {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(httpResponse, body)
-	}
-
-	if transform != nil {
-		if body, err = transform(body); err != nil {
-			return Response{}, api.NewAPIErrorFromResponseAndBody(httpResponse, body)
-		}
-	}
-
-	return api.NewResponseFromHTTPResponseAndBody(httpResponse, body), nil
+	return api.ProcessResponse(resp)
 }
 
 // Delete removes configuration for segment with given ID from a server.
@@ -187,10 +165,7 @@ func (c Client) Delete(ctx context.Context, id string) (Response, error) {
 		return Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)
 	}
 
-	if !rest.IsSuccess(resp) {
-		return Response{}, api.NewAPIErrorFromResponse(resp)
-	}
-	return api.NewResponseFromHTTPResponseAndBody(resp, nil), nil
+	return api.ProcessResponse(resp)
 }
 
 func closeBody(httpResponse *http.Response) {

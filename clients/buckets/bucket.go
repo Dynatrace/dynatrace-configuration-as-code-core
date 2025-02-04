@@ -19,15 +19,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
-	bucketAPI "github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/buckets"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
-	"github.com/go-logr/logr"
-	"github.com/google/go-cmp/cmp"
 	"io"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/go-logr/logr"
+	"github.com/google/go-cmp/cmp"
+
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
+	bucketAPI "github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/buckets"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
 const bodyReadErrMsg = "unable to read API response body"
@@ -135,18 +137,7 @@ func (c Client) Get(ctx context.Context, bucketName string) (Response, error) {
 		return api.Response{}, err
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	if !rest.IsSuccess(resp) {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+	return api.ProcessResponse(resp)
 }
 
 // List retrieves all bucket definitions. The function sends a GET request
@@ -221,17 +212,7 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (Res
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	if !rest.IsSuccess(resp) {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+	return api.ProcessResponse(resp)
 }
 
 var DeletingBucketErr = errors.New("cannot update bucket that is currently being deleted")
@@ -316,20 +297,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	}
 	defer resp.Body.Close()
 
-	body, err = io.ReadAll(resp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	if !rest.IsSuccess(resp) {
-
-		return api.Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	logger.Info(fmt.Sprintf("Updated bucket with bucket name %q", bucketName))
-
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+	return api.ProcessResponse(resp)
 }
 
 // Upsert creates or updates a bucket definition using the provided apiClient. The function first attempts
