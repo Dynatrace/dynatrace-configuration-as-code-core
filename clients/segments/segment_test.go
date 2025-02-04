@@ -523,6 +523,7 @@ func TestDelete(t *testing.T) {
 			Delete(ctx, "uid", gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusNoContent,
+				Body:       io.NopCloser(strings.NewReader("")),
 			}, nil)
 
 		fsClient := segments.NewTestClient(mockClient)
