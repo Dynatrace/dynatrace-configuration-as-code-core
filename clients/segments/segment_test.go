@@ -352,7 +352,8 @@ func TestUpdate(t *testing.T) {
 		require.Empty(t, actual)
 	})
 
-	t.Run("successfully updated existing entity on server", func(t *testing.T) {
+	t.Run("successfully updated existing entity on server, uid in provided payload not matching and gets overwritten", func(t *testing.T) {
+		uid := "D82a1jdA23a"
 		payload := `{
   "allowedOperations" : [ "READ", "WRITE", "DELETE" ],
   "description" : "only includes data of the dev environment",
@@ -368,7 +369,7 @@ func TestUpdate(t *testing.T) {
 }`
 
 		apiExistingResource := `{
-  "uid": "D82a1jdA23a",
+  "uid": "` + uid + `",
   "name": "dev_environment",
   "description": "only includes data of the dev environment",
   "variables": {
@@ -394,24 +395,24 @@ func TestUpdate(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		mockClient := segments.NewMockclient(gomock.NewController(t))
 		mockClient.EXPECT().
-			Get(ctx, "uid", gomock.Any()).
+			Get(ctx, uid, gomock.Any()).
 			Return(&http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(apiExistingResource)),
 			}, nil)
 		mockClient.EXPECT().
-			Update(ctx, "uid", gomock.Any(), gomock.AssignableToTypeOf(rest.RequestOptions{})).
+			Update(ctx, uid, gomock.Any(), gomock.AssignableToTypeOf(rest.RequestOptions{})).
 			Return(&http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(apiResponse)),
 			}, nil).
 			Do(func(_, _, payload any, ro any) {
 				assertVersionParam(t, ro, "2")
-				assertRequestPayload(payload, t, "uid", "2f321c04-566e-4779-b576-3c033b8cd9e9")
+				assertRequestPayload(payload, t, uid, "2f321c04-566e-4779-b576-3c033b8cd9e9")
 			})
 
 		fsClient := segments.NewTestClient(mockClient)
-		resp, err := fsClient.Update(ctx, "uid", []byte(payload))
+		resp, err := fsClient.Update(ctx, uid, []byte(payload))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)

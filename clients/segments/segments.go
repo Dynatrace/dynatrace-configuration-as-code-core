@@ -128,7 +128,8 @@ func (c Client) Update(ctx context.Context, id string, data []byte) (Response, e
 		return Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
 	}
 
-	//Adds uid and owner if not set(they are mandatory from the API)
+	//Adds owner if not set(they are mandatory from the API),
+	//and always override uid with the uid that is getting updated
 	data, err = addOwnerAndUIDIfNotSet(data, getResponse.Owner, id)
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
@@ -217,10 +218,7 @@ func addOwnerAndUIDIfNotSet(payload []byte, owner string, uid string) ([]byte, e
 		request["owner"] = owner
 	}
 
-	_, ok = request["uid"]
-	if !ok {
-		request["uid"] = uid
-	}
+	request["uid"] = uid
 
 	return json.Marshal(request)
 }
