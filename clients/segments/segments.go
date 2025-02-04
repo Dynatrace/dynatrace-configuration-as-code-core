@@ -56,10 +56,11 @@ var _ client = (*segments.Client)(nil)
 // List gets a complete set of available configs. The Data filed in response is normalized to json list of entries.
 func (c Client) List(ctx context.Context) (Response, error) {
 	resp, err := c.client.List(ctx, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
-	defer closeBody(resp)
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsg, "list", err)
 	}
+	defer resp.Body.Close()
+
 	return api.ProcessResponse(resp, normalizeListResponse)
 }
 
@@ -79,10 +80,11 @@ func normalizeListResponse(source []byte) ([]byte, error) {
 // Get gets a complete configuration of segment with an ID
 func (c Client) Get(ctx context.Context, id string) (Response, error) {
 	resp, err := c.client.Get(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
-	defer closeBody(resp)
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
 	}
+	defer resp.Body.Close()
+
 	return api.ProcessResponse(resp)
 }
 
@@ -137,11 +139,10 @@ func (c Client) Update(ctx context.Context, id string, data []byte) (Response, e
 	updateResourceResp, err := c.client.Update(ctx, id, data, rest.RequestOptions{
 		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
 		QueryParams:           map[string][]string{"optimistic-locking-version": {fmt.Sprint(getResponse.Version)}}})
-
-	defer closeBody(updateResourceResp)
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to update segments resource with id %s and version %d: %w", id, getResponse.Version, err)
 	}
+	defer updateResourceResp.Body.Close()
 
 	return api.ProcessResponse(updateResourceResp)
 }
@@ -149,10 +150,10 @@ func (c Client) Update(ctx context.Context, id string, data []byte) (Response, e
 // Create creates a new segment entry on the server
 func (c Client) Create(ctx context.Context, data []byte) (Response, error) {
 	resp, err := c.client.Create(ctx, data, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
-	defer closeBody(resp)
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsg, "create", err)
 	}
+	defer resp.Body.Close()
 
 	return api.ProcessResponse(resp)
 }
@@ -160,18 +161,12 @@ func (c Client) Create(ctx context.Context, data []byte) (Response, error) {
 // Delete removes configuration for segment with given ID from a server.
 func (c Client) Delete(ctx context.Context, id string) (Response, error) {
 	resp, err := c.client.Delete(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
-	closeBody(resp)
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)
 	}
+	defer resp.Body.Close()
 
 	return api.ProcessResponse(resp)
-}
-
-func closeBody(httpResponse *http.Response) {
-	if httpResponse != nil && httpResponse.Body != nil {
-		_ = httpResponse.Body.Close()
-	}
 }
 
 func unmarshalRequest(payload []byte) (map[string]any, error) {
