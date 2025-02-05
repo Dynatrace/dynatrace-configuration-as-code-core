@@ -56,16 +56,16 @@ func (c Client) List(ctx context.Context) (api.PagedListResponse, error) {
 	var retVal api.PagedListResponse
 
 	for haveNextPage, nextPageKey := true, ""; haveNextPage; {
-		response, err := c.client.List(ctx, rest.RequestOptions{
+		resp, err := c.client.List(ctx, rest.RequestOptions{
 			CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
 			QueryParams:           url.Values{"page-key": {nextPageKey}}})
-		defer closeBody(response)
 		if err != nil {
 			return nil, err
 		}
+		defer resp.Body.Close()
 
 		var listResponse api.ListResponse
-		nextPageKey, listResponse, err = processListResponse(response, unmarshallFromListResponse)
+		nextPageKey, listResponse, err = processListResponse(resp, unmarshallFromListResponse)
 		if err != nil {
 			return nil, err
 		}
@@ -80,20 +80,22 @@ func (c Client) List(ctx context.Context) (api.PagedListResponse, error) {
 // Get gets a complete configuration of SLO with an ID
 func (c Client) Get(ctx context.Context, id string) (api.Response, error) {
 	resp, err := c.client.Get(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
-	defer closeBody(resp)
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
 	}
-	return api.ProcessResponse(resp, nil)
+	defer resp.Body.Close()
+
+	return api.ProcessResponse(resp)
 }
 
 func (c Client) Create(ctx context.Context, body json.RawMessage) (api.Response, error) {
 	resp, err := c.client.Create(ctx, body, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
-	defer closeBody(resp)
 	if err != nil {
 		return api.Response{}, err // error message from the client is descriptive enough
 	}
-	return api.ProcessResponse(resp, nil)
+	defer resp.Body.Close()
+
+	return api.ProcessResponse(resp)
 }
 
 func (c Client) Update(ctx context.Context, id string, body json.RawMessage) (api.Response, error) {
@@ -112,7 +114,9 @@ func (c Client) Update(ctx context.Context, id string, body json.RawMessage) (ap
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
 	}
-	return api.ProcessResponse(resp, nil)
+	defer resp.Body.Close()
+
+	return api.ProcessResponse(resp)
 }
 
 func getVersion(resp api.Response) (string, error) {
@@ -131,21 +135,12 @@ func getVersion(resp api.Response) (string, error) {
 // Delete removes configuration for SLO with given ID from a server.
 func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 	resp, err := c.client.Delete(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
-	closeBody(resp)
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)
 	}
+	defer resp.Body.Close()
 
-	if !rest.IsSuccess(resp) {
-		return api.Response{}, api.NewAPIErrorFromResponse(resp)
-	}
-	return api.NewResponseFromHTTPResponseAndBody(resp, nil), nil
-}
-
-func closeBody(httpResponse *http.Response) {
-	if httpResponse != nil && httpResponse.Body != nil {
-		_ = httpResponse.Body.Close()
-	}
+	return api.ProcessResponse(resp)
 }
 
 type nextPage = string
