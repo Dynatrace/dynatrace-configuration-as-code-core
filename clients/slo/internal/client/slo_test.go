@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package slo_test
+package client_test
 
 import (
 	"context"
@@ -24,8 +24,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/slo"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/slo/internal/client"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
 )
 
@@ -39,7 +39,7 @@ func TestList(t *testing.T) {
 	u, err := url.Parse(server.URL)
 	require.NoError(t, err)
 
-	c := slo.NewClient(rest.NewClient(u, server.Client()))
+	c := client.NewClient(rest.NewClient(u, server.Client()))
 
 	resp, err := c.List(context.TODO(), rest.RequestOptions{})
 	require.NoError(t, err)
@@ -57,7 +57,7 @@ func TestGet(t *testing.T) {
 	u, err := url.Parse(server.URL)
 	require.NoError(t, err)
 
-	c := slo.NewClient(rest.NewClient(u, server.Client()))
+	c := client.NewClient(rest.NewClient(u, server.Client()))
 
 	resp, err := c.Get(context.TODO(), "uid", rest.RequestOptions{})
 	require.NoError(t, err)
@@ -75,7 +75,7 @@ func TestCreate(t *testing.T) {
 	u, err := url.Parse(server.URL)
 	require.NoError(t, err)
 
-	c := slo.NewClient(rest.NewClient(u, server.Client()))
+	c := client.NewClient(rest.NewClient(u, server.Client()))
 
 	resp, err := c.Create(context.TODO(), []byte{}, rest.RequestOptions{})
 	require.NoError(t, err)
@@ -95,7 +95,7 @@ func TestUpdate(t *testing.T) {
 		u, err := url.Parse(server.URL)
 		require.NoError(t, err)
 
-		c := slo.NewClient(rest.NewClient(u, server.Client()))
+		c := client.NewClient(rest.NewClient(u, server.Client()))
 
 		resp, err := c.Update(context.TODO(), "uid", "versionID", []byte{}, rest.RequestOptions{})
 		require.NoError(t, err)
@@ -108,7 +108,7 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := slo.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := client.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Update(ctx, "", "versionID", []byte{}, rest.RequestOptions{})
@@ -121,7 +121,7 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := slo.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := client.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Update(ctx, "ID", "", []byte{}, rest.RequestOptions{})
@@ -142,7 +142,7 @@ func TestDelete(t *testing.T) {
 		u, err := url.Parse(server.URL)
 		require.NoError(t, err)
 
-		c := slo.NewClient(rest.NewClient(u, server.Client()))
+		c := client.NewClient(rest.NewClient(u, server.Client()))
 
 		resp, err := c.Delete(context.TODO(), "uid", rest.RequestOptions{})
 		require.NoError(t, err)
@@ -155,7 +155,7 @@ func TestDelete(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := slo.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := client.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
 		resp, err := client.Delete(ctx, "", rest.RequestOptions{})
