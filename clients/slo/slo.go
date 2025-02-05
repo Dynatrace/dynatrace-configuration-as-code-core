@@ -23,13 +23,13 @@ import (
 	"net/url"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/slo"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
+	httpClient "github.com/dynatrace/dynatrace-configuration-as-code-core/clients/slo/internal/client"
 )
 
 func NewClient(client *rest.Client) *Client {
 	c := &Client{
-		client: slo.NewClient(client),
+		client: httpClient.NewClient(client),
 	}
 	return c
 }
@@ -47,7 +47,7 @@ type client interface {
 	Delete(ctx context.Context, id string, ro rest.RequestOptions) (*http.Response, error)
 }
 
-var _ client = (*slo.Client)(nil)
+var _ client = (*httpClient.Client)(nil)
 
 const errMsgWithId = "failed to %s slo resource with id %s: %w"
 
