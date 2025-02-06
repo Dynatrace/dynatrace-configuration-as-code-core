@@ -463,26 +463,3 @@ func TestDelete(t *testing.T) {
 		assert.Equal(t, get404Response, string(apiErr.Body))
 	})
 }
-
-func TestUnmarshallFromListResponse(t *testing.T) {
-	given := `{
-  "totalCount": 2,
-  "nextPageKey": "key_for_next_page",
-  "slos": [
-{ "data": "fist" },
-{ "data": "second" },
-{ "data": "third" }
-]
-}`
-	expected := [][]byte{
-		[]byte(`{ "data": "fist" }`),
-		[]byte(`{ "data": "second" }`),
-		[]byte(`{ "data": "third" }`),
-	}
-
-	nextPage, actual, err := slo.UnmarshallFromListResponse([]byte(given))
-	assert.NoError(t, err)
-	assert.Equal(t, "key_for_next_page", nextPage)
-	assert.NotEmpty(t, actual)
-	assert.Equal(t, expected, actual)
-}

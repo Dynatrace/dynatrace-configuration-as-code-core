@@ -44,7 +44,7 @@ type Client struct {
 func (c *Client) List(ctx context.Context) (api.PagedListResponse, error) {
 	var retVal api.PagedListResponse
 
-	listPage := func(ctx context.Context, c *Client, pageKey string) (nextPage, api.ListResponse, error) {
+	listPage := func(ctx context.Context, c *Client, pageKey string) (string, api.ListResponse, error) {
 		resp, err := c.restClient.GET(ctx, endpointPath, rest.RequestOptions{
 			CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
 			QueryParams:           url.Values{"page-key": {pageKey}}})
@@ -53,7 +53,7 @@ func (c *Client) List(ctx context.Context) (api.PagedListResponse, error) {
 		}
 		defer resp.Body.Close()
 
-		return processListResponse(resp, unmarshallFromListResponse)
+		return processListResponse(resp)
 	}
 
 	for haveNextPage, nextPageKey := true, ""; haveNextPage; {
@@ -169,49 +169,38 @@ func (c *Client) Delete(ctx context.Context, id string) (api.Response, error) {
 const errMsg = "failed to %s slo resource: %w"
 const errMsgWithId = "failed to %s slo resource with id %s: %w"
 
-type nextPage = string
-
 func getOptimisticLockingVersion(resp api.Response) (string, error) {
-	var getStr struct {
+	var body struct {
 		Version string `json:"version"`
 	}
 
-	err := json.Unmarshal(resp.Data, &getStr)
+	err := json.Unmarshal(resp.Data, &body)
 	if err != nil {
 		return "", err
 	}
 
-	return getStr.Version, nil
+	return body.Version, nil
 }
 
-func processListResponse(httpResponse *http.Response, transform func(json.RawMessage) (nextPage string, data [][]byte, e error)) (nextPage, api.ListResponse, error) {
+func processListResponse(httpResponse *http.Response) (string, api.ListResponse, error) {
 	var err error
-
-	if !rest.IsSuccess(httpResponse) {
-		return "", api.ListResponse{}, api.NewAPIErrorFromResponse(httpResponse)
-	}
 
 	var body json.RawMessage
 	if body, err = io.ReadAll(httpResponse.Body); err != nil {
 		return "", api.ListResponse{}, api.NewAPIErrorFromResponse(httpResponse)
 	}
 
-	var data [][]byte
-	var np nextPage
-	if np, data, err = transform(body); err != nil {
-		return "", api.ListResponse{}, api.NewAPIErrorFromResponse(httpResponse)
+	if !rest.IsSuccess(httpResponse) {
+		return "", api.ListResponse{}, api.NewAPIErrorFromResponseAndBody(httpResponse, body)
 	}
 
-	return np, api.NewListResponse(httpResponse, data), nil
-}
-func unmarshallFromListResponse(in json.RawMessage) (string, [][]byte, error) {
 	var s struct {
 		NextPage string            `json:"nextPageKey"`
 		Data     []json.RawMessage `json:"slos"`
 	}
 
-	if err := json.Unmarshal(in, &s); err != nil {
-		return "", nil, err
+	if err := json.Unmarshal(body, &s); err != nil {
+		return "", api.ListResponse{}, api.NewAPIErrorFromResponseAndBody(httpResponse, body)
 	}
 
 	var data [][]byte
@@ -219,5 +208,5 @@ func unmarshallFromListResponse(in json.RawMessage) (string, [][]byte, error) {
 		data = append(data, it)
 	}
 
-	return s.NextPage, data, nil
+	return s.NextPage, api.NewListResponse(httpResponse, data), nil
 }
