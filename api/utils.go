@@ -21,25 +21,27 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
+type ModifierFunc func(data []byte) ([]byte, error)
+
 // ProcessResponse processes an HTTP response and applies a transformation function to the response body if provided.
-func ProcessResponse(httpResponse *http.Response, transformers ...func([]byte) ([]byte, error)) (Response, error) {
+// [http.Response] is
+func ProcessResponse(httpResponse *http.Response, modifiers ...ModifierFunc) (Response, error) {
 	var body []byte
 	var err error
 
-	if httpResponse.Body != nil {
-		if body, err = io.ReadAll(httpResponse.Body); err != nil {
-			return Response{}, NewAPIErrorFromResponseAndBody(httpResponse, body)
-		}
+	// httpResponse.Body is always non-nil. For more sse documentation for http.Response
+	if body, err = io.ReadAll(httpResponse.Body); err != nil {
+		return Response{}, NewAPIErrorFromResponseAndBody(httpResponse, body)
 	}
 
 	if !rest.IsSuccess(httpResponse) {
 		return Response{}, NewAPIErrorFromResponseAndBody(httpResponse, body)
 	}
 
-	if transformers != nil {
-		for _, t := range transformers {
-			if t != nil {
-				if body, err = t(body); err != nil {
+	if modifiers != nil {
+		for _, modify := range modifiers {
+			if modify != nil {
+				if body, err = modify(body); err != nil {
 					return Response{}, NewAPIErrorFromResponseAndBody(httpResponse, body)
 				}
 			}

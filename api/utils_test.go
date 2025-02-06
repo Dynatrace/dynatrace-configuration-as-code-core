@@ -12,53 +12,99 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package api_test
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 )
 
 func TestProcessResponse(t *testing.T) {
-	t.Run("successful response with empty body", func(t *testing.T) {
-		given := http.Response{StatusCode: http.StatusCreated, Body: nil}
-
-		actual, err := ProcessResponse(&given)
-
-		assert.NoError(t, err)
-		assert.NotEmpty(t, actual)
-		assert.Nil(t, actual.Data)
-	})
-
-	t.Run("successful response when nil is provided as transformers", func(t *testing.T) {
-		given := http.Response{StatusCode: http.StatusCreated}
-
-		actual, err := ProcessResponse(&given, nil)
-
-		assert.NoError(t, err)
-		assert.NotEmpty(t, actual)
-		assert.Nil(t, actual.Data)
-	})
-
 	t.Run("return error APIError for unsuccessful response - an error is returned", func(t *testing.T) {
-		given := http.Response{StatusCode: http.StatusInternalServerError}
+		given := http.Response{StatusCode: http.StatusInternalServerError, Body: io.NopCloser(strings.NewReader(""))}
 
-		actual, err := ProcessResponse(&given)
+		actual, err := api.ProcessResponse(&given)
 
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 	})
 
-	t.Run("transform function cause an error - an error is returned", func(t *testing.T) {
-		given := http.Response{StatusCode: http.StatusOK}
-		transformer := func([]byte) ([]byte, error) { return nil, errors.New("an error") }
+	t.Run("successful response when nil modifier is provided", func(t *testing.T) {
+		given := http.Response{StatusCode: http.StatusCreated, Body: io.NopCloser(strings.NewReader(""))}
 
-		actual, err := ProcessResponse(&given, transformer)
+		actual, err := api.ProcessResponse(&given, nil)
+
+		assert.NoError(t, err)
+		assert.NotEmpty(t, actual)
+		assert.Empty(t, actual.Data)
+	})
+
+	t.Run("modifier cause an error - an error is returned", func(t *testing.T) {
+		given := http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(""))}
+		modifier := func(message []byte) ([]byte, error) { return nil, errors.New("an error") }
+
+		actual, err := api.ProcessResponse(&given, modifier)
 
 		assert.Empty(t, actual)
 		assert.Error(t, err)
+	})
+
+	t.Run("use of multiple transforms works", func(t *testing.T) {
+		helloModifier := func(in []byte) ([]byte, error) {
+			return []byte(fmt.Sprintf("hello %s", in)), nil
+		}
+		closerModifier := func(name string) func([]byte) ([]byte, error) {
+			return func(in []byte) ([]byte, error) {
+				return []byte(fmt.Sprintf("%s, my name is %s", in, name)), nil
+			}
+		}
+
+		tests := []struct {
+			name      string
+			modifiers []api.ModifierFunc
+			expected  string
+		}{
+			{
+				name:      "without modifier",
+				modifiers: nil,
+				expected:  "world",
+			},
+			{
+				name:      "with one modifier",
+				modifiers: []api.ModifierFunc{helloModifier},
+				expected:  "hello world",
+			},
+			{
+				name:      "with two modifier",
+				modifiers: []api.ModifierFunc{helloModifier, helloModifier},
+				expected:  "hello hello world",
+			},
+			{
+				name:      "with closer as modifier",
+				modifiers: []api.ModifierFunc{helloModifier, closerModifier("monaco")},
+				expected:  "hello world, my name is monaco",
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				given := http.Response{
+					StatusCode: http.StatusCreated,
+					Body:       io.NopCloser(strings.NewReader("world")),
+				}
+
+				actual, err := api.ProcessResponse(&given, tc.modifiers...)
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expected, string(actual.Data))
+			})
+		}
 	})
 }
