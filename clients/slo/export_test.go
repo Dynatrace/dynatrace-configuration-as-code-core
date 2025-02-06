@@ -16,10 +16,6 @@ package slo
 
 import "encoding/json"
 
-func NewTestClient(client client) *Client {
-	return &Client{client: client}
-}
-
 func UnmarshallFromListResponse(in json.RawMessage) (string, [][]byte, error) {
 	return unmarshallFromListResponse(in)
 }

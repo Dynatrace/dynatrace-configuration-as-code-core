@@ -15,8 +15,10 @@
 package slo
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,50 +26,43 @@ import (
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
-	httpClient "github.com/dynatrace/dynatrace-configuration-as-code-core/clients/slo/internal/client"
 )
+
+const endpointPath = "platform/slo/v1/slos"
 
 func NewClient(client *rest.Client) *Client {
 	c := &Client{
-		client: httpClient.NewClient(client),
+		restClient: client,
 	}
 	return c
 }
 
 type Client struct {
-	client client
+	restClient *rest.Client
 }
 
-//go:generate mockgen -source slo.go -package=slo -destination=client_mock.go
-type client interface {
-	List(ctx context.Context, ro rest.RequestOptions) (*http.Response, error)
-	Get(ctx context.Context, id string, ro rest.RequestOptions) (*http.Response, error)
-	Create(ctx context.Context, data []byte, ro rest.RequestOptions) (*http.Response, error)
-	Update(ctx context.Context, id string, optimisticLockingVersion string, data []byte, ro rest.RequestOptions) (*http.Response, error)
-	Delete(ctx context.Context, id string, ro rest.RequestOptions) (*http.Response, error)
-}
-
-var _ client = (*httpClient.Client)(nil)
-
-const errMsgWithId = "failed to %s slo resource with id %s: %w"
-
-// List gets a complete set of complete configuration for all available SLOs
-func (c Client) List(ctx context.Context) (api.PagedListResponse, error) {
+func (c *Client) List(ctx context.Context) (api.PagedListResponse, error) {
 	var retVal api.PagedListResponse
 
-	for haveNextPage, nextPageKey := true, ""; haveNextPage; {
-		resp, err := c.client.List(ctx, rest.RequestOptions{
+	listPage := func(ctx context.Context, c *Client, pageKey string) (nextPage, api.ListResponse, error) {
+		resp, err := c.restClient.GET(ctx, endpointPath, rest.RequestOptions{
 			CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
-			QueryParams:           url.Values{"page-key": {nextPageKey}}})
+			QueryParams:           url.Values{"page-key": {pageKey}}})
 		if err != nil {
-			return nil, err
+			return "", api.ListResponse{}, fmt.Errorf(errMsg, "list", err)
 		}
 		defer resp.Body.Close()
 
+		return processListResponse(resp, unmarshallFromListResponse)
+	}
+
+	for haveNextPage, nextPageKey := true, ""; haveNextPage; {
 		var listResponse api.ListResponse
-		nextPageKey, listResponse, err = processListResponse(resp, unmarshallFromListResponse)
+		var err error
+
+		nextPageKey, listResponse, err = listPage(ctx, c, nextPageKey)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf(errMsg, "list", err)
 		}
 
 		retVal = append(retVal, listResponse)
@@ -75,11 +70,20 @@ func (c Client) List(ctx context.Context) (api.PagedListResponse, error) {
 	}
 
 	return retVal, nil
+
 }
 
-// Get gets a complete configuration of SLO with an ID
-func (c Client) Get(ctx context.Context, id string) (api.Response, error) {
-	resp, err := c.client.Get(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+func (c *Client) Get(ctx context.Context, id string) (api.Response, error) {
+	if id == "" {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "get", id, errors.New("argument \"id\" is empty"))
+	}
+
+	path, err := url.JoinPath(endpointPath, id)
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
+	}
+
+	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
 	}
@@ -88,29 +92,40 @@ func (c Client) Get(ctx context.Context, id string) (api.Response, error) {
 	return api.ProcessResponse(resp)
 }
 
-func (c Client) Create(ctx context.Context, body json.RawMessage) (api.Response, error) {
-	resp, err := c.client.Create(ctx, body, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+func (c *Client) Create(ctx context.Context, body json.RawMessage) (api.Response, error) {
+	resp, err := c.restClient.POST(ctx, endpointPath, bytes.NewReader(body), rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	if err != nil {
-		return api.Response{}, err // error message from the client is descriptive enough
+		return api.Response{}, fmt.Errorf(errMsg, "create", err)
 	}
 	defer resp.Body.Close()
 
 	return api.ProcessResponse(resp)
 }
 
-func (c Client) Update(ctx context.Context, id string, body json.RawMessage) (api.Response, error) {
+func (c *Client) Update(ctx context.Context, id string, body json.RawMessage) (api.Response, error) {
+	if id == "" {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, errors.New("argument \"id\" is empty"))
+	}
+
 	getResp, err := c.Get(ctx, id)
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
 	}
 
-	version, err := getVersion(getResp)
+	version, err := getOptimisticLockingVersion(getResp)
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
 	}
 
-	resp, err := c.client.Update(ctx, id, version, body, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
-	defer closeBody(resp)
+	path, err := url.JoinPath(endpointPath, id)
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
+	}
+
+	resp, err := c.restClient.PUT(ctx, path, bytes.NewReader(body), rest.RequestOptions{
+		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
+		QueryParams:           url.Values{"optimistic-locking-version": []string{version}},
+	})
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
 	}
@@ -119,7 +134,44 @@ func (c Client) Update(ctx context.Context, id string, body json.RawMessage) (ap
 	return api.ProcessResponse(resp)
 }
 
-func getVersion(resp api.Response) (string, error) {
+func (c *Client) Delete(ctx context.Context, id string) (api.Response, error) {
+	if id == "" {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "delete", id, errors.New("argument \"id\" is empty"))
+	}
+
+	getResp, err := c.Get(ctx, id)
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)
+	}
+
+	version, err := getOptimisticLockingVersion(getResp)
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)
+	}
+
+	path, err := url.JoinPath(endpointPath, id)
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)
+	}
+
+	resp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{
+		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
+		QueryParams:           url.Values{"optimistic-locking-version": []string{version}},
+	})
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)
+	}
+	defer resp.Body.Close()
+
+	return api.ProcessResponse(resp)
+}
+
+const errMsg = "failed to %s slo resource: %w"
+const errMsgWithId = "failed to %s slo resource with id %s: %w"
+
+type nextPage = string
+
+func getOptimisticLockingVersion(resp api.Response) (string, error) {
 	var getStr struct {
 		Version string `json:"version"`
 	}
@@ -131,19 +183,6 @@ func getVersion(resp api.Response) (string, error) {
 
 	return getStr.Version, nil
 }
-
-// Delete removes configuration for SLO with given ID from a server.
-func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
-	resp, err := c.client.Delete(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
-	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)
-	}
-	defer resp.Body.Close()
-
-	return api.ProcessResponse(resp)
-}
-
-type nextPage = string
 
 func processListResponse(httpResponse *http.Response, transform func(json.RawMessage) (nextPage string, data [][]byte, e error)) (nextPage, api.ListResponse, error) {
 	var err error
@@ -165,7 +204,6 @@ func processListResponse(httpResponse *http.Response, transform func(json.RawMes
 
 	return np, api.NewListResponse(httpResponse, data), nil
 }
-
 func unmarshallFromListResponse(in json.RawMessage) (string, [][]byte, error) {
 	var s struct {
 		NextPage string            `json:"nextPageKey"`

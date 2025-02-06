@@ -15,22 +15,21 @@
 package slo_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/slo"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
 )
 
 func TestNewClient(t *testing.T) {
@@ -83,29 +82,27 @@ func TestList(t *testing.T) {
   ]
 }`
 
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := slo.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			List(ctx, gomock.Any()).
-			Return(&http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(apiResponse1)),
-			}, nil).
-			Do(func(_ any, options rest.RequestOptions) {
-				assert.Equal(t, url.Values{"page-key": []string{""}}, options.QueryParams)
-			})
-		mockClient.EXPECT().
-			List(ctx, gomock.Any()).
-			Return(&http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(apiResponse2)),
-			}, nil).
-			Do(func(_ any, options rest.RequestOptions) {
-				assert.Equal(t, url.Values{"page-key": {"key_for_next_page"}}, options.QueryParams)
-			})
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, http.MethodGet, request.Method)
+			require.Equal(t, "/platform/slo/v1/slos", request.URL.Path)
 
-		fsClient := slo.NewTestClient(mockClient)
-		resp, err := fsClient.List(ctx)
+			switch v := request.URL.Query().Get("page-key"); v {
+			case "":
+				writer.WriteHeader(http.StatusOK)
+				writer.Write([]byte(apiResponse1))
+			case "key_for_next_page":
+				writer.WriteHeader(http.StatusOK)
+				writer.Write([]byte(apiResponse2))
+			default:
+				require.Failf(t, "unexpected call", "unexpected call with page-key= %s", v)
+			}
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := slo.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.List(context.TODO())
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
@@ -136,29 +133,26 @@ func TestList(t *testing.T) {
   ]
 }`
 
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := slo.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			List(ctx, gomock.Any()).
-			Return(&http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(apiResponse1)),
-			}, nil).
-			Do(func(_ any, req rest.RequestOptions) {
-				assert.Equal(t, url.Values{"page-key": {""}}, req.QueryParams)
-			})
-		mockClient.EXPECT().
-			List(ctx, gomock.Any()).
-			Return(&http.Response{
-				StatusCode: http.StatusInternalServerError,
-				Body:       io.NopCloser(strings.NewReader("Some error message from the server")),
-			}, nil).
-			Do(func(_ any, req rest.RequestOptions) {
-				assert.Equal(t, url.Values{"page-key": {"key_for_next_page"}}, req.QueryParams)
-			})
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, http.MethodGet, request.Method)
+			require.Equal(t, "/platform/slo/v1/slos", request.URL.Path)
 
-		fsClient := slo.NewTestClient(mockClient)
-		resp, err := fsClient.List(ctx)
+			switch v := request.URL.Query().Get("page-key"); v {
+			case "":
+				writer.WriteHeader(http.StatusOK)
+				writer.Write([]byte(apiResponse1))
+			case "key_for_next_page": // provoke error
+				writer.WriteHeader(http.StatusInternalServerError)
+				writer.Write([]byte("Some error message from the server"))
+			default:
+				require.Failf(t, "unexpected call", "unexpected call with page-key= %s", v)
+			}
+		}))
+
+		url, _ := url.Parse(server.URL)
+		client := slo.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.List(context.TODO())
 
 		assert.Error(t, err)
 		assert.ErrorAs(t, err, new(api.APIError))
@@ -167,36 +161,17 @@ func TestList(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	t.Run("If SLO with ID doesn't exists on server returns error", func(t *testing.T) {
-		apiResponse := `{
-  "error": {
-    "code": 400,
-    "message": "Provided ID 'false_ID' is not an SLO."
-  }
-}`
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := slo.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			Get(ctx, "uid", gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusNotFound,
-				Body:       io.NopCloser(strings.NewReader(apiResponse)),
-			}, nil)
+	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
+		client := slo.NewClient(&rest.Client{})
 
-		fsClient := slo.NewTestClient(mockClient)
-		resp, err := fsClient.Get(ctx, "uid")
+		actual, err := client.Get(context.TODO(), "")
 
-		assert.Empty(t, resp)
-		assert.ErrorAs(t, err, &api.APIError{})
-
-		var apiErr api.APIError
-		assert.ErrorAs(t, err, &apiErr)
-		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
-		assert.Equal(t, apiResponse, string(apiErr.Body))
+		assert.Error(t, err)
+		assert.Empty(t, actual)
 	})
 
 	t.Run("successful request for requested ID", func(t *testing.T) {
-		apiResponse := `{
+		getResponse := `{
   "name": "New SLO",
   "description": "This is a description",
   "customSli": {
@@ -216,79 +191,45 @@ func TestGet(t *testing.T) {
   "id": "vu9U3hXa3q0AAAABAClidWlsdGluOmludGVybmFsLnNlcnZpY2UubGV2ZWwub2JqZWN0aXZlcwAGdGVuYW50AAZ0ZW5hbnQAJGZlMDZjZTBlLWNlM2QtMzY5OC1hNDI3LTA3OTU2Zjk0MTcyN77vVN4V2t6t",
   "version": "vu9U3hXY3q0ATAAkZmUwNmNlMGUtY2UzZC0zNjk4LWE0MjctMDc5NTZmOTQxNzI3ACRiOTlhYjNlMS1kNDFiLTExZWYtODAwMS1kNjlhZGNiNDJmOWa-71TeFdjerQ"
 }`
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := slo.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			Get(ctx, "uid", gomock.Any()).
-			Return(&http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(apiResponse)),
-			}, nil)
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			t.Log(request.URL.String())
+			require.Equal(t, http.MethodGet, request.Method)
+			require.Equal(t, "/platform/slo/v1/slos/uid", request.URL.Path)
 
-		fsClient := slo.NewTestClient(mockClient)
-		resp, err := fsClient.Get(ctx, "uid")
+			writer.WriteHeader(http.StatusOK)
+			writer.Write([]byte(getResponse))
+		}))
+		defer server.Close()
 
-		assert.NotEmpty(t, resp)
+		url, _ := url.Parse(server.URL)
+		client := slo.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.Get(context.TODO(), "uid")
+
 		assert.NoError(t, err)
-		assert.Equal(t, apiResponse, string(resp.Data))
+		assert.NotEmpty(t, resp)
+		assert.Equal(t, getResponse, string(resp.Data))
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
-}
 
-func TestCreate(t *testing.T) {
-	given := `
-{
-		"name": "CPU utilization",
-		"description": "Measures the CPU usage of selected hosts over time.",
-		"sliReference": "reference to slo template",
-		"criteria": [
-	{
-	"timeframeFrom": "now-7d",
-	"timeframeTo": "now",
-	"target": 98
-	}
-	],
-	"tags": [],
-	"externalId": "monaco_external_ID"
-}`
-
-	ctx := testutils.ContextWithLogger(t)
-	mockClient := slo.NewMockclient(gomock.NewController(t))
-	mockClient.EXPECT().
-		Create(ctx, []byte(given), gomock.AssignableToTypeOf(rest.RequestOptions{})).
-		Return(&http.Response{
-			StatusCode: http.StatusCreated,
-			Body:       io.NopCloser(strings.NewReader(given)),
-		}, nil)
-
-	fsClient := slo.NewTestClient(mockClient)
-	actual, err := fsClient.Create(ctx, json.RawMessage(given))
-
-	assert.NoError(t, err)
-	assert.NotEmpty(t, actual)
-	assert.Equal(t, http.StatusCreated, actual.StatusCode)
-	assert.JSONEq(t, given, string(actual.Data))
-}
-
-func TestUpdate(t *testing.T) {
 	t.Run("If SLO with ID doesn't exists on server returns error", func(t *testing.T) {
-		apiResponse := `{
+		errorResponse := `{
   "error": {
     "code": 400,
     "message": "Provided ID 'false_ID' is not an SLO."
   }
 }`
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := slo.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			Get(ctx, "uid", gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusNotFound,
-				Body:       io.NopCloser(strings.NewReader(apiResponse)),
-			}, nil)
 
-		fsClient := slo.NewTestClient(mockClient)
-		resp, err := fsClient.Update(ctx, "uid", json.RawMessage("{}"))
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			writer.WriteHeader(http.StatusNotFound)
+			writer.Write([]byte(errorResponse))
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := slo.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.Get(context.TODO(), "uid")
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -296,10 +237,160 @@ func TestUpdate(t *testing.T) {
 		var apiErr api.APIError
 		assert.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
-		assert.Equal(t, apiResponse, string(apiErr.Body))
+		assert.Equal(t, errorResponse, string(apiErr.Body))
+	})
+}
+
+func TestCreate(t *testing.T) {
+	given := `
+{
+   "name":"CPU utilization",
+   "description":"Measures the CPU usage of selected hosts over time.",
+   "sliReference":"reference to slo template",
+   "criteria":[
+      {
+         "timeframeFrom":"now-7d",
+         "timeframeTo":"now",
+         "target":98
+      }
+   ],
+   "tags":[ ],
+   "externalId":"monaco_external_ID"
+}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		t.Log(request.URL.String())
+		require.Equal(t, http.MethodPost, request.Method)
+		require.Equal(t, "/platform/slo/v1/slos", request.URL.Path)
+		requestBody, _ := io.ReadAll(request.Body)
+		require.JSONEq(t, given, string(requestBody))
+
+		writer.WriteHeader(http.StatusCreated)
+	}))
+	defer server.Close()
+
+	url, _ := url.Parse(server.URL)
+	client := slo.NewClient(rest.NewClient(url, server.Client()))
+
+	actual, err := client.Create(context.TODO(), json.RawMessage(given))
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, actual)
+	assert.Equal(t, http.StatusCreated, actual.StatusCode)
+}
+
+func TestUpdate(t *testing.T) {
+	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
+		client := slo.NewClient(&rest.Client{})
+
+		actual, err := client.Update(context.TODO(), "", nil)
+
+		assert.Error(t, err)
+		assert.Empty(t, actual)
 	})
 
-	t.Run("update works", func(t *testing.T) {
+	t.Run("successful update of SLO with given payload", func(t *testing.T) {
+		getResponse := `
+{
+   "name":"CPU utilization",
+   "description":"Measures the CPU usage of selected hosts over time.",
+   "sliReference":"reference to slo template",
+   "criteria":[
+      {
+         "timeframeFrom":"now-7d",
+         "timeframeTo":"now",
+         "target":98
+      }
+   ],
+   "tags":[ ],
+   "id":"slo-id-1",
+   "version":"ver1"
+}`
+		payload := `{
+  "name": "K8s namespace memory requests efficiency - OLD",
+  "description": "Compares the actual usage of memory to the requested memory.",
+  "customSli": "DQL based SLO",
+  "criteria": [
+	{
+	  "timeframeFrom": "now-7d",
+	  "timeframeTo": "now",
+	  "target": 80,
+	  "warning": 90
+	}
+  ],
+  "tags": [],
+  "externalID" : "monaco-external-ID"
+}`
+
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.Method {
+			case http.MethodGet:
+				require.Equal(t, "/platform/slo/v1/slos/slo-id-1", request.URL.Path)
+
+				writer.WriteHeader(http.StatusOK)
+				writer.Write([]byte(getResponse))
+			case http.MethodPut:
+				require.Equal(t, "/platform/slo/v1/slos/slo-id-1", request.URL.Path)
+				require.Equal(t, "ver1", request.URL.Query().Get("optimistic-locking-version"), "'optimistic-locking-version' should be the same as 'version' value from the get response")
+				requestBody, _ := io.ReadAll(request.Body)
+				require.JSONEq(t, payload, string(requestBody))
+
+				writer.WriteHeader(http.StatusOK)
+			default:
+				require.Failf(t, "unexpected http call", "unexpected http call: %s %s", request.Method, request.URL)
+			}
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := slo.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.Update(context.TODO(), "slo-id-1", json.RawMessage(payload))
+
+		assert.NotEmpty(t, resp)
+		assert.NoError(t, err)
+	})
+
+	t.Run("update for non existing SLO fails with error", func(t *testing.T) {
+		get404Response := `{
+  "error": {
+    "code": 404,
+    "message": "Provided ID 'false_ID' is not an SLO."
+  }
+}`
+
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			writer.WriteHeader(http.StatusNotFound)
+			writer.Write([]byte(get404Response))
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := slo.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.Update(context.TODO(), "uid", nil)
+
+		assert.Empty(t, resp)
+		assert.ErrorAs(t, err, &api.APIError{})
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
+		assert.Equal(t, get404Response, string(apiErr.Body))
+	})
+}
+
+func TestDelete(t *testing.T) {
+	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
+		client := slo.NewClient(&rest.Client{})
+
+		actual, err := client.Delete(context.TODO(), "")
+
+		assert.Error(t, err)
+		assert.Empty(t, actual)
+	})
+
+	t.Run("successfully deleted entity with ID from server", func(t *testing.T) {
 		getResponse := `
 {
   "name": "CPU utilization",
@@ -317,87 +408,59 @@ func TestUpdate(t *testing.T) {
   "version": "ver1"
 }`
 
-		payload := `{
-  "name": "K8s namespace memory requests efficiency - OLD",
-  "description": "Compares the actual usage of memory to the requested memory.",
-  "customSli": "DQL based SLO",
-  "criteria": [
-	{
-	  "timeframeFrom": "now-7d",
-	  "timeframeTo": "now",
-	  "target": 80,
-	  "warning": 90
-	}
-  ],
-  "tags": [],
-  "externalID" : "monaco-external-ID"
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.Method {
+			case http.MethodGet:
+				require.Equal(t, "/platform/slo/v1/slos/slo-id-1", request.URL.Path)
+
+				writer.WriteHeader(http.StatusOK)
+				writer.Write([]byte(getResponse))
+			case http.MethodDelete:
+				require.Equal(t, "/platform/slo/v1/slos/slo-id-1", request.URL.Path)
+				require.Equal(t, "ver1", request.URL.Query().Get("optimistic-locking-version"), "'optimistic-locking-version' should be the same as 'version' value from the get response")
+
+				writer.WriteHeader(http.StatusNoContent)
+			default:
+				require.Failf(t, "unexpected http call", "unexpected http call: %s %s", request.Method, request.URL)
+			}
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := slo.NewClient(rest.NewClient(url, server.Client()))
+
+		actual, err := client.Delete(context.TODO(), "slo-id-1")
+
+		assert.NoError(t, err)
+		assert.Equal(t, actual.StatusCode, http.StatusNoContent)
+	})
+
+	t.Run("If SLO with ID doesn't exists on server returns an error", func(t *testing.T) {
+		get404Response := `{
+  "error": {
+    "code": 404,
+    "message": "Provided ID 'false_ID' is not an SLO."
+  }
 }`
 
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := slo.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			Get(ctx, "slo-id-1", gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(getResponse)),
-			}, nil)
-		mockClient.EXPECT().
-			Update(ctx, "slo-id-1", "ver1", json.RawMessage(payload), gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{StatusCode: http.StatusOK}, nil)
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			writer.WriteHeader(http.StatusNotFound)
+			writer.Write([]byte(get404Response))
+		}))
+		defer server.Close()
 
-		fsClient := slo.NewTestClient(mockClient)
-		resp, err := fsClient.Update(ctx, "slo-id-1", json.RawMessage(payload))
+		url, _ := url.Parse(server.URL)
+		client := slo.NewClient(rest.NewClient(url, server.Client()))
 
-		assert.NotEmpty(t, resp)
-		assert.NoError(t, err)
-	})
-}
+		actual, err := client.Delete(context.TODO(), "uid")
 
-func TestDelete(t *testing.T) {
-	t.Run("If SLO with ID doesn't exists on server returns error", func(t *testing.T) {
-		apiResponse := `{
-	 "error": {
-	   "code": 404,
-	   "message": "Segment not found",
-	   "errorDetails": []
-	 }
-	}`
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := slo.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			Delete(ctx, "uid", gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusNotFound,
-				Body:       io.NopCloser(strings.NewReader(apiResponse)),
-			}, nil)
-
-		fsClient := slo.NewTestClient(mockClient)
-		resp, err := fsClient.Delete(ctx, "uid")
-
-		assert.Empty(t, resp)
+		assert.Empty(t, actual)
 		assert.ErrorAs(t, err, &api.APIError{})
 
 		var apiErr api.APIError
 		errors.As(err, &apiErr)
 		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
-		assert.Equal(t, apiResponse, string(apiErr.Body))
-	})
-
-	t.Run("successfully deleted entity with ID from server", func(t *testing.T) {
-
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := slo.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			Delete(ctx, "uid", gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusNoContent,
-			}, nil)
-
-		fsClient := slo.NewTestClient(mockClient)
-		resp, err := fsClient.Delete(ctx, "uid")
-
-		assert.NoError(t, err)
-		assert.Equal(t, resp.StatusCode, http.StatusNoContent)
+		assert.Equal(t, get404Response, string(apiErr.Body))
 	})
 }
 
