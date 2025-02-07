@@ -51,12 +51,11 @@ func (c *Client) List(ctx context.Context) (api.PagedListResponse, error) {
 		if err != nil {
 			return "", api.ListResponse{}, fmt.Errorf(errMsg, "list", err)
 		}
-		defer resp.Body.Close()
 
 		return processListResponse(resp)
 	}
 
-	for haveNextPage, nextPageKey := true, ""; haveNextPage; {
+	for hasNextPage, nextPageKey := true, ""; hasNextPage; {
 		var listResponse api.ListResponse
 		var err error
 
@@ -66,7 +65,7 @@ func (c *Client) List(ctx context.Context) (api.PagedListResponse, error) {
 		}
 
 		retVal = append(retVal, listResponse)
-		haveNextPage = nextPageKey != ""
+		hasNextPage = nextPageKey != ""
 	}
 
 	return retVal, nil
@@ -87,22 +86,20 @@ func (c *Client) Get(ctx context.Context, id string) (api.Response, error) {
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
 	}
-	defer resp.Body.Close()
 
 	return api.ProcessResponse(resp)
 }
 
-func (c *Client) Create(ctx context.Context, body json.RawMessage) (api.Response, error) {
+func (c *Client) Create(ctx context.Context, body []byte) (api.Response, error) {
 	resp, err := c.restClient.POST(ctx, endpointPath, bytes.NewReader(body), rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsg, "create", err)
 	}
-	defer resp.Body.Close()
 
 	return api.ProcessResponse(resp)
 }
 
-func (c *Client) Update(ctx context.Context, id string, body json.RawMessage) (api.Response, error) {
+func (c *Client) Update(ctx context.Context, id string, body []byte) (api.Response, error) {
 	if id == "" {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, errors.New("argument \"id\" is empty"))
 	}
@@ -129,7 +126,6 @@ func (c *Client) Update(ctx context.Context, id string, body json.RawMessage) (a
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
 	}
-	defer resp.Body.Close()
 
 	return api.ProcessResponse(resp)
 }
@@ -161,7 +157,6 @@ func (c *Client) Delete(ctx context.Context, id string) (api.Response, error) {
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)
 	}
-	defer resp.Body.Close()
 
 	return api.ProcessResponse(resp)
 }
@@ -176,15 +171,13 @@ func getOptimisticLockingVersion(resp api.Response) (string, error) {
 
 	err := json.Unmarshal(resp.Data, &body)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("unable to retrieving optimistic locking version: %w", err)
 	}
 
 	return body.Version, nil
 }
 
-func processListResponse(httpResponse *http.Response) (string, api.ListResponse, error) {
-	var err error
-
+func processListResponse(httpResponse *http.Response) (nextPageKey string, resp api.ListResponse, err error) {
 	var body json.RawMessage
 	if body, err = io.ReadAll(httpResponse.Body); err != nil {
 		return "", api.ListResponse{}, api.NewAPIErrorFromResponse(httpResponse)
