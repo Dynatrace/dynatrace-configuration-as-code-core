@@ -391,23 +391,9 @@ func extractMetadata(in []byte) (out []byte, err error) {
 }
 
 func processHttpResponse(resp *http.Response, err error) (api.Response, error) {
-	if resp != nil {
-		defer resp.Body.Close()
-	}
-
 	if err != nil {
 		return api.Response{}, err
 	}
 
-	if !rest.IsSuccess(resp) {
-		return api.Response{}, api.NewAPIErrorFromResponse(resp)
-	}
-
-	var body []byte
-	body, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return api.Response{}, fmt.Errorf("unable to read API response body: %w", err)
-	}
-
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+	return api.NewResponseFromHTTPResponse(resp)
 }

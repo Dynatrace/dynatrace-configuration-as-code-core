@@ -35,28 +35,18 @@ type Response struct {
 // AsResponseOrError is a helper function to convert an http.Response or error to a Response or error.
 // It ensures that the response body is always read to completion and closed.
 // Any non-successful (i.e. not 2xx) status code results in an APIError.
-func AsResponseOrError(resp *http.Response, err error) (*Response, error) {
-	var responseBody []byte
-	var readErr error
-	if resp != nil {
-		responseBody, readErr = io.ReadAll(resp.Body)
-		defer resp.Body.Close()
-	}
-
+// Deprecated: To create new Response use NewResponseFromHTTPResponse
+func AsResponseOrError(httpResponse *http.Response, err error) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
 
-	if readErr != nil {
-		return nil, NewAPIErrorFromResponseAndBody(resp, responseBody)
-	}
+	retVal, retErr := NewResponseFromHTTPResponse(httpResponse)
 
-	if !rest.IsSuccess(resp) {
-		return nil, NewAPIErrorFromResponseAndBody(resp, responseBody)
+	if retErr != nil {
+		return nil, retErr
 	}
-
-	response := NewResponseFromHTTPResponseAndBody(resp, responseBody)
-	return &response, nil
+	return &retVal, nil
 }
 
 func NewResponseFromHTTPResponseAndBody(resp *http.Response, body []byte) Response {
@@ -66,6 +56,32 @@ func NewResponseFromHTTPResponseAndBody(resp *http.Response, body []byte) Respon
 		Data:       body,
 		Request:    NewRequestInfoFromRequest(resp.Request),
 	}
+}
+
+// NewResponseFromHTTPResponse is a constructor which convert a http.Response to a Response.
+// It ensures that the response body of http.Response is always read to completion and closed.
+// Any non-successful (i.e. not 2xx) status code results in an APIError.
+func NewResponseFromHTTPResponse(httpResponse *http.Response) (Response, error) {
+	defer httpResponse.Body.Close()
+
+	// httpResponse.Body is always non-nil. For more sse documentation for http.Response
+	body, err := io.ReadAll(httpResponse.Body)
+	if err != nil {
+		return Response{}, NewAPIErrorFromResponseAndBody(httpResponse, body)
+	}
+
+	if !rest.IsSuccess(httpResponse) {
+		return Response{}, NewAPIErrorFromResponseAndBody(httpResponse, body)
+	}
+
+	resp := Response{
+		Header:     httpResponse.Header,
+		StatusCode: httpResponse.StatusCode,
+		Data:       body,
+		Request:    NewRequestInfoFromRequest(httpResponse.Request),
+	}
+
+	return resp, nil
 }
 
 func NewRequestInfoFromRequest(request *http.Request) rest.RequestInfo {

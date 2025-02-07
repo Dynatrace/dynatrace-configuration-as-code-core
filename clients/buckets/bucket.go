@@ -137,7 +137,7 @@ func (c Client) Get(ctx context.Context, bucketName string) (Response, error) {
 		return api.Response{}, err
 	}
 
-	return api.ProcessResponse(resp)
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 // List retrieves all bucket definitions. The function sends a GET request
@@ -210,9 +210,8 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (Res
 	if err != nil {
 		return api.Response{}, err
 	}
-	defer resp.Body.Close()
 
-	return api.ProcessResponse(resp)
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 var DeletingBucketErr = errors.New("cannot update bucket that is currently being deleted")
@@ -295,9 +294,8 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	if err != nil {
 		return api.Response{}, err
 	}
-	defer resp.Body.Close()
 
-	return api.ProcessResponse(resp)
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 // Upsert creates or updates a bucket definition using the provided apiClient. The function first attempts
@@ -346,16 +344,10 @@ func (c Client) Delete(ctx context.Context, bucketName string) (Response, error)
 	if err != nil {
 		return api.Response{}, fmt.Errorf("unable to delete object with bucket name %q: %w", bucketName, err)
 	}
-	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	if !rest.IsSuccess(resp) {
-		return api.Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+	apiiResp, apiErr := api.NewResponseFromHTTPResponse(resp)
+	if apiErr != nil {
+		return apiiResp, apiErr
 	}
 
 	// await bucket being successfully deleted
@@ -366,7 +358,7 @@ func (c Client) Delete(ctx context.Context, bucketName string) (Response, error)
 		return api.Response{}, fmt.Errorf("unable to delete object with bucket name %q: %w", bucketName, err)
 	}
 
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+	return apiiResp, apiErr
 }
 
 // upsert is an internal function used by Upsert to perform the create or update logic.
