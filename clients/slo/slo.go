@@ -87,7 +87,7 @@ func (c *Client) Get(ctx context.Context, id string) (api.Response, error) {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
 	}
 
-	return api.ProcessResponse(resp)
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 func (c *Client) Create(ctx context.Context, body []byte) (api.Response, error) {
@@ -96,12 +96,12 @@ func (c *Client) Create(ctx context.Context, body []byte) (api.Response, error) 
 		return api.Response{}, fmt.Errorf(errMsg, "create", err)
 	}
 
-	return api.ProcessResponse(resp)
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 func (c *Client) Update(ctx context.Context, id string, body []byte) (api.Response, error) {
 	if id == "" {
-		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, errors.New("argument \"id\" is empty"))
+		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, errors.New(`argument "id" is empty`))
 	}
 
 	getResp, err := c.Get(ctx, id)
@@ -127,7 +127,7 @@ func (c *Client) Update(ctx context.Context, id string, body []byte) (api.Respon
 		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
 	}
 
-	return api.ProcessResponse(resp)
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 func (c *Client) Delete(ctx context.Context, id string) (api.Response, error) {
@@ -158,7 +158,7 @@ func (c *Client) Delete(ctx context.Context, id string) (api.Response, error) {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)
 	}
 
-	return api.ProcessResponse(resp)
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 const errMsg = "failed to %s slo resource: %w"
