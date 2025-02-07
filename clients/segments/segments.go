@@ -59,13 +59,21 @@ func (c Client) List(ctx context.Context) (Response, error) {
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsg, "list", err)
 	}
-	defer resp.Body.Close()
 
-	return api.ProcessResponse(resp, normalizeListResponse)
+	apiResp, err := api.NewResponseFromHTTPResponse(resp)
+	if err != nil {
+		return apiResp, fmt.Errorf(errMsg, "list", err)
+	}
+
+	if apiResp.Data, err = modifyBody(apiResp.Data); err != nil {
+		return apiResp, fmt.Errorf(errMsg, "list", err)
+	}
+
+	return apiResp, nil
 }
 
-// normalizeListResponse transform received json response to contain just a JSON list of elements
-func normalizeListResponse(source []byte) ([]byte, error) {
+// modifyBody transform received json response to contain just a JSON list of elements
+func modifyBody(source []byte) ([]byte, error) {
 	var transformed map[string]any
 	if err := json.Unmarshal(source, &transformed); err != nil {
 		return source, err
@@ -83,9 +91,8 @@ func (c Client) Get(ctx context.Context, id string) (Response, error) {
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
 	}
-	defer resp.Body.Close()
 
-	return api.ProcessResponse(resp)
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 // GetAll gets a complete set of complete configuration for all available segments
@@ -142,9 +149,8 @@ func (c Client) Update(ctx context.Context, id string, data []byte) (Response, e
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to update segments resource with id %s and version %d: %w", id, getResponse.Version, err)
 	}
-	defer updateResourceResp.Body.Close()
 
-	return api.ProcessResponse(updateResourceResp)
+	return api.NewResponseFromHTTPResponse(updateResourceResp)
 }
 
 // Create creates a new segment entry on the server
@@ -153,9 +159,8 @@ func (c Client) Create(ctx context.Context, data []byte) (Response, error) {
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsg, "create", err)
 	}
-	defer resp.Body.Close()
 
-	return api.ProcessResponse(resp)
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 // Delete removes configuration for segment with given ID from a server.
@@ -164,9 +169,8 @@ func (c Client) Delete(ctx context.Context, id string) (Response, error) {
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)
 	}
-	defer resp.Body.Close()
 
-	return api.ProcessResponse(resp)
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 func unmarshalRequest(payload []byte) (map[string]any, error) {

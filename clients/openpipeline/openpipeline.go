@@ -57,9 +57,8 @@ func (c Client) Get(ctx context.Context, id string) (Response, error) {
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to get openpipeline resource of type id %q: %w", id, err)
 	}
-	defer resp.Body.Close()
 
-	return api.ProcessResponse(resp)
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 func (c Client) List(ctx context.Context) ([]ListResponse, error) {
@@ -148,7 +147,6 @@ func (c Client) update(ctx context.Context, id string, payload []byte) (Response
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to list openpipeline resources: %w", err)
 	}
-	defer resp.Body.Close()
 
-	return api.ProcessResponse(resp)
+	return api.NewResponseFromHTTPResponse(resp)
 }

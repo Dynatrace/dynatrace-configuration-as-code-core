@@ -12,26 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package api_test
 
 import (
 	"errors"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
 func TestResponse_DecodeJSON(t *testing.T) {
 	t.Run("ValidJSON", func(t *testing.T) {
 		data := []byte(`{"key": "value"}`)
-		response := Response{Data: data}
+		response := api.Response{Data: data}
 		type objType map[string]string
 
-		obj, err := DecodeJSON[objType](response)
+		obj, err := api.DecodeJSON[objType](response)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "value", obj["key"])
@@ -39,11 +42,11 @@ func TestResponse_DecodeJSON(t *testing.T) {
 
 	t.Run("InvalidJSON", func(t *testing.T) {
 		data := []byte(`invalid-json`)
-		response := Response{Data: data}
+		response := api.Response{Data: data}
 
 		type objType map[string]string
 
-		_, err := DecodeJSON[objType](response)
+		_, err := api.DecodeJSON[objType](response)
 
 		assert.Error(t, err)
 		assert.Equal(t, "failed to unmarshal JSON: invalid character 'i' looking for beginning of value", err.Error())
@@ -52,14 +55,14 @@ func TestResponse_DecodeJSON(t *testing.T) {
 func TestListResponse_DecodeJSON(t *testing.T) {
 	t.Run("ValidJSON", func(t *testing.T) {
 		data := []byte(`{"results": [ { "key": "one" }, { "key": "two" } ] }`)
-		response := ListResponse{
-			Response: Response{
+		response := api.ListResponse{
+			Response: api.Response{
 				Data: data,
 			},
 		}
 		type objType map[string][]map[string]string
 
-		obj, err := DecodeJSON[objType](response.Response)
+		obj, err := api.DecodeJSON[objType](response.Response)
 
 		assert.NoError(t, err)
 		assert.Len(t, obj["results"], 2)
@@ -69,14 +72,14 @@ func TestListResponse_DecodeJSON(t *testing.T) {
 
 	t.Run("InvalidJSON", func(t *testing.T) {
 		data := []byte(`invalid-json`)
-		response := ListResponse{
-			Response: Response{
+		response := api.ListResponse{
+			Response: api.Response{
 				Data: data,
 			},
 		}
 		type objType map[string][]map[string]string
 
-		_, err := DecodeJSON[objType](response.Response)
+		_, err := api.DecodeJSON[objType](response.Response)
 
 		assert.Error(t, err)
 		assert.Equal(t, "failed to unmarshal JSON: invalid character 'i' looking for beginning of value", err.Error())
@@ -84,7 +87,7 @@ func TestListResponse_DecodeJSON(t *testing.T) {
 }
 
 func TestDecodeJSONObjects(t *testing.T) {
-	response := ListResponse{
+	response := api.ListResponse{
 		Objects: [][]byte{
 			[]byte(`{ "key": "one" }`),
 			[]byte(`{ "key": "two" }`),
@@ -95,7 +98,7 @@ func TestDecodeJSONObjects(t *testing.T) {
 		Key string `json:"key"`
 	}
 
-	res, err := DecodeJSONObjects[val](response)
+	res, err := api.DecodeJSONObjects[val](response)
 
 	assert.NoError(t, err)
 	assert.Len(t, res, 3)
@@ -105,25 +108,25 @@ func TestDecodeJSONObjects(t *testing.T) {
 }
 
 func TestDecodePaginatedJSONObjects(t *testing.T) {
-	response := PagedListResponse{
-		ListResponse{
+	response := api.PagedListResponse{
+		api.ListResponse{
 			Objects: [][]byte{
 				[]byte(`{ "key": "one" }`),
 				[]byte(`{ "key": "two" }`),
 				[]byte(`{ "key": "three" }`),
 			},
 		},
-		ListResponse{
+		api.ListResponse{
 			Objects: [][]byte{
 				[]byte(`{ "key": "four" }`),
 			},
 		},
-		ListResponse{
+		api.ListResponse{
 			Objects: [][]byte{
 				[]byte(`{ "key": "five" }`),
 			},
 		},
-		ListResponse{
+		api.ListResponse{
 			Objects: [][]byte{
 				[]byte(`{ "key": "six" }`),
 			},
@@ -133,7 +136,7 @@ func TestDecodePaginatedJSONObjects(t *testing.T) {
 		Key string `json:"key"`
 	}
 
-	res, err := DecodePaginatedJSONObjects[val](response)
+	res, err := api.DecodePaginatedJSONObjects[val](response)
 
 	assert.NoError(t, err)
 	assert.Len(t, res, 6)
@@ -149,25 +152,25 @@ func TestAsAPIError(t *testing.T) {
 	testCases := []struct {
 		name       string
 		statusCode int
-		expected   APIError
+		expected   api.APIError
 		expectedOK bool
 	}{
 		{
 			name:       "Not an API error (2xx)",
 			statusCode: http.StatusOK,
-			expected:   APIError{},
+			expected:   api.APIError{},
 			expectedOK: false,
 		},
 		{
 			name:       "Not an API error (3xx)",
 			statusCode: http.StatusNotModified,
-			expected:   APIError{},
+			expected:   api.APIError{},
 			expectedOK: false,
 		},
 		{
 			name:       "API error (4xx)",
 			statusCode: http.StatusNotFound,
-			expected: APIError{
+			expected: api.APIError{
 				StatusCode: http.StatusNotFound,
 				Request: rest.RequestInfo{
 					Method: http.MethodGet,
@@ -179,7 +182,7 @@ func TestAsAPIError(t *testing.T) {
 		{
 			name:       "API error (5xx)",
 			statusCode: http.StatusServiceUnavailable,
-			expected: APIError{
+			expected: api.APIError{
 				StatusCode: http.StatusServiceUnavailable,
 				Request: rest.RequestInfo{
 					Method: http.MethodGet,
@@ -192,7 +195,7 @@ func TestAsAPIError(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			resp := Response{
+			resp := api.Response{
 				StatusCode: tc.statusCode,
 				Request: rest.RequestInfo{
 					Method: http.MethodGet,
@@ -210,16 +213,16 @@ func TestAsAPIError(t *testing.T) {
 }
 
 func TestPagedListResponse(t *testing.T) {
-	pr := PagedListResponse{
-		ListResponse{
-			Response: Response{},
+	pr := api.PagedListResponse{
+		api.ListResponse{
+			Response: api.Response{},
 			Objects: [][]byte{
 				{'1'},
 				{'2'},
 			},
 		},
-		ListResponse{
-			Response: Response{},
+		api.ListResponse{
+			Response: api.Response{},
 			Objects: [][]byte{
 				{'3'},
 				{'4'},
@@ -233,71 +236,71 @@ func TestPagedListResponse(t *testing.T) {
 func TestPagedListResponse_AsAPIError(t *testing.T) {
 	testCases := []struct {
 		name       string
-		given      PagedListResponse
-		expected   APIError
+		given      api.PagedListResponse
+		expected   api.APIError
 		expectedOK bool
 	}{
 		{
 			"empty list is not an error",
-			PagedListResponse{},
-			APIError{},
+			api.PagedListResponse{},
+			api.APIError{},
 			false,
 		},
 		{
 			"single entry 4xx is an error",
-			PagedListResponse{
-				ListResponse{
-					Response: Response{
+			api.PagedListResponse{
+				api.ListResponse{
+					Response: api.Response{
 						StatusCode: 403,
 					},
 				},
 			},
-			APIError{
+			api.APIError{
 				StatusCode: 403,
 			},
 			true,
 		},
 		{
 			"single entry 5xx is an error",
-			PagedListResponse{
-				ListResponse{
-					Response: Response{
+			api.PagedListResponse{
+				api.ListResponse{
+					Response: api.Response{
 						StatusCode: 500,
 					},
 				},
 			},
-			APIError{
+			api.APIError{
 				StatusCode: 500,
 			},
 			true,
 		},
 		{
 			"several entries is not an error",
-			PagedListResponse{
-				ListResponse{
-					Response: Response{
+			api.PagedListResponse{
+				api.ListResponse{
+					Response: api.Response{
 						StatusCode: 403,
 					},
 				},
-				ListResponse{
-					Response: Response{
+				api.ListResponse{
+					Response: api.Response{
 						StatusCode: 200,
 					},
 				},
 			},
-			APIError{},
+			api.APIError{},
 			false,
 		},
 		{
 			"single entry 2xx is not an error",
-			PagedListResponse{
-				ListResponse{
-					Response: Response{
+			api.PagedListResponse{
+				api.ListResponse{
+					Response: api.Response{
 						StatusCode: 201,
 					},
 				},
 			},
-			APIError{},
+			api.APIError{},
 			false,
 		},
 	}
@@ -311,72 +314,127 @@ func TestPagedListResponse_AsAPIError(t *testing.T) {
 	}
 }
 
-func TestAsResponseOrError(t *testing.T) {
+func TestNewResponseFromHTTPResponse(t *testing.T) {
+	t.Run("http response code isn't 2xx - an APIError ", func(t *testing.T) {
+		given := http.Response{StatusCode: http.StatusInternalServerError, Body: io.NopCloser(strings.NewReader("http message content"))}
 
+		actual, err := api.NewResponseFromHTTPResponse(&given)
+
+		assert.Empty(t, actual)
+
+		assert.Error(t, err)
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+		assert.Equal(t, "http message content", string(apiErr.Body))
+	})
+
+	t.Run("http response code is 2xx - OK", func(t *testing.T) {
+		given := http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("http message content"))}
+
+		actual, err := api.NewResponseFromHTTPResponse(&given)
+
+		require.NoError(t, err)
+		require.NotEmpty(t, actual)
+		assert.Equal(t, http.StatusOK, actual.StatusCode)
+		assert.Equal(t, "http message content", string(actual.Data))
+	})
+
+	t.Run("read-error during reading of http body - error", func(t *testing.T) {
+		given := http.Response{StatusCode: http.StatusOK, Body: &stubReaderCloser{readErr: errors.New("read error")}}
+
+		actual, err := api.NewResponseFromHTTPResponse(&given)
+
+		assert.Empty(t, actual)
+		assert.Error(t, err)
+	})
+
+	t.Run("closer is always called", func(t *testing.T) {
+		tests := []struct {
+			name       string
+			statusCode int
+			readErr    error
+		}{
+			{
+				name:       "response is 2xx",
+				statusCode: http.StatusOK,
+			}, {
+				name:       "response is 4xx",
+				statusCode: http.StatusNotFound,
+			}, {
+				name:    "error while reading",
+				readErr: errors.New("read error"),
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				closer := stubReaderCloser{reader: strings.NewReader("http message content"), readErr: tc.readErr}
+				given := http.Response{StatusCode: tc.statusCode, Body: &closer}
+
+				api.NewResponseFromHTTPResponse(&given)
+
+				assert.True(t, closer.closed)
+			})
+		}
+	})
+}
+
+func TestAsResponseOrError(t *testing.T) {
 	t.Run("Error returns error", func(t *testing.T) {
-		resp, err := AsResponseOrError(nil, errors.New("some error"))
+		resp, err := api.AsResponseOrError(nil, errors.New("some error"))
 		assert.Nil(t, resp)
 		assert.ErrorContains(t, err, "some error")
 	})
 
 	t.Run("4xx status returns APIError", func(t *testing.T) {
 		const badRequest = "Bad request"
-		mockBody := mockReaderCloser{reader: io.NopCloser(strings.NewReader(badRequest))}
-		resp, err := AsResponseOrError(&http.Response{StatusCode: http.StatusBadRequest, Body: &mockBody}, nil)
+		mockBody := stubReaderCloser{reader: io.NopCloser(strings.NewReader(badRequest))}
+		resp, err := api.AsResponseOrError(&http.Response{StatusCode: http.StatusBadRequest, Body: &mockBody}, nil)
 		assert.Nil(t, resp)
-		apiErr := APIError{}
+		apiErr := api.APIError{}
 		require.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, apiErr.StatusCode, http.StatusBadRequest)
 		assert.Equal(t, string(apiErr.Body), badRequest)
-		assert.True(t, mockBody.wasClosed)
+		assert.True(t, mockBody.closed)
 	})
 
 	t.Run("2xx status returns response", func(t *testing.T) {
 		const content = "content"
-		mockBody := mockReaderCloser{reader: strings.NewReader(content)}
-		resp, err := AsResponseOrError(&http.Response{StatusCode: http.StatusOK, Body: &mockBody}, nil)
+		mockBody := stubReaderCloser{reader: strings.NewReader(content)}
+		resp, err := api.AsResponseOrError(&http.Response{StatusCode: http.StatusOK, Body: &mockBody}, nil)
 		require.NotNil(t, resp)
 		assert.Equal(t, string(resp.Data), content)
 		assert.Equal(t, resp.StatusCode, http.StatusOK)
 		require.Nil(t, err)
-		assert.True(t, mockBody.wasClosed)
+		assert.True(t, mockBody.closed)
 	})
 
 	t.Run("2xx status with read error returns error", func(t *testing.T) {
 		const content = "content"
-		mockBody := mockErroredReaderCloser{}
-		resp, err := AsResponseOrError(&http.Response{StatusCode: http.StatusOK, Body: &mockBody}, nil)
+		mockBody := stubReaderCloser{readErr: errors.New("read error")}
+		resp, err := api.AsResponseOrError(&http.Response{StatusCode: http.StatusOK, Body: &mockBody}, nil)
 		require.Nil(t, resp)
-		apiErr := APIError{}
+		var apiErr api.APIError
 		require.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, apiErr.StatusCode, http.StatusOK)
-		assert.True(t, mockBody.wasClosed)
+		assert.True(t, mockBody.closed)
 	})
 }
 
-type mockReaderCloser struct {
-	reader    io.Reader
-	wasClosed bool
+type stubReaderCloser struct {
+	reader  io.Reader
+	readErr error
+	closed  bool
 }
 
-func (r *mockReaderCloser) Read(p []byte) (int, error) {
+func (r *stubReaderCloser) Read(p []byte) (int, error) {
+	if r.readErr != nil {
+		return 0, r.readErr
+	}
 	return r.reader.Read(p)
 }
-
-func (r *mockReaderCloser) Close() error {
-	r.wasClosed = true
-	return nil
-}
-
-type mockErroredReaderCloser struct {
-	wasClosed bool
-}
-
-func (r *mockErroredReaderCloser) Read(p []byte) (int, error) {
-	return 0, errors.New("read error")
-}
-
-func (r *mockErroredReaderCloser) Close() error {
-	r.wasClosed = true
+func (r *stubReaderCloser) Close() error {
+	r.closed = true
 	return nil
 }

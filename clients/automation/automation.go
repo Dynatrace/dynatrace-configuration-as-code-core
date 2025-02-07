@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-logr/logr"
 	"io"
 	"net/http"
 	"net/url"
@@ -31,8 +30,6 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
-
-const bodyReadErrMsg = "unable to read API response body"
 
 type Response = api.Response
 
@@ -92,19 +89,8 @@ func (a Client) Get(ctx context.Context, resourceType automation.ResourceType, i
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to get automation resource of type %q with id %q: %w", resourceType, id, err)
 	}
-	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	if !rest.IsSuccess(resp) {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 // Create creates a new automation object based on the specified resource type.
@@ -124,19 +110,8 @@ func (a Client) Create(ctx context.Context, resourceType automation.ResourceType
 	if err != nil {
 		return Response{}, err
 	}
-	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	if !rest.IsSuccess(resp) {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 // Update updates an automation object based on the specified resource type and id
@@ -160,19 +135,8 @@ func (a Client) Update(ctx context.Context, resourceType automation.ResourceType
 	if err != nil {
 		return Response{}, err
 	}
-	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	if !rest.IsSuccess(resp) {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 // List retrieves a list of automation objects of the specified resource
@@ -227,7 +191,6 @@ func (a Client) List(ctx context.Context, resourceType automation.ResourceType) 
 		body, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
-			logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
 			return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 		}
 
@@ -238,7 +201,6 @@ func (a Client) List(ctx context.Context, resourceType automation.ResourceType) 
 
 		result, err = unmarshalJSONList(resp)
 		if err != nil {
-			logr.FromContextOrDiscard(ctx).Error(err, "failed to unmarshal json response")
 			return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 		}
 
@@ -297,18 +259,8 @@ func (a Client) createWithID(ctx context.Context, resourceType automation.Resour
 	if err != nil {
 		return Response{}, err
 	}
-	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
 
-	if !rest.IsSuccess(resp) {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 // Delete removes an automation object of the specified resource type by its unique identifier (ID).
@@ -331,17 +283,7 @@ func (a Client) Delete(ctx context.Context, resourceType automation.ResourceType
 		return Response{}, err
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	if !rest.IsSuccess(resp) {
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-	return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 func unmarshalJSONList(raw *http.Response) (listResponse, error) {
