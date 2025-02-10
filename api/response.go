@@ -114,18 +114,6 @@ func (p PagedListResponse) All() [][]byte {
 	return ret
 }
 
-func NewListResponse(resp *http.Response, body [][]byte) ListResponse {
-	return ListResponse{
-		Response: Response{
-			StatusCode: resp.StatusCode,
-			Header:     resp.Header,
-			Data:       nil,
-			Request:    NewRequestInfoFromRequest(resp.Request),
-		},
-		Objects: body,
-	}
-}
-
 // ListResponse represents a multi-object API response
 // It contains both the full JSON Data, and a slice of Objects for more convenient access
 type ListResponse struct {

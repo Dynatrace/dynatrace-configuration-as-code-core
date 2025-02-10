@@ -44,17 +44,6 @@ type Client struct {
 func (c *Client) List(ctx context.Context) (api.PagedListResponse, error) {
 	var retVal api.PagedListResponse
 
-	listPage := func(ctx context.Context, c *Client, pageKey string) (string, api.ListResponse, error) {
-		resp, err := c.restClient.GET(ctx, endpointPath, rest.RequestOptions{
-			CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
-			QueryParams:           url.Values{"page-key": {pageKey}}})
-		if err != nil {
-			return "", api.ListResponse{}, fmt.Errorf(errMsg, "list", err)
-		}
-
-		return processListResponse(resp)
-	}
-
 	for hasNextPage, nextPageKey := true, ""; hasNextPage; {
 		var listResponse api.ListResponse
 		var err error
@@ -72,9 +61,20 @@ func (c *Client) List(ctx context.Context) (api.PagedListResponse, error) {
 
 }
 
+func listPage(ctx context.Context, c *Client, pageKey string) (string, api.ListResponse, error) {
+	resp, err := c.restClient.GET(ctx, endpointPath, rest.RequestOptions{
+		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
+		QueryParams:           url.Values{"page-key": {pageKey}}})
+	if err != nil {
+		return "", api.ListResponse{}, fmt.Errorf(errMsg, "list", err)
+	}
+
+	return processListResponse(resp)
+}
+
 func (c *Client) Get(ctx context.Context, id string) (api.Response, error) {
 	if id == "" {
-		return api.Response{}, fmt.Errorf(errMsgWithId, "get", id, errors.New("argument \"id\" is empty"))
+		return api.Response{}, fmt.Errorf(errMsgWithId, "get", id, errors.New(`argument "id" is empty`))
 	}
 
 	path, err := url.JoinPath(endpointPath, id)
@@ -132,7 +132,7 @@ func (c *Client) Update(ctx context.Context, id string, body []byte) (api.Respon
 
 func (c *Client) Delete(ctx context.Context, id string) (api.Response, error) {
 	if id == "" {
-		return api.Response{}, fmt.Errorf(errMsgWithId, "delete", id, errors.New("argument \"id\" is empty"))
+		return api.Response{}, fmt.Errorf(errMsgWithId, "delete", id, errors.New(`argument "id" is empty`))
 	}
 
 	getResp, err := c.Get(ctx, id)
@@ -178,6 +178,8 @@ func getOptimisticLockingVersion(resp api.Response) (string, error) {
 }
 
 func processListResponse(httpResponse *http.Response) (nextPageKey string, resp api.ListResponse, err error) {
+	defer httpResponse.Body.Close()
+
 	var body json.RawMessage
 	if body, err = io.ReadAll(httpResponse.Body); err != nil {
 		return "", api.ListResponse{}, api.NewAPIErrorFromResponse(httpResponse)
@@ -201,5 +203,15 @@ func processListResponse(httpResponse *http.Response) (nextPageKey string, resp 
 		data = append(data, it)
 	}
 
-	return s.NextPage, api.NewListResponse(httpResponse, data), nil
+	resp = api.ListResponse{
+		Response: api.Response{
+			StatusCode: httpResponse.StatusCode,
+			Header:     httpResponse.Header,
+			Data:       nil,
+			Request:    api.NewRequestInfoFromRequest(httpResponse.Request),
+		},
+		Objects: data,
+	}
+
+	return s.NextPage, resp, nil
 }
