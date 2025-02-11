@@ -32,6 +32,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/openpipeline"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/segments"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/slo"
 )
 
 // ErrOAuthCredentialsMissing indicates that no OAuth2 client credentials were provided.
@@ -181,6 +182,15 @@ func (f factory) SegmentsClient() (*segments.Client, error) {
 		return nil, err
 	}
 	return segments.NewClient(restClient), nil
+}
+
+// SLOClient creates and returns a new instance of slo.Client for interacting with the SLO API.
+func (f factory) SLOClient() (*slo.Client, error) {
+	restClient, err := f.CreatePlatformClient()
+	if err != nil {
+		return nil, err
+	}
+	return slo.NewClient(restClient), nil
 }
 
 // BucketClientWithRetrySettings creates and returns a new instance of buckets.Client with non-default retry settings.
