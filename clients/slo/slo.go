@@ -62,9 +62,12 @@ func (c *Client) List(ctx context.Context) (api.PagedListResponse, error) {
 }
 
 func listPage(ctx context.Context, c *Client, pageKey string) (string, api.ListResponse, error) {
-	resp, err := c.restClient.GET(ctx, endpointPath, rest.RequestOptions{
-		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
-		QueryParams:           url.Values{"page-key": {pageKey}}})
+	ro := rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests}
+	if pageKey != "" {
+		ro.QueryParams = url.Values{"page-key": {pageKey}}
+	}
+
+	resp, err := c.restClient.GET(ctx, endpointPath, ro)
 	if err != nil {
 		return "", api.ListResponse{}, fmt.Errorf(errMsg, "list", err)
 	}
