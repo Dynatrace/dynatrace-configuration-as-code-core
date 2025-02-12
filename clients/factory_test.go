@@ -15,14 +15,18 @@
 package clients
 
 import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/oauth2/clientcredentials"
+
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/accounts"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/openpipeline"
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/oauth2/clientcredentials"
-	"testing"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/segments"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/slo"
 )
 
 const failedToParseURL = "failed to parse URL"
@@ -45,6 +49,16 @@ func TestClientCreation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &buckets.Client{}, clientInstance)
+
+	clientInstance, err = f.SegmentsClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &segments.Client{}, clientInstance)
+
+	clientInstance, err = f.SLOClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &slo.Client{}, clientInstance)
 
 	clientInstance, err = f.AutomationClient()
 	assert.NoError(t, err)
@@ -92,6 +106,14 @@ func TestClientMissingPlatformURL(t *testing.T) {
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrPlatformURLMissing)
 
+	clientInstance, err = f.SegmentsClient()
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrPlatformURLMissing)
+
+	clientInstance, err = f.SLOClient()
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrPlatformURLMissing)
+
 	clientInstance, err = f.AutomationClient()
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrPlatformURLMissing)
@@ -128,6 +150,14 @@ func TestClientMissingOAuthCredentials(t *testing.T) {
 
 	var clientInstance interface{}
 	clientInstance, err := f.BucketClient()
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
+
+	clientInstance, err = f.SegmentsClient()
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
+
+	clientInstance, err = f.SLOClient()
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
 
@@ -171,7 +201,16 @@ func TestClientPlatformURLParsingError(t *testing.T) {
 		WithUserAgent("MyUserAgent")
 
 	var clientInstance interface{}
+
 	clientInstance, err := f.BucketClient()
+	assert.Nil(t, clientInstance)
+	assert.ErrorContains(t, err, failedToParseURL)
+
+	clientInstance, err = f.SegmentsClient()
+	assert.Nil(t, clientInstance)
+	assert.ErrorContains(t, err, failedToParseURL)
+
+	clientInstance, err = f.SLOClient()
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
 
@@ -218,6 +257,16 @@ func TestClientMissingAccountURL(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &buckets.Client{}, clientInstance)
+
+	clientInstance, err = f.SegmentsClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &segments.Client{}, clientInstance)
+
+	clientInstance, err = f.SLOClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &slo.Client{}, clientInstance)
 
 	clientInstance, err = f.AutomationClient()
 	assert.NoError(t, err)
@@ -266,6 +315,16 @@ func TestClientAccountURLParsingError(t *testing.T) {
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &buckets.Client{}, clientInstance)
 
+	clientInstance, err = f.SegmentsClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &segments.Client{}, clientInstance)
+
+	clientInstance, err = f.SLOClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &slo.Client{}, clientInstance)
+
 	clientInstance, err = f.AutomationClient()
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
@@ -311,6 +370,16 @@ func TestClientMissingClassicURL(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &buckets.Client{}, clientInstance)
+
+	clientInstance, err = f.SegmentsClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &segments.Client{}, clientInstance)
+
+	clientInstance, err = f.SLOClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &slo.Client{}, clientInstance)
 
 	clientInstance, err = f.AutomationClient()
 	assert.NoError(t, err)
@@ -359,6 +428,16 @@ func TestClientMissingAccessToken(t *testing.T) {
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &buckets.Client{}, clientInstance)
 
+	clientInstance, err = f.SegmentsClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &segments.Client{}, clientInstance)
+
+	clientInstance, err = f.SLOClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &slo.Client{}, clientInstance)
+
 	clientInstance, err = f.AutomationClient()
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
@@ -406,6 +485,16 @@ func TestClientClassicURLParsingError(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &buckets.Client{}, clientInstance)
+
+	clientInstance, err = f.SegmentsClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &segments.Client{}, clientInstance)
+
+	clientInstance, err = f.SLOClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &slo.Client{}, clientInstance)
 
 	clientInstance, err = f.AutomationClient()
 	assert.NoError(t, err)
