@@ -2843,7 +2843,7 @@
                         "in": "query",
                         "description": "The number of the requested page. Can be increased as long as **hasNextPage** is true in the response.",
                         "schema": {
-                            "type": "number"
+                            "type": "integer"
                         }
                     },
                     {
@@ -2852,7 +2852,7 @@
                         "in": "query",
                         "description": "Defines the requested number of entries for the next page.",
                         "schema": {
-                            "type": "number"
+                            "type": "integer"
                         }
                     }
                 ],
