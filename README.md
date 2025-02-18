@@ -27,6 +27,7 @@ The library provides different kinds of clients to interact with Dynatrace in tw
   | Documents           | ✅           |
   | OpenPipeline        | ✅           |
   | Segments            | ✅           |
+  | SLO's               | ✅           |
 
 ### Usage
 
