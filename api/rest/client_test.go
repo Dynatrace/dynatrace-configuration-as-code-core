@@ -15,11 +15,8 @@
 package rest
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -28,6 +25,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
 )
 
 func TestNewClient(t *testing.T) {
@@ -69,7 +70,7 @@ func TestClient_CRUD(t *testing.T) {
 	client := NewClient(baseURL, nil)
 
 	t.Run("GET", func(t *testing.T) {
-		resp, err := client.GET(context.Background(), "/test", RequestOptions{})
+		resp, err := client.GET(t.Context(), "/test", RequestOptions{})
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Expected status code 200")
@@ -78,7 +79,7 @@ func TestClient_CRUD(t *testing.T) {
 	})
 
 	t.Run("POST", func(t *testing.T) {
-		resp, err := client.POST(context.Background(), "/test", nil, RequestOptions{})
+		resp, err := client.POST(t.Context(), "/test", nil, RequestOptions{})
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusCreated, resp.StatusCode, "Expected status code 201")
@@ -87,7 +88,7 @@ func TestClient_CRUD(t *testing.T) {
 	})
 
 	t.Run("PUT", func(t *testing.T) {
-		resp, err := client.PUT(context.Background(), "/test", nil, RequestOptions{})
+		resp, err := client.PUT(t.Context(), "/test", nil, RequestOptions{})
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusNoContent, resp.StatusCode, "Expected status code 204")
@@ -96,7 +97,7 @@ func TestClient_CRUD(t *testing.T) {
 	})
 
 	t.Run("DELETE", func(t *testing.T) {
-		resp, err := client.DELETE(context.Background(), "/test", RequestOptions{})
+		resp, err := client.DELETE(t.Context(), "/test", RequestOptions{})
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusNoContent, resp.StatusCode, "Expected status code 204")
@@ -153,7 +154,7 @@ func TestClient_CRUD_HTTPErrors(t *testing.T) {
 			name:   "DELETE",
 			method: http.MethodDelete,
 			requestFn: func() (*http.Response, error) {
-				return client.DELETE(context.Background(), "/test", RequestOptions{})
+				return client.DELETE(t.Context(), "/test", RequestOptions{})
 			},
 		},
 	}
@@ -347,7 +348,7 @@ func TestClient_WithHTTPListener(t *testing.T) {
 				rw.Write([]byte("{}"))
 			},
 			restClientCalls: func(client *Client) error {
-				_, err := client.GET(context.TODO(), "", RequestOptions{})
+				_, err := client.GET(t.Context(), "", RequestOptions{})
 				return err
 			},
 			expectedRecordsRecorded: 2,

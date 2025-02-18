@@ -15,7 +15,6 @@
 package segments_test
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -42,7 +41,7 @@ func TestList(t *testing.T) {
 
 		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
-		resp, err := c.List(context.TODO(), rest.RequestOptions{})
+		resp, err := c.List(t.Context(), rest.RequestOptions{})
 		require.NoError(t, err)
 
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -61,7 +60,7 @@ func TestList(t *testing.T) {
 
 		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
-		resp, err := c.List(context.TODO(), rest.RequestOptions{})
+		resp, err := c.List(t.Context(), rest.RequestOptions{})
 		require.NoError(t, err)
 
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -80,7 +79,7 @@ func TestList(t *testing.T) {
 
 		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
-		resp, err := c.List(context.TODO(), rest.RequestOptions{QueryParams: url.Values{"add-fields": []string{"user_defined"}}})
+		resp, err := c.List(t.Context(), rest.RequestOptions{QueryParams: url.Values{"add-fields": []string{"user_defined"}}})
 		require.NoError(t, err)
 
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -100,7 +99,7 @@ func TestGet(t *testing.T) {
 
 		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
-		resp, err := c.Get(context.TODO(), "uid", rest.RequestOptions{})
+		resp, err := c.Get(t.Context(), "uid", rest.RequestOptions{})
 		require.NoError(t, err)
 
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -131,7 +130,7 @@ func TestGet(t *testing.T) {
 
 		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
-		resp, err := c.Get(context.TODO(), "id", rest.RequestOptions{})
+		resp, err := c.Get(t.Context(), "id", rest.RequestOptions{})
 		require.NoError(t, err)
 
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -149,7 +148,7 @@ func TestGet(t *testing.T) {
 
 		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
-		resp, err := c.Get(context.TODO(), "id", rest.RequestOptions{QueryParams: url.Values{"add-fields": []string{"user_defined"}}})
+		resp, err := c.Get(t.Context(), "id", rest.RequestOptions{QueryParams: url.Values{"add-fields": []string{"user_defined"}}})
 		require.NoError(t, err)
 
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -168,7 +167,7 @@ func TestCreate(t *testing.T) {
 
 	c := segments.NewClient(rest.NewClient(u, server.Client()))
 
-	resp, err := c.Create(context.TODO(), []byte{}, rest.RequestOptions{})
+	resp, err := c.Create(t.Context(), []byte{}, rest.RequestOptions{})
 	require.NoError(t, err)
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -188,7 +187,7 @@ func TestUpdate(t *testing.T) {
 
 		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
-		resp, err := c.Update(context.TODO(), "uid", []byte{}, rest.RequestOptions{})
+		resp, err := c.Update(t.Context(), "uid", []byte{}, rest.RequestOptions{})
 		require.NoError(t, err)
 
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -220,7 +219,7 @@ func TestDelete(t *testing.T) {
 
 		c := segments.NewClient(rest.NewClient(u, server.Client()))
 
-		resp, err := c.Delete(context.TODO(), "uid", rest.RequestOptions{})
+		resp, err := c.Delete(t.Context(), "uid", rest.RequestOptions{})
 		require.NoError(t, err)
 
 		require.Equal(t, http.StatusOK, resp.StatusCode)
