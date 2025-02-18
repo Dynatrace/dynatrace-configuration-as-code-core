@@ -234,18 +234,18 @@ type ApiGetServiceUsersFromAccountRequest struct {
 	ctx         context.Context
 	ApiService  *ServiceUserManagementAPIService
 	accountUuid string
-	page        *float32
-	pageSize    *float32
+	page        *int32
+	pageSize    *int32
 }
 
 // The number of the requested page. Can be increased as long as **hasNextPage** is true in the response.
-func (r ApiGetServiceUsersFromAccountRequest) Page(page float32) ApiGetServiceUsersFromAccountRequest {
+func (r ApiGetServiceUsersFromAccountRequest) Page(page int32) ApiGetServiceUsersFromAccountRequest {
 	r.page = &page
 	return r
 }
 
 // Defines the requested number of entries for the next page.
-func (r ApiGetServiceUsersFromAccountRequest) PageSize(pageSize float32) ApiGetServiceUsersFromAccountRequest {
+func (r ApiGetServiceUsersFromAccountRequest) PageSize(pageSize int32) ApiGetServiceUsersFromAccountRequest {
 	r.pageSize = &pageSize
 	return r
 }
