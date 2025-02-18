@@ -16,15 +16,16 @@ package testutils
 
 import (
 	"context"
+	"testing"
+
 	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/testr"
-	"testing"
 )
 
 func ContextWithLogger(t *testing.T) context.Context {
-	return logr.NewContext(context.Background(), testr.New(t))
+	return logr.NewContext(t.Context(), testr.New(t))
 }
 
 func ContextWithVerboseLogger(t *testing.T) context.Context {
-	return logr.NewContext(context.Background(), testr.NewWithOptions(t, testr.Options{Verbosity: 1}))
+	return logr.NewContext(t.Context(), testr.NewWithOptions(t, testr.Options{Verbosity: 1}))
 }

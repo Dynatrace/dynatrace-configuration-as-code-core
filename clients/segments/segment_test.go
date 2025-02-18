@@ -15,7 +15,6 @@
 package segments_test
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -63,14 +62,14 @@ func TestList(t *testing.T) {
 
 	mockClient := segments.NewMockclient(gomock.NewController(t))
 	mockClient.EXPECT().
-		List(gomock.AssignableToTypeOf(context.Background()), gomock.AssignableToTypeOf(rest.RequestOptions{})).
+		List(gomock.AssignableToTypeOf(t.Context()), gomock.AssignableToTypeOf(rest.RequestOptions{})).
 		Return(&http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader(apiResponse)),
 		}, nil)
 
 	fsClient := segments.NewTestClient(mockClient)
-	actual, err := fsClient.List(context.Background())
+	actual, err := fsClient.List(t.Context())
 
 	require.NoError(t, err)
 	require.JSONEq(t, expected, string(actual.Data))

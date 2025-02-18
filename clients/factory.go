@@ -132,7 +132,7 @@ func (f factory) WithRetryOptions(retryOptions *rest.RetryOptions) factory {
 }
 
 // AccountClient creates and returns a new instance of accounts.Client for interacting with the accounts API.
-func (f factory) AccountClient() (*accounts.Client, error) {
+func (f factory) AccountClient(ctx context.Context) (*accounts.Client, error) {
 	if f.oauthConfig == nil {
 		return nil, ErrOAuthCredentialsMissing
 	}
@@ -141,7 +141,7 @@ func (f factory) AccountClient() (*accounts.Client, error) {
 		return nil, ErrAccountURLMissing
 	}
 
-	restClient, err := f.createRestClient(f.accountURL, auth.NewOAuthBasedClient(context.TODO(), *(f.oauthConfig)))
+	restClient, err := f.createRestClient(f.accountURL, auth.NewOAuthBasedClient(ctx, *(f.oauthConfig)))
 	if err != nil {
 		return nil, err
 	}
@@ -149,8 +149,8 @@ func (f factory) AccountClient() (*accounts.Client, error) {
 }
 
 // AutomationClient creates and returns a new instance of automation.Client for interacting with the automation API.
-func (f factory) AutomationClient() (*automation.Client, error) {
-	restClient, err := f.CreatePlatformClient()
+func (f factory) AutomationClient(ctx context.Context) (*automation.Client, error) {
+	restClient, err := f.CreatePlatformClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -158,8 +158,8 @@ func (f factory) AutomationClient() (*automation.Client, error) {
 }
 
 // BucketClient creates and returns a new instance of buckets.Client for interacting with the bucket API.
-func (f factory) BucketClient() (*buckets.Client, error) {
-	restClient, err := f.CreatePlatformClient()
+func (f factory) BucketClient(ctx context.Context) (*buckets.Client, error) {
+	restClient, err := f.CreatePlatformClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -167,8 +167,8 @@ func (f factory) BucketClient() (*buckets.Client, error) {
 }
 
 // DocumentClient creates and returns a new instance of documents.Client for interacting with the document API.
-func (f factory) DocumentClient() (*documents.Client, error) {
-	restClient, err := f.CreatePlatformClient()
+func (f factory) DocumentClient(ctx context.Context) (*documents.Client, error) {
+	restClient, err := f.CreatePlatformClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -176,8 +176,8 @@ func (f factory) DocumentClient() (*documents.Client, error) {
 }
 
 // SegmentsClient creates and returns a new instance of segments.Client for interacting with the segments API.
-func (f factory) SegmentsClient() (*segments.Client, error) {
-	restClient, err := f.CreatePlatformClient()
+func (f factory) SegmentsClient(ctx context.Context) (*segments.Client, error) {
+	restClient, err := f.CreatePlatformClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -185,8 +185,8 @@ func (f factory) SegmentsClient() (*segments.Client, error) {
 }
 
 // SLOClient creates and returns a new instance of slo.Client for interacting with the SLO API.
-func (f factory) SLOClient() (*slo.Client, error) {
-	restClient, err := f.CreatePlatformClient()
+func (f factory) SLOClient(ctx context.Context) (*slo.Client, error) {
+	restClient, err := f.CreatePlatformClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -195,8 +195,8 @@ func (f factory) SLOClient() (*slo.Client, error) {
 
 // BucketClientWithRetrySettings creates and returns a new instance of buckets.Client with non-default retry settings.
 // For details about how retry settings are used, see buckets.WithRetrySettings.
-func (f factory) BucketClientWithRetrySettings(maxRetries int, durationBetweenTries time.Duration, maxWaitDuration time.Duration) (*buckets.Client, error) {
-	restClient, err := f.CreatePlatformClient()
+func (f factory) BucketClientWithRetrySettings(ctx context.Context, maxRetries int, durationBetweenTries time.Duration, maxWaitDuration time.Duration) (*buckets.Client, error) {
+	restClient, err := f.CreatePlatformClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -204,8 +204,8 @@ func (f factory) BucketClientWithRetrySettings(maxRetries int, durationBetweenTr
 }
 
 // OpenPipelineClient creates and returns a new instance of openpipeline.Client for interacting with the openPipeline API.
-func (f factory) OpenPipelineClient() (*openpipeline.Client, error) {
-	restClient, err := f.CreatePlatformClient()
+func (f factory) OpenPipelineClient(ctx context.Context) (*openpipeline.Client, error) {
+	restClient, err := f.CreatePlatformClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +213,7 @@ func (f factory) OpenPipelineClient() (*openpipeline.Client, error) {
 }
 
 // CreatePlatformClient creates a REST client configured for accessing platform APIs.
-func (f factory) CreatePlatformClient() (*rest.Client, error) {
+func (f factory) CreatePlatformClient(ctx context.Context) (*rest.Client, error) {
 	if f.oauthConfig == nil {
 		return nil, ErrOAuthCredentialsMissing
 	}
@@ -222,7 +222,7 @@ func (f factory) CreatePlatformClient() (*rest.Client, error) {
 		return nil, ErrPlatformURLMissing
 	}
 
-	return f.createRestClient(f.platformURL, auth.NewOAuthBasedClient(context.TODO(), *f.oauthConfig))
+	return f.createRestClient(f.platformURL, auth.NewOAuthBasedClient(ctx, *f.oauthConfig))
 }
 
 // CreateClassicClient creates a REST client configured for accessing classic APIs.
