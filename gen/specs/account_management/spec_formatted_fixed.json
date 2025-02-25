@@ -5940,7 +5940,6 @@
                     "email",
                     "name",
                     "surname",
-                    "description",
                     "createdAt"
                 ]
             },
