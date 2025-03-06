@@ -486,6 +486,73 @@ func (c Client) awaitBucketState(ctx context.Context, bucketName string, desired
 	}
 }
 
+func (c Client) awaitBucketActive(ctx context.Context, bucketName string) (*http.Response, error) {
+	logger := logr.FromContextOrDiscard(ctx)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("context canceled before bucket '%s' became available", bucketName)
+		default:
+			// query bucket
+			r, err := c.apiClient.Get(ctx, bucketName)
+			if err != nil {
+				return nil, err
+			}
+			if !rest.IsSuccess(r) && r.StatusCode != http.StatusNotFound { // if API returns 404 right after creation we want to wait
+				return r, nil
+			}
+
+			// try to unmarshal into internal struct
+			res, err := unmarshalJSON(r)
+			if err != nil {
+				return r, err
+			}
+
+			if res.Status == "active" {
+				logger.V(1).Info("Bucket became active and ready to use")
+				r.StatusCode = http.StatusCreated // return 'created' instead of the GET APIs 'ok'
+				return r, nil
+			}
+
+			r.Body.Close()
+
+			logger.V(1).Info("Waiting for bucket to become active...")
+			time.Sleep(c.retrySettings.durationBetweenTries)
+		}
+	}
+}
+
+func (c Client) awaitBucketRemoved(ctx context.Context, bucketName string) (*http.Response, error) {
+	logger := logr.FromContextOrDiscard(ctx)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("context canceled before bucket '%s' was removed", bucketName)
+		default:
+			// query bucket
+			r, err := c.apiClient.Get(ctx, bucketName)
+			if err != nil {
+				return nil, err
+			}
+			if !rest.IsSuccess(r) && r.StatusCode != http.StatusNotFound { // if API returns 404 right after creation we want to wait
+				return r, nil
+			}
+
+			if r.StatusCode == http.StatusNotFound {
+				logger.V(1).Info("Bucket was removed")
+				return r, nil
+			}
+
+			r.Body.Close()
+
+			logger.V(1).Info("Waiting for bucket to be removed...")
+			time.Sleep(c.retrySettings.durationBetweenTries)
+		}
+	}
+}
+
 func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte) (*http.Response, error) {
 	// try to get existing bucket definition
 	b, err := c.apiClient.Get(ctx, bucketName)
