@@ -39,8 +39,7 @@ const (
 	stateDeleting = "deleting"
 )
 
-type response struct {
-	api.Response
+type bucketResponse struct {
 	BucketName string `json:"bucketName"`
 	Status     string `json:"status"`
 	Version    int    `json:"version"`
@@ -592,18 +591,16 @@ func setBucketName(bucketName string, data *[]byte) error {
 }
 
 // unmarshalJSON unmarshals JSON data into a response struct.
-func unmarshalJSON(raw *http.Response) (response, error) {
-	var r response
+func unmarshalJSON(raw *http.Response) (bucketResponse, error) {
+	var r bucketResponse
 	body, err := io.ReadAll(raw.Body)
 	if err != nil {
 		return r, err
 	}
 	err = json.Unmarshal(body, &r)
 	if err != nil {
-		return response{}, fmt.Errorf("failed to unmarshal response: %w", err)
+		return bucketResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-	r.Data = body
-	r.StatusCode = raw.StatusCode
 	return r, nil
 }
 
