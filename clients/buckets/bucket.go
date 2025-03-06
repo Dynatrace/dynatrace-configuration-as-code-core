@@ -285,7 +285,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	// attempt update
 	if current.Status != stateActive {
 		logger.V(1).Info(fmt.Sprintf("Waiting for bucket with bucket name %q to reach updatable state - currently %s", bucketName, current.Status))
-		if _, err := c.awaitBucketState(ctx, bucketName, active); err != nil {
+		if _, err := c.awaitBucketActive(ctx, bucketName); err != nil {
 			return api.Response{}, err
 		}
 	}
@@ -353,7 +353,7 @@ func (c Client) Delete(ctx context.Context, bucketName string) (Response, error)
 	// await bucket being successfully deleted
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
 	defer cancel() // cancel deadline if awaitBucketState returns before deadline
-	_, err = c.awaitBucketState(timeoutCtx, bucketName, removed)
+	_, err = c.awaitBucketRemoved(timeoutCtx, bucketName)
 	if err != nil {
 		return api.Response{}, fmt.Errorf("unable to delete object with bucket name %q: %w", bucketName, err)
 	}
@@ -395,7 +395,7 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	// If bucket is currently being deleted, wait for it to be gone, then re-create it
 	if b, err := unmarshalJSON(resp); err != nil && b.Status == "deleting" {
 		logger.V(1).Info(fmt.Sprintf("Bucket %q is being deleted. Waiting before re-creation...", b.BucketName))
-		if _, err := c.awaitBucketState(ctx, bucketName, removed); err != nil {
+		if _, err := c.awaitBucketRemoved(ctx, bucketName); err != nil {
 			return Response{}, err
 		}
 		return c.Create(ctx, bucketName, data)
@@ -407,7 +407,7 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 
 	if errors.Is(err, DeletingBucketErr) {
 		logger.V(1).Info(fmt.Sprintf("Failed to upsert bucket with name %q as it was being deleted. Re-creating...", bucketName))
-		if _, err := c.awaitBucketState(ctx, bucketName, removed); err != nil {
+		if _, err := c.awaitBucketRemoved(ctx, bucketName); err != nil {
 			return Response{}, err
 		}
 		return c.Create(ctx, bucketName, data)
@@ -431,59 +431,7 @@ func (c Client) create(ctx context.Context, bucketName string, data []byte) (*ht
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
 	defer cancel() // cancel deadline if awaitBucketState returns before deadline
-	return c.awaitBucketState(timeoutCtx, bucketName, active)
-}
-
-type bucketAvailability int
-
-const (
-	active bucketAvailability = iota
-	removed
-)
-
-func (c Client) awaitBucketState(ctx context.Context, bucketName string, desired bucketAvailability) (*http.Response, error) {
-	logger := logr.FromContextOrDiscard(ctx)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("context canceled before bucket with bucktName %q became available", bucketName)
-		default:
-			// query bucket
-			r, err := c.apiClient.Get(ctx, bucketName)
-			if err != nil {
-				return nil, err
-			}
-			if !rest.IsSuccess(r) && r.StatusCode != http.StatusNotFound { // if API returns 404 right after creation we want to wait
-				return r, nil
-			}
-
-			switch desired {
-			case active:
-				// try to unmarshal into internal struct
-				res, err := unmarshalJSON(r)
-				if err != nil {
-					return r, err
-				}
-
-				if res.Status == "active" {
-					logger.V(1).Info("Bucket became active and ready to use")
-					r.StatusCode = http.StatusCreated // return 'created' instead of the GET APIs 'ok'
-					return r, nil
-				}
-			case removed:
-				if r.StatusCode == http.StatusNotFound {
-					logger.V(1).Info("Bucket was removed")
-					return r, nil
-				}
-			}
-
-			r.Body.Close()
-
-			logger.V(1).Info("Waiting for bucket to reach desired state...")
-			time.Sleep(c.retrySettings.durationBetweenTries)
-		}
-	}
+	return c.awaitBucketActive(timeoutCtx, bucketName)
 }
 
 func (c Client) awaitBucketActive(ctx context.Context, bucketName string) (*http.Response, error) {
@@ -601,7 +549,7 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
 	defer cancel() // cancel deadline if awaitBucketState returns before deadline
-	return c.awaitBucketState(timeoutCtx, bucketName, active)
+	return c.awaitBucketActive(timeoutCtx, bucketName)
 }
 
 // bucketsEqual checks whether two bucket JSONs are equal in terms of update API calls
