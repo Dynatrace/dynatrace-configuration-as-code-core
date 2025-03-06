@@ -484,16 +484,19 @@ func (c Client) awaitBucketRemoved(ctx context.Context, bucketName string) error
 			if err != nil {
 				return err
 			}
-			if !rest.IsSuccess(r) && r.StatusCode != http.StatusNotFound { // if API returns 404 right after creation we want to wait
-				return nil
-			}
 
-			if r.StatusCode == http.StatusNotFound {
-				logger.V(1).Info("Bucket was removed")
-				return nil
-			}
+			_, err = api.NewResponseFromHTTPResponse(r)
+			if err != nil {
+				apiError := api.APIError{}
 
-			r.Body.Close()
+				// if http.StatusNotFound is returned then the bucket has now been removed
+				if errors.As(err, &apiError) && apiError.StatusCode == http.StatusNotFound {
+					logger.V(1).Info("Bucket was removed")
+					return nil
+				}
+
+				return err
+			}
 
 			logger.V(1).Info("Waiting for bucket to be removed...")
 			time.Sleep(c.retrySettings.durationBetweenTries)
