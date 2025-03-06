@@ -353,7 +353,7 @@ func (c Client) Delete(ctx context.Context, bucketName string) (Response, error)
 	// await bucket being successfully deleted
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
 	defer cancel() // cancel deadline if awaitBucketState returns before deadline
-	_, err = c.awaitBucketRemoved(timeoutCtx, bucketName)
+	err = c.awaitBucketRemoved(timeoutCtx, bucketName)
 	if err != nil {
 		return api.Response{}, fmt.Errorf("unable to delete object with bucket name %q: %w", bucketName, err)
 	}
@@ -395,7 +395,7 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	// If bucket is currently being deleted, wait for it to be gone, then re-create it
 	if b, err := unmarshalJSON(resp); err != nil && b.Status == "deleting" {
 		logger.V(1).Info(fmt.Sprintf("Bucket %q is being deleted. Waiting before re-creation...", b.BucketName))
-		if _, err := c.awaitBucketRemoved(ctx, bucketName); err != nil {
+		if err := c.awaitBucketRemoved(ctx, bucketName); err != nil {
 			return Response{}, err
 		}
 		return c.Create(ctx, bucketName, data)
@@ -407,7 +407,7 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 
 	if errors.Is(err, DeletingBucketErr) {
 		logger.V(1).Info(fmt.Sprintf("Failed to upsert bucket with name %q as it was being deleted. Re-creating...", bucketName))
-		if _, err := c.awaitBucketRemoved(ctx, bucketName); err != nil {
+		if err := c.awaitBucketRemoved(ctx, bucketName); err != nil {
 			return Response{}, err
 		}
 		return c.Create(ctx, bucketName, data)
@@ -471,26 +471,26 @@ func (c Client) awaitBucketActive(ctx context.Context, bucketName string) (*http
 	}
 }
 
-func (c Client) awaitBucketRemoved(ctx context.Context, bucketName string) (*http.Response, error) {
+func (c Client) awaitBucketRemoved(ctx context.Context, bucketName string) error {
 	logger := logr.FromContextOrDiscard(ctx)
 
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("context canceled before bucket '%s' was removed", bucketName)
+			return fmt.Errorf("context canceled before bucket '%s' was removed", bucketName)
 		default:
 			// query bucket
 			r, err := c.apiClient.Get(ctx, bucketName)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			if !rest.IsSuccess(r) && r.StatusCode != http.StatusNotFound { // if API returns 404 right after creation we want to wait
-				return r, nil
+				return nil
 			}
 
 			if r.StatusCode == http.StatusNotFound {
 				logger.V(1).Info("Bucket was removed")
-				return r, nil
+				return nil
 			}
 
 			r.Body.Close()
