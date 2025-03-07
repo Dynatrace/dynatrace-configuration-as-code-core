@@ -52,7 +52,6 @@ type Response = api.Response
 type ListResponse = api.PagedListResponse
 
 type listResponse struct {
-	api.Response
 	Buckets []json.RawMessage `json:"buckets"`
 }
 
@@ -158,30 +157,26 @@ func (c Client) List(ctx context.Context) (ListResponse, error) {
 	if err != nil {
 		return ListResponse{}, fmt.Errorf("failed to list buckets:%w", err)
 	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
 
-	// if the response has code != 2xx return empty list with response info
-	if !rest.IsSuccess(resp) {
-		return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+	apiResp, err := api.NewResponseFromHTTPResponse(resp)
+	if err != nil {
+		return ListResponse{}, err
 	}
-	l, err := unmarshalJSONList(resp)
+	r := listResponse{}
+	err = json.Unmarshal(apiResp.Data, &r)
 	if err != nil {
 		logr.FromContextOrDiscard(ctx).Error(err, "failed to unmarshal json response")
-		return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+		return ListResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-	b := make([][]byte, len(l.Buckets))
-	for i, v := range l.Buckets {
+
+	b := make([][]byte, len(r.Buckets))
+	for i, v := range r.Buckets {
 		b[i], _ = v.MarshalJSON() // marshalling the JSON back to JSON will not fail
 	}
 
 	return ListResponse{
 		api.ListResponse{
-			Response: l.Response,
+			Response: apiResp,
 			Objects:  b,
 		},
 	}, nil
@@ -601,22 +596,5 @@ func unmarshalJSON(raw *http.Response) (bucketResponse, error) {
 	if err != nil {
 		return bucketResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-	return r, nil
-}
-
-// unmarshalJSONList unmarshals JSON data into a listResponse struct.
-func unmarshalJSONList(raw *http.Response) (listResponse, error) {
-	var r listResponse
-	body, err := io.ReadAll(raw.Body)
-	if err != nil {
-		return r, err
-	}
-	err = json.Unmarshal(body, &r)
-	if err != nil {
-		return listResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
-	}
-	r.Data = body
-	r.StatusCode = raw.StatusCode
-	r.Request = rest.RequestInfo{Method: raw.Request.Method, URL: raw.Request.URL.String()}
 	return r, nil
 }
