@@ -258,7 +258,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 		return api.Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
-	current, err := unmarshalJSON(resp)
+	current, err := unmarshalJSON(body)
 	if err != nil {
 		logr.FromContextOrDiscard(ctx).Error(err, "failed to unmarshal json response")
 		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
@@ -387,7 +387,7 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	}
 
 	// If bucket is currently being deleted, wait for it to be gone, then re-create it
-	if b, err := unmarshalJSON(resp); err != nil && b.Status == "deleting" {
+	if b, err := unmarshalJSON(body); err != nil && b.Status == "deleting" {
 		logger.V(1).Info(fmt.Sprintf("Bucket %q is being deleted. Waiting before re-creation...", b.BucketName))
 		if err := c.awaitBucketRemoved(ctx, bucketName); err != nil {
 			return Response{}, err
@@ -445,8 +445,13 @@ func (c Client) awaitBucketActive(ctx context.Context, bucketName string) (*http
 				return r, nil
 			}
 
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				return nil, err
+			}
+
 			// try to unmarshal into internal struct
-			res, err := unmarshalJSON(r)
+			res, err := unmarshalJSON(body)
 			if err != nil {
 				return r, err
 			}
@@ -512,8 +517,13 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 
 	defer b.Body.Close()
 
+	body, err := io.ReadAll(b.Body)
+	if err != nil {
+		return nil, err
+	}
+
 	// try to unmarshal into internal struct
-	res, err := unmarshalJSON(b)
+	res, err := unmarshalJSON(body)
 	if err != nil {
 		return nil, err
 	}
@@ -586,13 +596,9 @@ func setBucketName(bucketName string, data *[]byte) error {
 }
 
 // unmarshalJSON unmarshals JSON data into a response struct.
-func unmarshalJSON(raw *http.Response) (bucketResponse, error) {
-	var r bucketResponse
-	body, err := io.ReadAll(raw.Body)
-	if err != nil {
-		return r, err
-	}
-	err = json.Unmarshal(body, &r)
+func unmarshalJSON(body []byte) (bucketResponse, error) {
+	r := bucketResponse{}
+	err := json.Unmarshal(body, &r)
 	if err != nil {
 		return bucketResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
