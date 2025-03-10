@@ -200,12 +200,7 @@ func (c Client) List(ctx context.Context) (ListResponse, error) {
 //   - Response: A Response containing the result of the HTTP call, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
 func (c Client) Create(ctx context.Context, bucketName string, data []byte) (Response, error) {
-	resp, err := c.create(ctx, bucketName, data)
-	if err != nil {
-		return api.Response{}, err
-	}
-
-	return api.NewResponseFromHTTPResponse(resp)
+	return c.create(ctx, bucketName, data)
 }
 
 var DeletingBucketErr = errors.New("cannot update bucket that is currently being deleted")
@@ -284,12 +279,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 		}
 	}
 
-	resp, err = c.getAndUpdate(ctx, bucketName, data)
-	if err != nil {
-		return api.Response{}, err
-	}
-
-	return api.NewResponseFromHTTPResponse(resp)
+	return c.getAndUpdate(ctx, bucketName, data)
 }
 
 // Upsert creates or updates a bucket definition using the provided apiClient. The function first attempts
@@ -364,30 +354,24 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 
 	// First, try to create a new bucket definition
 	resp, err := c.create(ctx, bucketName, data)
-	if err != nil {
-		return api.Response{}, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
 	// If creating the bucket definition worked, return the result
-	if rest.IsSuccess(resp) {
+	if err == nil {
 		logger.Info(fmt.Sprintf("Created bucket with bucket name %q", bucketName))
-		return api.NewResponseFromHTTPResponseAndBody(resp, body), nil
+		return resp, nil
+	}
+
+	apiErr := api.APIError{}
+	if !errors.As(err, &apiErr) {
+		return api.Response{}, err
 	}
 
 	// Return if creation failed, but the errors was not 409 Conflict - Bucket already exists
-	if resp.StatusCode != http.StatusConflict {
-		return api.Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+	if apiErr.StatusCode != http.StatusConflict {
+		return api.Response{}, apiErr
 	}
 
 	// If bucket is currently being deleted, wait for it to be gone, then re-create it
-	if b, err := unmarshalJSON(body); err != nil && b.Status == "deleting" {
+	if b, err := unmarshalJSON(apiErr.Body); err != nil && b.Status == "deleting" {
 		logger.V(1).Info(fmt.Sprintf("Bucket %q is being deleted. Waiting before re-creation...", b.BucketName))
 		if err := c.awaitBucketRemoved(ctx, bucketName); err != nil {
 			return Response{}, err
@@ -396,7 +380,7 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	}
 
 	// Try to update an existing bucket definition
-	logger.V(1).Info(fmt.Sprintf("Failed to create new object with bucket name %q. Trying to update existing object. API Error (HTTP %d): %s", bucketName, resp.StatusCode, body))
+	logger.V(1).Info(fmt.Sprintf("Failed to create new object with bucket name '%s'. Trying to update existing object. API Error (HTTP %d): %s", bucketName, apiErr.StatusCode, apiErr.Body))
 	apiResp, err := c.Update(ctx, bucketName, data)
 
 	if errors.Is(err, DeletingBucketErr) {
@@ -409,60 +393,63 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	return apiResp, err
 }
 
-func (c Client) create(ctx context.Context, bucketName string, data []byte) (*http.Response, error) {
+func (c Client) create(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
 	if err := setBucketName(bucketName, &data); err != nil {
-		return nil, fmt.Errorf("unable to set bucket name: %w", err)
+		return api.Response{}, fmt.Errorf("unable to set bucket name: %w", err)
 	}
 	r, err := c.apiClient.Create(ctx, data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create object with bucketName %q: %w", bucketName, err)
-	}
-	if !rest.IsSuccess(r) {
-		return r, nil
+		return api.Response{}, fmt.Errorf("failed to create bucket with name '%s': %w", bucketName, err)
 	}
 
-	r.Body.Close()
+	_, err = api.NewResponseFromHTTPResponse(r)
+	if err != nil {
+		return api.Response{}, err
+	}
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
 	defer cancel() // cancel deadline if awaitBucketState returns before deadline
+
 	return c.awaitBucketActive(timeoutCtx, bucketName)
 }
 
-func (c Client) awaitBucketActive(ctx context.Context, bucketName string) (*http.Response, error) {
+func (c Client) awaitBucketActive(ctx context.Context, bucketName string) (api.Response, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("context canceled before bucket '%s' became available", bucketName)
+			return api.Response{}, fmt.Errorf("context canceled before bucket '%s' became available", bucketName)
 		default:
 			// query bucket
 			r, err := c.apiClient.Get(ctx, bucketName)
 			if err != nil {
-				return nil, err
-			}
-			if !rest.IsSuccess(r) && r.StatusCode != http.StatusNotFound { // if API returns 404 right after creation we want to wait
-				return r, nil
+				return api.Response{}, err
 			}
 
-			body, err := io.ReadAll(r.Body)
+			apiResp, err := api.NewResponseFromHTTPResponse(r)
 			if err != nil {
-				return nil, err
-			}
+				apiErr := api.APIError{}
+				if !errors.As(err, &apiErr) {
+					return api.Response{}, err
+				}
 
-			// try to unmarshal into internal struct
-			res, err := unmarshalJSON(body)
-			if err != nil {
-				return r, err
-			}
+				if apiErr.StatusCode != http.StatusNotFound {
+					return api.Response{}, err
+				}
+			} else {
+				// try to unmarshal into internal struct
+				res, err := unmarshalJSON(apiResp.Data)
+				if err != nil {
+					return api.Response{}, err
+				}
 
-			if res.Status == "active" {
-				logger.V(1).Info("Bucket became active and ready to use")
-				r.StatusCode = http.StatusCreated // return 'created' instead of the GET APIs 'ok'
-				return r, nil
+				if res.Status == "active" {
+					logger.V(1).Info("Bucket became active and ready to use")
+					apiResp.StatusCode = http.StatusCreated // return 'created' instead of the GET APIs 'ok'
+					return apiResp, nil
+				}
 			}
-
-			r.Body.Close()
 
 			logger.V(1).Info("Waiting for bucket to become active...")
 			time.Sleep(c.retrySettings.durationBetweenTries)
@@ -503,36 +490,29 @@ func (c Client) awaitBucketRemoved(ctx context.Context, bucketName string) error
 	}
 }
 
-func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte) (*http.Response, error) {
+func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
 	// try to get existing bucket definition
 	b, err := c.apiClient.Get(ctx, bucketName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get object with bucket name %q: %w", bucketName, err)
+		return api.Response{}, fmt.Errorf("failed to get object with bucket name %q: %w", bucketName, err)
 	}
 
-	// return the result in case it's no HTTP 200
-	if !rest.IsSuccess(b) {
-		return b, nil
-	}
-
-	defer b.Body.Close()
-
-	body, err := io.ReadAll(b.Body)
+	apiResp, err := api.NewResponseFromHTTPResponse(b)
 	if err != nil {
-		return nil, err
+		return api.Response{}, err
 	}
 
 	// try to unmarshal into internal struct
-	res, err := unmarshalJSON(body)
+	res, err := unmarshalJSON(apiResp.Data)
 	if err != nil {
-		return nil, err
+		return api.Response{}, err
 	}
 
 	// convert data to be sent to JSON
 	var m map[string]interface{}
 	err = json.Unmarshal(data, &m)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal data: %w", err)
+		return api.Response{}, fmt.Errorf("unable to unmarshal data: %w", err)
 	}
 	m["bucketName"] = res.BucketName
 	m["version"] = res.Version
@@ -540,19 +520,18 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 
 	data, err = json.Marshal(m)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal data: %w", err)
+		return api.Response{}, fmt.Errorf("unable to marshal data: %w", err)
 	}
 
 	resp, err := c.apiClient.Update(ctx, bucketName, strconv.Itoa(res.Version), data)
-
 	if err != nil {
-		return nil, err
-	}
-	if !rest.IsSuccess(resp) {
-		return resp, nil
+		return api.Response{}, err
 	}
 
-	resp.Body.Close()
+	_, err = api.NewResponseFromHTTPResponse(resp)
+	if err != nil {
+		return api.Response{}, err
+	}
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
 	defer cancel() // cancel deadline if awaitBucketState returns before deadline
