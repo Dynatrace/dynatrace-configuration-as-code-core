@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -241,29 +240,23 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	if err != nil {
 		return api.Response{}, err
 	}
-	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	apiResp, err := api.NewResponseFromHTTPResponse(resp)
 	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+		return api.Response{}, err
 	}
 
-	if !rest.IsSuccess(resp) {
-		return api.Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	current, err := unmarshalJSON(body)
+	current, err := unmarshalJSON(apiResp.Data)
 	if err != nil {
 		logr.FromContextOrDiscard(ctx).Error(err, "failed to unmarshal json response")
-		return Response{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+		return Response{}, err
 	}
 
 	if current.Status == stateDeleting {
 		return api.Response{}, DeletingBucketErr
 	}
 
-	if bucketsEqual(body, data) {
+	if bucketsEqual(apiResp.Data, data) {
 		logger.Info(fmt.Sprintf("Configuration unmodified, no need to update bucket with bucket name %q", bucketName))
 
 		return api.Response{
