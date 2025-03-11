@@ -6812,8 +6812,7 @@
                 },
                 "required": [
                     "policyUuid",
-                    "groups",
-                    "boundaries"
+                    "groups"
                 ]
             },
             "LevelPolicyBindingDto": {

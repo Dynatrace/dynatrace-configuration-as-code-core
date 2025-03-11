@@ -29,7 +29,7 @@ type Binding struct {
 	// Metadata from bound policies
 	Metadata *map[string]string `json:"metadata,omitempty"`
 	// List of boundary UUIDs used in the binding.
-	Boundaries           []string `json:"boundaries"`
+	Boundaries           []string `json:"boundaries,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -39,11 +39,10 @@ type _Binding Binding
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewBinding(policyUuid string, groups []string, boundaries []string) *Binding {
+func NewBinding(policyUuid string, groups []string) *Binding {
 	this := Binding{}
 	this.PolicyUuid = policyUuid
 	this.Groups = groups
-	this.Boundaries = boundaries
 	return &this
 }
 
@@ -167,26 +166,34 @@ func (o *Binding) SetMetadata(v map[string]string) {
 	o.Metadata = &v
 }
 
-// GetBoundaries returns the Boundaries field value
+// GetBoundaries returns the Boundaries field value if set, zero value otherwise.
 func (o *Binding) GetBoundaries() []string {
-	if o == nil {
+	if o == nil || IsNil(o.Boundaries) {
 		var ret []string
 		return ret
 	}
-
 	return o.Boundaries
 }
 
-// GetBoundariesOk returns a tuple with the Boundaries field value
+// GetBoundariesOk returns a tuple with the Boundaries field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 func (o *Binding) GetBoundariesOk() ([]string, bool) {
-	if o == nil {
+	if o == nil || IsNil(o.Boundaries) {
 		return nil, false
 	}
 	return o.Boundaries, true
 }
 
-// SetBoundaries sets field value
+// HasBoundaries returns a boolean if a field has been set.
+func (o *Binding) HasBoundaries() bool {
+	if o != nil && !IsNil(o.Boundaries) {
+		return true
+	}
+
+	return false
+}
+
+// SetBoundaries gets a reference to the given []string and assigns it to the Boundaries field.
 func (o *Binding) SetBoundaries(v []string) {
 	o.Boundaries = v
 }
@@ -209,7 +216,9 @@ func (o Binding) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Metadata) {
 		toSerialize["metadata"] = o.Metadata
 	}
-	toSerialize["boundaries"] = o.Boundaries
+	if !IsNil(o.Boundaries) {
+		toSerialize["boundaries"] = o.Boundaries
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -225,7 +234,6 @@ func (o *Binding) UnmarshalJSON(data []byte) (err error) {
 	requiredProperties := []string{
 		"policyUuid",
 		"groups",
-		"boundaries",
 	}
 
 	allProperties := make(map[string]interface{})
