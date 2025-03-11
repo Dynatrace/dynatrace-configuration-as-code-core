@@ -27,7 +27,9 @@ type Binding struct {
 	// Parameters from bound policies
 	Parameters *map[string]string `json:"parameters,omitempty"`
 	// Metadata from bound policies
-	Metadata             *map[string]string `json:"metadata,omitempty"`
+	Metadata *map[string]string `json:"metadata,omitempty"`
+	// List of boundary UUIDs used in the binding.
+	Boundaries           []string `json:"boundaries"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -37,10 +39,11 @@ type _Binding Binding
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewBinding(policyUuid string, groups []string) *Binding {
+func NewBinding(policyUuid string, groups []string, boundaries []string) *Binding {
 	this := Binding{}
 	this.PolicyUuid = policyUuid
 	this.Groups = groups
+	this.Boundaries = boundaries
 	return &this
 }
 
@@ -164,6 +167,30 @@ func (o *Binding) SetMetadata(v map[string]string) {
 	o.Metadata = &v
 }
 
+// GetBoundaries returns the Boundaries field value
+func (o *Binding) GetBoundaries() []string {
+	if o == nil {
+		var ret []string
+		return ret
+	}
+
+	return o.Boundaries
+}
+
+// GetBoundariesOk returns a tuple with the Boundaries field value
+// and a boolean to check if the value has been set.
+func (o *Binding) GetBoundariesOk() ([]string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.Boundaries, true
+}
+
+// SetBoundaries sets field value
+func (o *Binding) SetBoundaries(v []string) {
+	o.Boundaries = v
+}
+
 func (o Binding) MarshalJSON() ([]byte, error) {
 	toSerialize, err := o.ToMap()
 	if err != nil {
@@ -182,6 +209,7 @@ func (o Binding) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Metadata) {
 		toSerialize["metadata"] = o.Metadata
 	}
+	toSerialize["boundaries"] = o.Boundaries
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -197,6 +225,7 @@ func (o *Binding) UnmarshalJSON(data []byte) (err error) {
 	requiredProperties := []string{
 		"policyUuid",
 		"groups",
+		"boundaries",
 	}
 
 	allProperties := make(map[string]interface{})
@@ -230,6 +259,7 @@ func (o *Binding) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "groups")
 		delete(additionalProperties, "parameters")
 		delete(additionalProperties, "metadata")
+		delete(additionalProperties, "boundaries")
 		o.AdditionalProperties = additionalProperties
 	}
 

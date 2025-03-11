@@ -22,6 +22,8 @@ var _ MappedNullable = &IpConfigDto{}
 type IpConfigDto struct {
 	// If enabled the ip config allow list gets applied.
 	Enabled bool `json:"enabled"`
+	// If enabled the webhook ip allowlists will ignore the main allowlist CIDR range limitations.
+	AllowWebhookOverride bool `json:"allowWebhookOverride"`
 	// Contains a list of valid IP addresses in CIDR format which are allowed. If enabled it must not be empty.
 	Allowlist            []AllowlistItem `json:"allowlist,omitempty"`
 	AdditionalProperties map[string]interface{}
@@ -33,9 +35,10 @@ type _IpConfigDto IpConfigDto
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewIpConfigDto(enabled bool) *IpConfigDto {
+func NewIpConfigDto(enabled bool, allowWebhookOverride bool) *IpConfigDto {
 	this := IpConfigDto{}
 	this.Enabled = enabled
+	this.AllowWebhookOverride = allowWebhookOverride
 	return &this
 }
 
@@ -69,6 +72,30 @@ func (o *IpConfigDto) GetEnabledOk() (*bool, bool) {
 // SetEnabled sets field value
 func (o *IpConfigDto) SetEnabled(v bool) {
 	o.Enabled = v
+}
+
+// GetAllowWebhookOverride returns the AllowWebhookOverride field value
+func (o *IpConfigDto) GetAllowWebhookOverride() bool {
+	if o == nil {
+		var ret bool
+		return ret
+	}
+
+	return o.AllowWebhookOverride
+}
+
+// GetAllowWebhookOverrideOk returns a tuple with the AllowWebhookOverride field value
+// and a boolean to check if the value has been set.
+func (o *IpConfigDto) GetAllowWebhookOverrideOk() (*bool, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.AllowWebhookOverride, true
+}
+
+// SetAllowWebhookOverride sets field value
+func (o *IpConfigDto) SetAllowWebhookOverride(v bool) {
+	o.AllowWebhookOverride = v
 }
 
 // GetAllowlist returns the Allowlist field value if set, zero value otherwise.
@@ -114,6 +141,7 @@ func (o IpConfigDto) MarshalJSON() ([]byte, error) {
 func (o IpConfigDto) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["enabled"] = o.Enabled
+	toSerialize["allowWebhookOverride"] = o.AllowWebhookOverride
 	if !IsNil(o.Allowlist) {
 		toSerialize["allowlist"] = o.Allowlist
 	}
@@ -131,6 +159,7 @@ func (o *IpConfigDto) UnmarshalJSON(data []byte) (err error) {
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
 		"enabled",
+		"allowWebhookOverride",
 	}
 
 	allProperties := make(map[string]interface{})
@@ -161,6 +190,7 @@ func (o *IpConfigDto) UnmarshalJSON(data []byte) (err error) {
 
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
 		delete(additionalProperties, "enabled")
+		delete(additionalProperties, "allowWebhookOverride")
 		delete(additionalProperties, "allowlist")
 		o.AdditionalProperties = additionalProperties
 	}
