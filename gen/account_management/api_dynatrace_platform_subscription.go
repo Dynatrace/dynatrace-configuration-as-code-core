@@ -226,7 +226,7 @@ func (r ApiGetEnvironmentCostRequest) Execute() (*SubscriptionEnvironmentCostLis
 }
 
 /*
-GetEnvironmentCost Gets cost data of a SaaS subscription by environment
+GetEnvironmentCost Gets the account costs of a SaaS subscription per environment
 
 This endpoint is SaaS only.
 
@@ -234,6 +234,8 @@ This endpoint is SaaS only.
 	@param accountUuid The ID of the required SaaS account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
 	@param subscriptionUuid The UUID of the requested subscription.   Fetch the list of subscriptions via the [GET all subscriptions](https://dt-url.net/jq03jvq) request.
 	@return ApiGetEnvironmentCostRequest
+
+Deprecated
 */
 func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentCost(ctx context.Context, accountUuid string, subscriptionUuid string) ApiGetEnvironmentCostRequest {
 	return ApiGetEnvironmentCostRequest{
@@ -247,6 +249,8 @@ func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentCost(ctx context
 // Execute executes the request
 //
 //	@return SubscriptionEnvironmentCostListV2Dto
+//
+// Deprecated
 func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentCostExecute(r ApiGetEnvironmentCostRequest) (*SubscriptionEnvironmentCostListV2Dto, *http.Response, error) {
 	var (
 		localVarHTTPMethod  = http.MethodGet
@@ -594,7 +598,7 @@ func (r ApiGetEnvironmentUsageRequest) Execute() (*SubscriptionEnvironmentUsageL
 }
 
 /*
-GetEnvironmentUsage Gets the usage of a SaaS subscription per environment
+GetEnvironmentUsage Gets the account usage of a SaaS subscription per environment
 
 This endpoint is SaaS only.
 
@@ -602,6 +606,8 @@ This endpoint is SaaS only.
 	@param accountUuid The ID of the required SaaS account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
 	@param subscriptionUuid The UUID of the requested subscription.   Fetch the list of subscriptions via the [GET all subscriptions](https://dt-url.net/jq03jvq) request.
 	@return ApiGetEnvironmentUsageRequest
+
+Deprecated
 */
 func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentUsage(ctx context.Context, accountUuid string, subscriptionUuid string) ApiGetEnvironmentUsageRequest {
 	return ApiGetEnvironmentUsageRequest{
@@ -615,6 +621,8 @@ func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentUsage(ctx contex
 // Execute executes the request
 //
 //	@return SubscriptionEnvironmentUsageListV2Dto
+//
+// Deprecated
 func (a *DynatracePlatformSubscriptionAPIService) GetEnvironmentUsageExecute(r ApiGetEnvironmentUsageRequest) (*SubscriptionEnvironmentUsageListV2Dto, *http.Response, error) {
 	var (
 		localVarHTTPMethod  = http.MethodGet

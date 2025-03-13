@@ -22,8 +22,6 @@ var _ MappedNullable = &Statement{}
 type Statement struct {
 	// The effect of the policy (for example, allow something).
 	Effect string `json:"effect"`
-	// The service to which the policy applies.
-	Service *string `json:"service,omitempty"`
 	// A list of granted permissions.
 	Permissions []string `json:"permissions"`
 	// A list of conditions limiting the granted permissions.
@@ -75,38 +73,6 @@ func (o *Statement) GetEffectOk() (*string, bool) {
 // SetEffect sets field value
 func (o *Statement) SetEffect(v string) {
 	o.Effect = v
-}
-
-// GetService returns the Service field value if set, zero value otherwise.
-func (o *Statement) GetService() string {
-	if o == nil || IsNil(o.Service) {
-		var ret string
-		return ret
-	}
-	return *o.Service
-}
-
-// GetServiceOk returns a tuple with the Service field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *Statement) GetServiceOk() (*string, bool) {
-	if o == nil || IsNil(o.Service) {
-		return nil, false
-	}
-	return o.Service, true
-}
-
-// HasService returns a boolean if a field has been set.
-func (o *Statement) HasService() bool {
-	if o != nil && !IsNil(o.Service) {
-		return true
-	}
-
-	return false
-}
-
-// SetService gets a reference to the given string and assigns it to the Service field.
-func (o *Statement) SetService(v string) {
-	o.Service = &v
 }
 
 // GetPermissions returns the Permissions field value
@@ -168,9 +134,6 @@ func (o Statement) MarshalJSON() ([]byte, error) {
 func (o Statement) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["effect"] = o.Effect
-	if !IsNil(o.Service) {
-		toSerialize["service"] = o.Service
-	}
 	toSerialize["permissions"] = o.Permissions
 	toSerialize["conditions"] = o.Conditions
 
@@ -219,7 +182,6 @@ func (o *Statement) UnmarshalJSON(data []byte) (err error) {
 
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
 		delete(additionalProperties, "effect")
-		delete(additionalProperties, "service")
 		delete(additionalProperties, "permissions")
 		delete(additionalProperties, "conditions")
 		o.AdditionalProperties = additionalProperties

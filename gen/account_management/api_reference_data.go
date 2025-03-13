@@ -217,23 +217,23 @@ func (a *ReferenceDataAPIService) GetRegionsExecute(r ApiGetRegionsRequest) ([]R
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiGetTimezonesRequest struct {
+type ApiReferenceDataControllerRequest struct {
 	ctx        context.Context
 	ApiService *ReferenceDataAPIService
 }
 
-func (r ApiGetTimezonesRequest) Execute() ([]TimeZoneDto, *http.Response, error) {
-	return r.ApiService.GetTimezonesExecute(r)
+func (r ApiReferenceDataControllerRequest) Execute() ([]TimeZoneDto, *http.Response, error) {
+	return r.ApiService.ReferenceDataControllerExecute(r)
 }
 
 /*
-GetTimezones Lists all available time zones
+ReferenceDataController Lists all available time zones
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return ApiGetTimezonesRequest
+	@return ApiReferenceDataControllerRequest
 */
-func (a *ReferenceDataAPIService) GetTimezones(ctx context.Context) ApiGetTimezonesRequest {
-	return ApiGetTimezonesRequest{
+func (a *ReferenceDataAPIService) ReferenceDataController(ctx context.Context) ApiReferenceDataControllerRequest {
+	return ApiReferenceDataControllerRequest{
 		ApiService: a,
 		ctx:        ctx,
 	}
@@ -242,7 +242,7 @@ func (a *ReferenceDataAPIService) GetTimezones(ctx context.Context) ApiGetTimezo
 // Execute executes the request
 //
 //	@return []TimeZoneDto
-func (a *ReferenceDataAPIService) GetTimezonesExecute(r ApiGetTimezonesRequest) ([]TimeZoneDto, *http.Response, error) {
+func (a *ReferenceDataAPIService) ReferenceDataControllerExecute(r ApiReferenceDataControllerRequest) ([]TimeZoneDto, *http.Response, error) {
 	var (
 		localVarHTTPMethod  = http.MethodGet
 		localVarPostBody    interface{}
@@ -250,7 +250,7 @@ func (a *ReferenceDataAPIService) GetTimezonesExecute(r ApiGetTimezonesRequest) 
 		localVarReturnValue []TimeZoneDto
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ReferenceDataAPIService.GetTimezones")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ReferenceDataAPIService.ReferenceDataController")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}

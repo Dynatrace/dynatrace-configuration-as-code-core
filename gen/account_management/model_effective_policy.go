@@ -24,7 +24,7 @@ type EffectivePolicy struct {
 	Uuid string `json:"uuid"`
 	// The display name of the policy.
 	Name string `json:"name"`
-	// The the statement query of the policy.
+	// The statement query of the policy.
 	StatementQuery string `json:"statementQuery"`
 	// The type of the level to which the policy applies.
 	LevelType string `json:"levelType"`

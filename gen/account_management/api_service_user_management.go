@@ -236,9 +236,10 @@ type ApiGetServiceUsersFromAccountRequest struct {
 	accountUuid string
 	page        *int32
 	pageSize    *int32
+	pageKey     *string
 }
 
-// The number of the requested page. Can be increased as long as **hasNextPage** is true in the response.
+// The number of the requested page. Can be increased as long as **nextPageKey** is available in the response.
 func (r ApiGetServiceUsersFromAccountRequest) Page(page int32) ApiGetServiceUsersFromAccountRequest {
 	r.page = &page
 	return r
@@ -247,6 +248,12 @@ func (r ApiGetServiceUsersFromAccountRequest) Page(page int32) ApiGetServiceUser
 // Defines the requested number of entries for the next page.
 func (r ApiGetServiceUsersFromAccountRequest) PageSize(pageSize int32) ApiGetServiceUsersFromAccountRequest {
 	r.pageSize = &pageSize
+	return r
+}
+
+// The cursor for the next page of results. You can find it in the **nextPageKey** field of the previous response.
+func (r ApiGetServiceUsersFromAccountRequest) PageKey(pageKey string) ApiGetServiceUsersFromAccountRequest {
+	r.pageKey = &pageKey
 	return r
 }
 
@@ -297,6 +304,9 @@ func (a *ServiceUserManagementAPIService) GetServiceUsersFromAccountExecute(r Ap
 	}
 	if r.pageSize != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "page-size", r.pageSize, "form", "")
+	}
+	if r.pageKey != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "page-key", r.pageKey, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -350,4 +360,110 @@ func (a *ServiceUserManagementAPIService) GetServiceUsersFromAccountExecute(r Ap
 	}
 
 	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiUpdateServiceUserForAccountRequest struct {
+	ctx            context.Context
+	ApiService     *ServiceUserManagementAPIService
+	accountUuid    string
+	userUuid       string
+	serviceUserDto *ServiceUserDto
+}
+
+// The JSON body of the request. Contains changed name and description of the service user.
+func (r ApiUpdateServiceUserForAccountRequest) ServiceUserDto(serviceUserDto ServiceUserDto) ApiUpdateServiceUserForAccountRequest {
+	r.serviceUserDto = &serviceUserDto
+	return r
+}
+
+func (r ApiUpdateServiceUserForAccountRequest) Execute() (*http.Response, error) {
+	return r.ApiService.UpdateServiceUserForAccountExecute(r)
+}
+
+/*
+UpdateServiceUserForAccount Updates name and description of service user in an account
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+	@param userUuid The UUID of the required user.
+	@return ApiUpdateServiceUserForAccountRequest
+*/
+func (a *ServiceUserManagementAPIService) UpdateServiceUserForAccount(ctx context.Context, accountUuid string, userUuid string) ApiUpdateServiceUserForAccountRequest {
+	return ApiUpdateServiceUserForAccountRequest{
+		ApiService:  a,
+		ctx:         ctx,
+		accountUuid: accountUuid,
+		userUuid:    userUuid,
+	}
+}
+
+// Execute executes the request
+func (a *ServiceUserManagementAPIService) UpdateServiceUserForAccountExecute(r ApiUpdateServiceUserForAccountRequest) (*http.Response, error) {
+	var (
+		localVarHTTPMethod = http.MethodPut
+		localVarPostBody   interface{}
+		formFiles          []formFile
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ServiceUserManagementAPIService.UpdateServiceUserForAccount")
+	if err != nil {
+		return nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/iam/v1/accounts/{accountUuid}/service-users/{userUuid}"
+	localVarPath = strings.Replace(localVarPath, "{"+"accountUuid"+"}", url.PathEscape(parameterValueToString(r.accountUuid, "accountUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"userUuid"+"}", url.PathEscape(parameterValueToString(r.userUuid, "userUuid")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.serviceUserDto == nil {
+		return nil, reportError("serviceUserDto is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	// body params
+	localVarPostBody = r.serviceUserDto
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarHTTPResponse, newErr
+	}
+
+	return localVarHTTPResponse, nil
 }

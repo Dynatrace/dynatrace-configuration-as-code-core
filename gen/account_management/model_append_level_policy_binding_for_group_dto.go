@@ -22,7 +22,9 @@ type AppendLevelPolicyBindingForGroupDto struct {
 	// Parameters provided for bindings
 	Parameters *map[string]string `json:"parameters,omitempty"`
 	// Metadata provided for bindings
-	Metadata             *map[string]string `json:"metadata,omitempty"`
+	Metadata *map[string]string `json:"metadata,omitempty"`
+	// List of boundary UUIDs used in the binding.
+	Boundaries           []string `json:"boundaries,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -109,6 +111,38 @@ func (o *AppendLevelPolicyBindingForGroupDto) SetMetadata(v map[string]string) {
 	o.Metadata = &v
 }
 
+// GetBoundaries returns the Boundaries field value if set, zero value otherwise.
+func (o *AppendLevelPolicyBindingForGroupDto) GetBoundaries() []string {
+	if o == nil || IsNil(o.Boundaries) {
+		var ret []string
+		return ret
+	}
+	return o.Boundaries
+}
+
+// GetBoundariesOk returns a tuple with the Boundaries field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AppendLevelPolicyBindingForGroupDto) GetBoundariesOk() ([]string, bool) {
+	if o == nil || IsNil(o.Boundaries) {
+		return nil, false
+	}
+	return o.Boundaries, true
+}
+
+// HasBoundaries returns a boolean if a field has been set.
+func (o *AppendLevelPolicyBindingForGroupDto) HasBoundaries() bool {
+	if o != nil && !IsNil(o.Boundaries) {
+		return true
+	}
+
+	return false
+}
+
+// SetBoundaries gets a reference to the given []string and assigns it to the Boundaries field.
+func (o *AppendLevelPolicyBindingForGroupDto) SetBoundaries(v []string) {
+	o.Boundaries = v
+}
+
 func (o AppendLevelPolicyBindingForGroupDto) MarshalJSON() ([]byte, error) {
 	toSerialize, err := o.ToMap()
 	if err != nil {
@@ -124,6 +158,9 @@ func (o AppendLevelPolicyBindingForGroupDto) ToMap() (map[string]interface{}, er
 	}
 	if !IsNil(o.Metadata) {
 		toSerialize["metadata"] = o.Metadata
+	}
+	if !IsNil(o.Boundaries) {
+		toSerialize["boundaries"] = o.Boundaries
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -149,6 +186,7 @@ func (o *AppendLevelPolicyBindingForGroupDto) UnmarshalJSON(data []byte) (err er
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
 		delete(additionalProperties, "parameters")
 		delete(additionalProperties, "metadata")
+		delete(additionalProperties, "boundaries")
 		o.AdditionalProperties = additionalProperties
 	}
 

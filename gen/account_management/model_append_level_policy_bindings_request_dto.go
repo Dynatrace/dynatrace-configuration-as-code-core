@@ -21,7 +21,9 @@ var _ MappedNullable = &AppendLevelPolicyBindingsRequestDto{}
 // AppendLevelPolicyBindingsRequestDto struct for AppendLevelPolicyBindingsRequestDto
 type AppendLevelPolicyBindingsRequestDto struct {
 	// A list of user groups (specified by IDs) to which the policy applies.
-	Groups               []string `json:"groups"`
+	Groups []string `json:"groups"`
+	// List of boundary UUIDs used in the binding.
+	Boundaries           []string `json:"boundaries,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -69,6 +71,38 @@ func (o *AppendLevelPolicyBindingsRequestDto) SetGroups(v []string) {
 	o.Groups = v
 }
 
+// GetBoundaries returns the Boundaries field value if set, zero value otherwise.
+func (o *AppendLevelPolicyBindingsRequestDto) GetBoundaries() []string {
+	if o == nil || IsNil(o.Boundaries) {
+		var ret []string
+		return ret
+	}
+	return o.Boundaries
+}
+
+// GetBoundariesOk returns a tuple with the Boundaries field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AppendLevelPolicyBindingsRequestDto) GetBoundariesOk() ([]string, bool) {
+	if o == nil || IsNil(o.Boundaries) {
+		return nil, false
+	}
+	return o.Boundaries, true
+}
+
+// HasBoundaries returns a boolean if a field has been set.
+func (o *AppendLevelPolicyBindingsRequestDto) HasBoundaries() bool {
+	if o != nil && !IsNil(o.Boundaries) {
+		return true
+	}
+
+	return false
+}
+
+// SetBoundaries gets a reference to the given []string and assigns it to the Boundaries field.
+func (o *AppendLevelPolicyBindingsRequestDto) SetBoundaries(v []string) {
+	o.Boundaries = v
+}
+
 func (o AppendLevelPolicyBindingsRequestDto) MarshalJSON() ([]byte, error) {
 	toSerialize, err := o.ToMap()
 	if err != nil {
@@ -80,6 +114,9 @@ func (o AppendLevelPolicyBindingsRequestDto) MarshalJSON() ([]byte, error) {
 func (o AppendLevelPolicyBindingsRequestDto) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["groups"] = o.Groups
+	if !IsNil(o.Boundaries) {
+		toSerialize["boundaries"] = o.Boundaries
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -124,6 +161,7 @@ func (o *AppendLevelPolicyBindingsRequestDto) UnmarshalJSON(data []byte) (err er
 
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
 		delete(additionalProperties, "groups")
+		delete(additionalProperties, "boundaries")
 		o.AdditionalProperties = additionalProperties
 	}
 
