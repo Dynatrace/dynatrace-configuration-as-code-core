@@ -27,7 +27,7 @@ type ExternalServiceUserDto struct {
 	// Name of service user
 	Name string `json:"name"`
 	// Surname of service user
-	Surname string `json:"surname"`
+	Surname *string `json:"surname,omitempty"`
 	// The description of the service user
 	Description *string `json:"description,omitempty"`
 	// The date and time when the user was created in `2021-05-01T15:11:00Z` format.
@@ -41,12 +41,11 @@ type _ExternalServiceUserDto ExternalServiceUserDto
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewExternalServiceUserDto(uid string, email string, name string, surname string, createdAt string) *ExternalServiceUserDto {
+func NewExternalServiceUserDto(uid string, email string, name string, createdAt string) *ExternalServiceUserDto {
 	this := ExternalServiceUserDto{}
 	this.Uid = uid
 	this.Email = email
 	this.Name = name
-	this.Surname = surname
 	this.CreatedAt = createdAt
 	return &this
 }
@@ -131,28 +130,36 @@ func (o *ExternalServiceUserDto) SetName(v string) {
 	o.Name = v
 }
 
-// GetSurname returns the Surname field value
+// GetSurname returns the Surname field value if set, zero value otherwise.
 func (o *ExternalServiceUserDto) GetSurname() string {
-	if o == nil {
+	if o == nil || IsNil(o.Surname) {
 		var ret string
 		return ret
 	}
-
-	return o.Surname
+	return *o.Surname
 }
 
-// GetSurnameOk returns a tuple with the Surname field value
+// GetSurnameOk returns a tuple with the Surname field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 func (o *ExternalServiceUserDto) GetSurnameOk() (*string, bool) {
-	if o == nil {
+	if o == nil || IsNil(o.Surname) {
 		return nil, false
 	}
-	return &o.Surname, true
+	return o.Surname, true
 }
 
-// SetSurname sets field value
+// HasSurname returns a boolean if a field has been set.
+func (o *ExternalServiceUserDto) HasSurname() bool {
+	if o != nil && !IsNil(o.Surname) {
+		return true
+	}
+
+	return false
+}
+
+// SetSurname gets a reference to the given string and assigns it to the Surname field.
 func (o *ExternalServiceUserDto) SetSurname(v string) {
-	o.Surname = v
+	o.Surname = &v
 }
 
 // GetDescription returns the Description field value if set, zero value otherwise.
@@ -224,7 +231,9 @@ func (o ExternalServiceUserDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["uid"] = o.Uid
 	toSerialize["email"] = o.Email
 	toSerialize["name"] = o.Name
-	toSerialize["surname"] = o.Surname
+	if !IsNil(o.Surname) {
+		toSerialize["surname"] = o.Surname
+	}
 	if !IsNil(o.Description) {
 		toSerialize["description"] = o.Description
 	}
@@ -245,7 +254,6 @@ func (o *ExternalServiceUserDto) UnmarshalJSON(data []byte) (err error) {
 		"uid",
 		"email",
 		"name",
-		"surname",
 		"createdAt",
 	}
 

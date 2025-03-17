@@ -1,6 +1,46 @@
 {
     "openapi": "3.0.0",
     "paths": {
+        "/iam/v1/accounts/{accountUuid}/limits": {
+            "get": {
+                "operationId": "getLimitsForAccount",
+                "x-token-scopes": [
+                    "account-idm-read",
+                    "sso-idm:account-limits:read"
+                ],
+                "summary": "Returns limits defined for an account",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response - information about limits defined for a level.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AccountLimitsPage"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Account limits"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
         "/iam/v1/accounts/{accountUuid}/users": {
             "get": {
                 "operationId": "UsersController_getUsers",
@@ -549,7 +589,7 @@
                 "operationId": "PermissionsController_getGroupPermissions",
                 "summary": "Lists all permissions of a user group",
                 "deprecated": true,
-                "description": "Role based access is deprecated and will be removed soon, it is not advised to assign new role based permissions\n        at this moment. Please read the following migration guide to migrate to managing permissions with policies and\n        boundaries. <a href=\"https://dt-url.net/gx03uwa\">Learn how to manage policies<a>",
+                "description": "Consider upgrading your role-based permissions to IAM policies by following this guide. <a href=\"https://dt-url.net/gx03uwa\">Learn how to manage policies<a>",
                 "parameters": [
                     {
                         "name": "accountUuid",
@@ -595,7 +635,7 @@
                 "operationId": "PermissionsController_addGroupPermissions",
                 "summary": "Assigns permissions to a user group. Existing permissions remain unaffected.",
                 "deprecated": true,
-                "description": "Role based access is deprecated and will be removed soon, it is not advised to assign new role based permissions\n        at this moment. Please read the following migration guide to migrate to managing permissions with policies and\n        boundaries. <a href=\"https://dt-url.net/gx03uwa\">Learn how to manage policies<a>",
+                "description": "Consider upgrading your role-based permissions to IAM policies by following this guide. <a href=\"https://dt-url.net/gx03uwa\">Learn how to manage policies<a>",
                 "parameters": [
                     {
                         "name": "accountUuid",
@@ -648,7 +688,7 @@
                 "operationId": "PermissionsController_overwriteGroupPermissions",
                 "summary": "Sets permissions of a user group. Existing permissions are overwritten.",
                 "deprecated": true,
-                "description": "Role based access is deprecated and will be removed soon, it is not advised to assign new role based permissions\n        at this moment. Please read the following migration guide to migrate to managing permissions with policies and\n        boundaries. <a href=\"https://dt-url.net/gx03uwa\">Learn how to manage policies<a>",
+                "description": "Consider upgrading your role-based permissions to IAM policies by following this guide. <a href=\"https://dt-url.net/gx03uwa\">Learn how to manage policies<a>",
                 "parameters": [
                     {
                         "name": "accountUuid",
@@ -701,7 +741,7 @@
                 "operationId": "PermissionsController_removeGroupPermissions",
                 "summary": "Removes a permission from a user group",
                 "deprecated": true,
-                "description": "Role based access is deprecated and will be removed soon, it is not advised to assign new role based permissions\n        at this moment. Please read the following migration guide to migrate to managing permissions with policies and\n        boundaries. <a href=\"https://dt-url.net/gx03uwa\">Learn how to manage policies<a>",
+                "description": "Consider upgrading your role-based permissions to IAM policies by following this guide. <a href=\"https://dt-url.net/gx03uwa\">Learn how to manage policies<a>",
                 "parameters": [
                     {
                         "name": "accountUuid",
@@ -778,6 +818,191 @@
                 },
                 "tags": [
                     "Permission management"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/iam/v1/repo/{levelType}/{levelId}/policies/validation": {
+            "post": {
+                "operationId": "validateNewLevelPolicy",
+                "x-token-scopes": [
+                    "iam-policies-management",
+                    "iam:policies:read"
+                ],
+                "summary": "Validates the payload for the `POST /iam/v1/repo/{levelType}/{levelId}/policies` request",
+                "deprecated": true,
+                "description": "This endpoint is unavailable within global level. Validation moved to create/update policy endpoints. ",
+                "parameters": [
+                    {
+                        "name": "levelId",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the policy level. Use one of the following values, depending on the level type: \n\n* account: use the UUID of the account. \n* environment: use the ID of the environment.",
+                        "schema": {}
+                    },
+                    {
+                        "name": "levelType",
+                        "required": true,
+                        "in": "path",
+                        "description": "The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available: \n\n* `account`: An account policy applies to all environments of an account. \n* `environment`: An environment policy applies to a specific environment. \n\n Each level inherits the policies of the higher level and extends them with its own policies.",
+                        "schema": {}
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "description": "The JSON body of the request. Contains the configuration of a policy to be validated.",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateOrUpdateLevelPolicyRequestDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success. The submitted policy is valid. Check the response body for possible validation warnings.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationDto"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Failed. The request is invalid",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorDto"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Failed. The specified resource is not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorDto"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The specified response not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Policy management"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/iam/v1/repo/{levelType}/{levelId}/policies/validation/{policyUuid}": {
+            "post": {
+                "operationId": "validateLevelPolicy",
+                "x-token-scopes": [
+                    "iam-policies-management",
+                    "iam:policies:read"
+                ],
+                "summary": "Validates the payload for the `PUT /iam/v1/repo/{levelType}/{levelId}/policies/{policyUuid}` request",
+                "deprecated": true,
+                "description": "This endpoint is unavailable within global level. Validation moved to create/update policy endpoints. ",
+                "parameters": [
+                    {
+                        "name": "policyUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the policy to be validated.",
+                        "schema": {}
+                    },
+                    {
+                        "name": "levelId",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the policy level. Use one of the following values, depending on the level type: \n\n* account: use the UUID of the account. \n* environment: use the ID of the environment.",
+                        "schema": {}
+                    },
+                    {
+                        "name": "levelType",
+                        "required": true,
+                        "in": "path",
+                        "description": "The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available: \n\n* `account`: An account policy applies to all environments of an account. \n* `environment`: An environment policy applies to a specific environment. \n\n Each level inherits the policies of the higher level and extends them with its own policies.",
+                        "schema": {}
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "description": "The JSON body of the request. Contains the configuration of a policy to be validated.",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateOrUpdateLevelPolicyRequestDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success. The submitted policy is valid. Check the response body for possible validation warnings.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationDto"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Failed. The request is invalid",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorDto"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Failed. The specified resource is not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorDto"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The specified response not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Policy management"
                 ],
                 "security": [
                     {
@@ -1046,189 +1271,6 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/LevelPolicyDto"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Failed. The request is invalid",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorDto"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Failed. The specified resource is not found.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorDto"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "The specified response not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorDto"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": [
-                    "Policy management"
-                ],
-                "security": [
-                    {
-                        "bearer": []
-                    }
-                ]
-            }
-        },
-        "/iam/v1/repo/{levelType}/{levelId}/policies/validation": {
-            "post": {
-                "operationId": "validateNewLevelPolicy",
-                "x-token-scopes": [
-                    "iam-policies-management",
-                    "iam:policies:read"
-                ],
-                "summary": "Validates the payload for the `POST /iam/v1/repo/{levelType}/{levelId}/policies` request",
-                "description": "This endpoint is unavailable within global level",
-                "parameters": [
-                    {
-                        "name": "levelId",
-                        "required": true,
-                        "in": "path",
-                        "description": "The ID of the policy level. Use one of the following values, depending on the level type: \n\n* account: use the UUID of the account. \n* environment: use the ID of the environment.",
-                        "schema": {}
-                    },
-                    {
-                        "name": "levelType",
-                        "required": true,
-                        "in": "path",
-                        "description": "The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available: \n\n* `account`: An account policy applies to all environments of an account. \n* `environment`: An environment policy applies to a specific environment. \n\n Each level inherits the policies of the higher level and extends them with its own policies.",
-                        "schema": {}
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "description": "The JSON body of the request. Contains the configuration of a policy to be validated.",
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/CreateOrUpdateLevelPolicyRequestDto"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Success. The submitted policy is valid. Check the response body for possible validation warnings.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ValidationDto"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Failed. The request is invalid",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorDto"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Failed. The specified resource is not found.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorDto"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "The specified response not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorDto"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": [
-                    "Policy management"
-                ],
-                "security": [
-                    {
-                        "bearer": []
-                    }
-                ]
-            }
-        },
-        "/iam/v1/repo/{levelType}/{levelId}/policies/validation/{policyUuid}": {
-            "post": {
-                "operationId": "validateLevelPolicy",
-                "x-token-scopes": [
-                    "iam-policies-management",
-                    "iam:policies:read"
-                ],
-                "summary": "Validates the payload for the `PUT /iam/v1/repo/{levelType}/{levelId}/policies/{policyUuid}` request",
-                "description": "This endpoint is unavailable within global level",
-                "parameters": [
-                    {
-                        "name": "policyUuid",
-                        "required": true,
-                        "in": "path",
-                        "description": "The ID of the policy to be validated.",
-                        "schema": {}
-                    },
-                    {
-                        "name": "levelId",
-                        "required": true,
-                        "in": "path",
-                        "description": "The ID of the policy level. Use one of the following values, depending on the level type: \n\n* account: use the UUID of the account. \n* environment: use the ID of the environment.",
-                        "schema": {}
-                    },
-                    {
-                        "name": "levelType",
-                        "required": true,
-                        "in": "path",
-                        "description": "The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available: \n\n* `account`: An account policy applies to all environments of an account. \n* `environment`: An environment policy applies to a specific environment. \n\n Each level inherits the policies of the higher level and extends them with its own policies.",
-                        "schema": {}
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "description": "The JSON body of the request. Contains the configuration of a policy to be validated.",
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/CreateOrUpdateLevelPolicyRequestDto"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Success. The submitted policy is valid. Check the response body for possible validation warnings.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ValidationDto"
                                 }
                             }
                         }
@@ -1582,7 +1624,7 @@
                     "iam-policies-management",
                     "iam:bindings:write"
                 ],
-                "summary": "Updates policies for a user group",
+                "summary": "Updates policy bindings for a user group. The request overwrites an existing set of policy bindings",
                 "description": "The request overwrites existing policies.\nThis endpoint is unavailable within global level",
                 "parameters": [
                     {
@@ -1884,7 +1926,7 @@
                 ],
                 "requestBody": {
                     "required": true,
-                    "description": "The JSON body of the request. Contains user groups that must use the policy.",
+                    "description": "The JSON body of the request. Contains user groups that must use the policy and optional boundaries.",
                     "content": {
                         "application/json": {
                             "schema": {
@@ -2212,7 +2254,7 @@
                 ],
                 "requestBody": {
                     "required": true,
-                    "description": "The JSON body of the request. Contains parameters and metadata",
+                    "description": "The JSON body of the request. Contains parameters, metadata and boundaries",
                     "content": {
                         "application/json": {
                             "schema": {
@@ -2315,7 +2357,7 @@
                 ],
                 "requestBody": {
                     "required": true,
-                    "description": "The JSON body of the request. Contains parameters and metadata",
+                    "description": "The JSON body of the request. Contains parameters, metadata and boundaries",
                     "content": {
                         "application/json": {
                             "schema": {
@@ -2777,6 +2819,72 @@
                 ]
             }
         },
+        "/iam/v1/repo/{levelType}/{levelId}/limits": {
+            "get": {
+                "operationId": "getLimitsForLevel",
+                "x-token-scopes": [
+                    "iam-policies-management",
+                    "iam:limits:read"
+                ],
+                "summary": "Returns limits defined for a level",
+                "parameters": [
+                    {
+                        "name": "levelId",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the policy level. Use one of the following values, depending on the level type: \n\n* account: use the UUID of the account. \n* environment: use the ID of the environment.",
+                        "schema": {}
+                    },
+                    {
+                        "name": "levelType",
+                        "required": true,
+                        "in": "path",
+                        "description": "The type of the [policy](https://dt-url.net/eu03uap) level. The following values are available: \n\n* `account`: An account policy applies to all environments of an account. \n* `environment`: An environment policy applies to a specific environment. \n\n Each level inherits the policies of the higher level and extends them with its own policies.",
+                        "schema": {}
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response - information about limits defined for a level.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LevelLimitsDto"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Failed. The request is invalid",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorDto"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Failed. The specified resource is not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Policy management"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
         "/iam/v1/accounts/{accountUuid}/service-users": {
             "post": {
                 "operationId": "ServiceUsersController_createServiceUserForAccount",
@@ -2841,7 +2949,7 @@
                         "name": "page",
                         "required": false,
                         "in": "query",
-                        "description": "The number of the requested page. Can be increased as long as **hasNextPage** is true in the response.",
+                        "description": "The number of the requested page. Can be increased as long as **nextPageKey** is available in the response.",
                         "schema": {
                             "type": "number"
                         }
@@ -2853,6 +2961,15 @@
                         "description": "Defines the requested number of entries for the next page.",
                         "schema": {
                             "type": "number"
+                        }
+                    },
+                    {
+                        "name": "page-key",
+                        "required": false,
+                        "in": "query",
+                        "description": "The cursor for the next page of results. You can find it in the **nextPageKey** field of the previous response.",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ],
@@ -2879,6 +2996,54 @@
             }
         },
         "/iam/v1/accounts/{accountUuid}/service-users/{userUuid}": {
+            "put": {
+                "operationId": "ServiceUsersController_updateServiceUserForAccount",
+                "summary": "Updates name and description of service user in an account",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "userUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The UUID of the required user.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "description": "The JSON body of the request. Contains changed name and description of the service user.",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceUserDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "default": {
+                        "description": "Success. The service user has been updated."
+                    }
+                },
+                "tags": [
+                    "Service user management"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            },
             "delete": {
                 "operationId": "ServiceUsersController_deleteUser",
                 "summary": "Removes service user",
@@ -2909,6 +3074,135 @@
                 },
                 "tags": [
                     "Service user management"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/env/v1/accounts/{accountUuid}/quotas/host-monitoring": {
+            "get": {
+                "operationId": "QuotaController_getQuota",
+                "summary": "Gets the host units quota of an account",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success. The response contains the [host units](https://dt-url.net/hu03ub5) quota per environment of the account.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ContractLimitDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Quota management"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "QuotaController_splitHostMonitoringCredits",
+                "summary": "Updates environment-level host unit quotas",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "description": "The JSON body of the request. Contains the list of environment-level quotas to be set.",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/EnvironmentChangeListDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success. The quota has been updated. The response doesn't have a body."
+                    }
+                },
+                "tags": [
+                    "Quota management"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/env/v1/accounts/{accountUuid}/quotas/host-monitoring/environments/{environmentUuid}/overage": {
+            "put": {
+                "operationId": "QuotaController_enableOverage",
+                "summary": "Sets the host units overage",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "environmentUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the environment where you want to set the overage.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "description": "The JSON body of the request. Contains the [host units](https://dt-url.net/hu03ub5) overage setting.",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/HostMonitoringOverageEnabledDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success. The overage has been set. The response doesn't have a body."
+                    }
+                },
+                "tags": [
+                    "Quota management"
                 ],
                 "security": [
                     {
@@ -3375,7 +3669,8 @@
         "/sub/v2/accounts/{accountUuid}/subscriptions/{subscriptionUuid}/environments/usage": {
             "get": {
                 "operationId": "SubscriptionsController_getEnvironmentUsage",
-                "summary": "Gets the usage of a SaaS subscription per environment",
+                "summary": "Gets the account usage of a SaaS subscription per environment",
+                "deprecated": true,
                 "description": "This endpoint is SaaS only.",
                 "parameters": [
                     {
@@ -3675,7 +3970,8 @@
         "/sub/v2/accounts/{accountUuid}/subscriptions/{subscriptionUuid}/environments/cost": {
             "get": {
                 "operationId": "SubscriptionsController_getEnvironmentCost",
-                "summary": "Gets cost data of a SaaS subscription by environment",
+                "summary": "Gets the account costs of a SaaS subscription per environment",
+                "deprecated": true,
                 "description": "This endpoint is SaaS only.",
                 "parameters": [
                     {
@@ -4541,7 +4837,7 @@
         },
         "/ref/v1/time-zones": {
             "get": {
-                "operationId": "ReferenceDataController_getTimezones",
+                "operationId": "ReferenceDataController_",
                 "summary": "Lists all available time zones",
                 "parameters": [],
                 "responses": {
@@ -4571,7 +4867,7 @@
         },
         "/ref/v1/regions": {
             "get": {
-                "operationId": "ReferenceDataController_getRegions",
+                "operationId": "ReferenceDataController_",
                 "summary": "Lists all available regions",
                 "parameters": [],
                 "responses": {
@@ -4621,6 +4917,780 @@
                 },
                 "tags": [
                     "Reference data"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/sub/v1/accounts/{accountUuid}/subscriptions": {
+            "get": {
+                "operationId": "LimaClaController_getClaSubscriptions",
+                "summary": "Lists all Dynatrace platform subscriptions of an account",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success. The response contains a list of the account's subscriptions.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClaSubscriptionListDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Dynatrace Platform Subscription (prior to April 2023)"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/sub/v1/accounts/{accountUuid}/clusters": {
+            "get": {
+                "operationId": "LimaClaController_getClaSubscriptionClusterDetails",
+                "summary": "Lists all clusters of an account",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success. The response contains a list of the account's clusters.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClaClusterListDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Dynatrace Platform Subscription (prior to April 2023)"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/sub/v1/accounts/{accountUuid}/environments": {
+            "get": {
+                "operationId": "LimaClaController_getClaSubscriptionEnvironmentDetails",
+                "summary": "Lists all clusters of an account",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success. The response contains a list of the account's environments.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClaEnvironmentListDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Dynatrace Platform Subscription (prior to April 2023)"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/sub/v1/accounts/{accountUuid}/subscriptions/{subscriptionId}/consumption": {
+            "get": {
+                "operationId": "LimaClaController_getProductLevelClaLicenseConsumptionData",
+                "summary": "Gets the consumption of a subscription",
+                "description": "You can narrow down the output by specifying the timeframe during which the consumption happened.",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "subscriptionId",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required subscription. \n\n Fetch the list of subscriptions with the [GET subscriptions](https://dt-url.net/qd43uld) call.",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "resolution",
+                        "required": true,
+                        "in": "query",
+                        "description": "The resolution at which you want to see the consumption. You have the following options: \n\n* `HOURLY`: the consumption for each full hour. Requires **to** and **from** paramters to be set. The hourly resolution is only available for consumption within the last 30 days. \n* `DAILY`: the consumption for each calendar day. Requires **to** and **from** paramters to be set. \n* `SUBSCRIPTION_MONTHLY`: the consumption for each subscription month. A subscription month always starts on the same day of the month your subscription started. \n* `SUBSCRIPTION_YEAR`: the consumption for a complete subscription year. A subscription year always starts on the same date your subscription started.",
+                        "schema": {
+                            "enum": [
+                                "HOURLY",
+                                "DAILY",
+                                "SUBSCRIPTION_MONTHLY",
+                                "SUBSCRIPTION_YEARLY"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "required": false,
+                        "in": "query",
+                        "description": "The start of the requested timeframe in `2021-05-01T15:11:00Z` format.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "required": false,
+                        "in": "query",
+                        "description": "The end of the requested timeframe in `2021-05-01T15:11:00Z` format.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "calculationMode",
+                        "required": true,
+                        "in": "query",
+                        "description": "The calculation mode at which you want the consumption to return. RATED consumption (default) is returned in DPS units according to your rate card. UNRATED consumption is returned in the consumed native units, for example Host Unit Hours and the rate card is not applied.",
+                        "schema": {
+                            "enum": [
+                                "RATED",
+                                "UNRATED"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success. The response contains your consumption information.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConsumptionReturnListDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Dynatrace Platform Subscription (prior to April 2023)"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/sub/v1/accounts/{accountUuid}/subscriptions/{subscriptionId}/clusters/consumption": {
+            "get": {
+                "operationId": "LimaClaController_getClusterLevelClaLicenseConsumptionData",
+                "summary": "Gets the cluster-level consumption of a subscription",
+                "description": "The endpoint is available only for Dynatrace Managed accounts.",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "subscriptionId",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required subscription. \n\n Fetch the list of subscriptions with the [GET subscriptions](https://dt-url.net/qd43uld) call.",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "clusterUuids",
+                        "required": false,
+                        "in": "query",
+                        "description": "Filter the result to specified clusters only. To specify several IDs, use the following format: `clusterUuids=ID1&clusterUuids=ID2`. \n\nYou can fetch the list of clusters with the [GET clusters](https://dt-url.net/3q03uao) request.",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "name": "resolution",
+                        "required": true,
+                        "in": "query",
+                        "description": "The resolution at which you want to see the consumption. You have the following options: \n\n* `HOURLY`: the consumption for each full hour. Requires **to** and **from** paramters to be set. The hourly resolution is only available for consumption within the last 30 days. \n* `DAILY`: the consumption for each calendar day. Requires **to** and **from** paramters to be set. \n* `SUBSCRIPTION_MONTHLY`: the consumption for each subscription month. A subscription month always starts on the same day of the month your subscription started. \n* `SUBSCRIPTION_YEAR`: the consumption for a complete subscription year. A subscription year always starts on the same date your subscription started.",
+                        "schema": {
+                            "enum": [
+                                "HOURLY",
+                                "DAILY",
+                                "SUBSCRIPTION_MONTHLY",
+                                "SUBSCRIPTION_YEARLY"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "required": false,
+                        "in": "query",
+                        "description": "The start of the requested timeframe in `2021-05-01T15:11:00Z` format.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "required": false,
+                        "in": "query",
+                        "description": "The end of the requested timeframe in `2021-05-01T15:11:00Z` format.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "calculationMode",
+                        "required": true,
+                        "in": "query",
+                        "description": "The calculation mode at which you want the consumption to return. RATED consumption (default) is returned in DPS units according to your rate card. UNRATED consumption is returned in the consumed native units, for example Host Unit Hours and the rate card is not applied.",
+                        "schema": {
+                            "enum": [
+                                "RATED",
+                                "UNRATED"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success. The response contains your consumption information on cluster level.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ClusterOrEnvironmentAggregatedReturnDto"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Dynatrace Platform Subscription (prior to April 2023)"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/sub/v1/accounts/{accountUuid}/subscriptions/{subscriptionId}/environments/consumption": {
+            "get": {
+                "operationId": "LimaClaController_getTenantLevelClaLicenseConsumptionData",
+                "summary": "Gets the environment-level consumption of a subscription",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "subscriptionId",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required subscription. \n\n Fetch the list of subscriptions with the [GET subscriptions](https://dt-url.net/qd43uld) call.",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "environmentUuids",
+                        "required": false,
+                        "in": "query",
+                        "description": "Filter the result to specified environments only. To specify several IDs, use the following format: `environmentUuids=ID1&environmentUuids=ID2`. \n\nYou can fetch the list of environments with the [GET environments](https://dt-url.net/6823uuy) request.",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "name": "resolution",
+                        "required": true,
+                        "in": "query",
+                        "description": "The resolution at which you want to see the consumption. You have the following options: \n\n* `HOURLY`: the consumption for each full hour. Requires **to** and **from** paramters to be set. The hourly resolution is only available for consumption within the last 30 days. \n* `DAILY`: the consumption for each calendar day. Requires **to** and **from** paramters to be set. \n* `SUBSCRIPTION_MONTHLY`: the consumption for each subscription month. A subscription month always starts on the same day of the month your subscription started. \n* `SUBSCRIPTION_YEAR`: the consumption for a complete subscription year. A subscription year always starts on the same date your subscription started.",
+                        "schema": {
+                            "enum": [
+                                "HOURLY",
+                                "DAILY",
+                                "SUBSCRIPTION_MONTHLY",
+                                "SUBSCRIPTION_YEARLY"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "required": false,
+                        "in": "query",
+                        "description": "The start of the requested timeframe in `2021-05-01T15:11:00Z` format.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "required": false,
+                        "in": "query",
+                        "description": "The end of the requested timeframe in `2021-05-01T15:11:00Z` format.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "calculationMode",
+                        "required": true,
+                        "in": "query",
+                        "description": "The calculation mode at which you want the consumption to return. RATED consumption (default) is returned in DPS units according to your rate card. UNRATED consumption is returned in the consumed native units, for example Host Unit Hours and the rate card is not applied.",
+                        "schema": {
+                            "enum": [
+                                "RATED",
+                                "UNRATED"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success. The response contains your consumption information on the environment level.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ClusterOrEnvironmentAggregatedReturnDto"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Dynatrace Platform Subscription (prior to April 2023)"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/sub/v1/accounts/{accountUuid}/subscriptions/{subscriptionId}/term": {
+            "get": {
+                "operationId": "LimaClaController_getClaLicenseDetailsById",
+                "summary": "Gets the active term of a subscription",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "subscriptionId",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required subscription. \n\n Fetch the list of subscriptions with the [GET subscriptions](https://dt-url.net/qd43uld) call.",
+                        "schema": {
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success. The response contains the details of the current Dynatrace platform subscription.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClaSubscriptionTermDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Dynatrace Platform Subscription (prior to April 2023)"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/sub/v1/accounts/{accountUuid}/subscriptions/{subscriptionId}/limits": {
+            "get": {
+                "operationId": "LimaClaController_getClaBudgetLimits",
+                "summary": "Lists limits for a subscription",
+                "description": "[Limits](https://dt-url.net/yz03uq5) help you control the usage of your annual [commit](https://dt-url.net/i503u3z). \n\nIf no limit is set, the commit is consumed until it is exhausted.",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "subscriptionId",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required subscription. \n\n Fetch the list of subscriptions with the [GET subscriptions](https://dt-url.net/qd43uld) call.",
+                        "schema": {
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success. The response contains all limits of your account.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClaBudgetLimitRecordListDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Dynatrace Platform Subscription (prior to April 2023)"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/sub/v1/accounts/{accountUuid}/subscriptions/{subscriptionId}/clusters/{clusterUuid}/limits": {
+            "post": {
+                "operationId": "LimaClaController_addClaBudgetLimitForCluster",
+                "summary": "Creates a limit for a cluster",
+                "description": "[Limits](https://dt-url.net/yz03uq5) help you control the usage of your annual [commit](https://dt-url.net/i503u3z). \n\nIf no limit is set, the commit is consumed until it is exhausted. If the consumption on the cluster exceeds the limit, the cluster will stop the monitoring. \n\nThe endpoint is available only for Dynatrace Managed accounts.",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "subscriptionId",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required subscription. \n\n Fetch the list of subscriptions with the [GET subscriptions](https://dt-url.net/qd43uld) call.",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "clusterUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the cluster where you want to set the limit. \n\nFetch the list of clusters with the [GET clusters](https://dt-url.net/3q03uao) request.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "description": "The JSON body of the request. Contains the new limit for the cluster.",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ClaBudgetLimitDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Success. The response contains the description of the limit.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClaBudgetLimitRecordsDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Dynatrace Platform Subscription (prior to April 2023)"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "LimaClaController_updateClaBudgetLimitForCluster",
+                "summary": "Updates the limit for a cluster",
+                "description": "[Limits](https://dt-url.net/yz03uq5) help you control the usage of your annual [commit](https://dt-url.net/i503u3z). \n\nIf no limit is set, the commit is consumed until it is exhausted. If the consumption on the cluster exceeds the limit, the cluster will stop the monitoring. \n\nThe endpoint is available only for Dynatrace Managed accounts.",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "subscriptionId",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required subscription. \n\n Fetch the list of subscriptions with the [GET subscriptions](https://dt-url.net/qd43uld) call.",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "clusterUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the cluster where you want to set the limit. \n\nFetch the list of clusters with the [GET clusters](https://dt-url.net/3q03uao) request.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ClaBudgetLimitDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success. The response contains the description of the limit.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClaBudgetLimitRecordsDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Dynatrace Platform Subscription (prior to April 2023)"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/sub/v1/accounts/{accountUuid}/subscriptions/{subscriptionId}/environments/{environmentUuid}/limits": {
+            "post": {
+                "operationId": "LimaClaController_addClaBudgetLimitForEnvironment",
+                "summary": "Creates a limit for an environment",
+                "description": "[Limits](https://dt-url.net/yz03uq5) help you control the usage of your annual [commit](https://dt-url.net/i503u3z). \n\nIf no limit is set, the commit is consumed until it is exhausted. If the consumption on the environment exceeds the limit, the environment will stop the monitoring.",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "subscriptionId",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required subscription. \n\n Fetch the list of subscriptions with the [GET subscriptions](https://dt-url.net/qd43uld) call.",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "environmentUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the environment where you want to set the limit. \n\nFetch the list of environments with the [GET environments](https://dt-url.net/6823uuy) request.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "description": "The JSON body of the request. Contains the new limit for the environment.",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ClaBudgetLimitDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Success. The response contains the description of the limit.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClaBudgetLimitRecordsDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Dynatrace Platform Subscription (prior to April 2023)"
+                ],
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "LimaClaController_updateClaBudgetLimitForEnvironment",
+                "summary": "Updates the limit for an environment",
+                "description": "[Limits](https://dt-url.net/yz03uq5) help you control the usage of your annual [commit](https://dt-url.net/i503u3z). \n\nIf no limit is set, the commit is consumed until it is exhausted. If the consumption on the environment exceeds the limit, the environment will stop the monitoring.",
+                "parameters": [
+                    {
+                        "name": "accountUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required account. \n\n You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "subscriptionId",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the required subscription. \n\n Fetch the list of subscriptions with the [GET subscriptions](https://dt-url.net/qd43uld) call.",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "environmentUuid",
+                        "required": true,
+                        "in": "path",
+                        "description": "The ID of the environment where you want to set the limit. \n\nFetch the list of environments with the [GET environments](https://dt-url.net/6823uuy) request.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ClaBudgetLimitDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success. The response contains the description of the limit.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClaBudgetLimitRecordsDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Dynatrace Platform Subscription (prior to April 2023)"
                 ],
                 "security": [
                     {
@@ -4750,6 +5820,54 @@
             }
         },
         "schemas": {
+            "AccountLimitsDto": {
+                "type": "object",
+                "properties": {
+                    "currentValue": {
+                        "type": "number"
+                    },
+                    "limitType": {
+                        "type": "string"
+                    },
+                    "limitValue": {
+                        "type": "number"
+                    }
+                },
+                "required": [
+                    "currentValue",
+                    "limitType",
+                    "limitValue"
+                ]
+            },
+            "AccountLimitsPage": {
+                "type": "object",
+                "properties": {
+                    "pageSize": {
+                        "type": "number",
+                        "description": "Page size."
+                    },
+                    "pageNumber": {
+                        "type": "number",
+                        "description": "Page number."
+                    },
+                    "total": {
+                        "type": "number",
+                        "description": "Total count of entries."
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AccountLimitsDto"
+                        }
+                    }
+                },
+                "required": [
+                    "pageSize",
+                    "pageNumber",
+                    "total",
+                    "results"
+                ]
+            },
             "UserLoginMetaDataDto": {
                 "type": "object",
                 "properties": {
@@ -5232,6 +6350,78 @@
                     "permissions"
                 ]
             },
+            "CreateOrUpdateLevelPolicyRequestDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The display name of the policy."
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "A short description of the policy."
+                    },
+                    "tags": {
+                        "description": "A list of tags.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "statementQuery": {
+                        "type": "string",
+                        "description": "The [statement](https://dt-url.net/ht03ucb) of the policy."
+                    },
+                    "category": {
+                        "type": "string",
+                        "description": "The category of the policy."
+                    }
+                },
+                "required": [
+                    "name",
+                    "description",
+                    "statementQuery"
+                ]
+            },
+            "ValidationDto": {
+                "type": "object",
+                "properties": {
+                    "warnings": {
+                        "description": "A list of validation warnings.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "warnings"
+                ]
+            },
+            "ErrorDto": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "number",
+                        "description": "The code of the error."
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "A short description of the error."
+                    },
+                    "errorsMap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "code",
+                    "message",
+                    "errorsMap"
+                ]
+            },
             "Condition": {
                 "type": "object",
                 "properties": {
@@ -5270,7 +6460,7 @@
                     },
                     "statementQuery": {
                         "type": "string",
-                        "description": "The the statement query of the policy."
+                        "description": "The statement query of the policy."
                     },
                     "levelType": {
                         "type": "string",
@@ -5399,30 +6589,6 @@
                     "effectivePermissions"
                 ]
             },
-            "ErrorDto": {
-                "type": "object",
-                "properties": {
-                    "code": {
-                        "type": "number",
-                        "description": "The code of the error."
-                    },
-                    "message": {
-                        "type": "string",
-                        "description": "A short description of the error."
-                    },
-                    "errorsMap": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "required": [
-                    "code",
-                    "message",
-                    "errorsMap"
-                ]
-            },
             "PolicyOverview": {
                 "type": "object",
                 "properties": {
@@ -5507,64 +6673,12 @@
                     "policies"
                 ]
             },
-            "CreateOrUpdateLevelPolicyRequestDto": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "The display name of the policy."
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "A short description of the policy."
-                    },
-                    "tags": {
-                        "description": "A list of tags.",
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-                    "statementQuery": {
-                        "type": "string",
-                        "description": "The [statement](https://dt-url.net/ht03ucb) of the policy."
-                    },
-                    "category": {
-                        "type": "string",
-                        "description": "The category of the policy."
-                    }
-                },
-                "required": [
-                    "name",
-                    "description",
-                    "statementQuery"
-                ]
-            },
-            "ValidationDto": {
-                "type": "object",
-                "properties": {
-                    "warnings": {
-                        "description": "A list of validation warnings.",
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "required": [
-                    "warnings"
-                ]
-            },
             "Statement": {
                 "type": "object",
                 "properties": {
                     "effect": {
                         "type": "string",
                         "description": "The effect of the policy (for example, allow something)."
-                    },
-                    "service": {
-                        "type": "string",
-                        "description": "The service to which the policy applies."
                     },
                     "permissions": {
                         "description": "A list of granted permissions.",
@@ -5583,7 +6697,6 @@
                 },
                 "required": [
                     "effect",
-                    "service",
                     "permissions",
                     "conditions"
                 ]
@@ -5688,11 +6801,19 @@
                             "type": "string"
                         },
                         "description": "Metadata from bound policies"
+                    },
+                    "boundaries": {
+                        "description": "List of boundary UUIDs used in the binding.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 },
                 "required": [
                     "policyUuid",
-                    "groups"
+                    "groups",
+                    "boundaries"
                 ]
             },
             "LevelPolicyBindingDto": {
@@ -5754,6 +6875,13 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "boundaries": {
+                        "description": "List of boundary UUIDs used in the binding.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 },
                 "required": [
@@ -5776,6 +6904,13 @@
                             "type": "string"
                         },
                         "description": "Metadata provided for bindings"
+                    },
+                    "boundaries": {
+                        "description": "List of boundary UUIDs used in the binding.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 }
             },
@@ -5880,6 +7015,55 @@
                     "metadata"
                 ]
             },
+            "LimitEntry": {
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "number"
+                    },
+                    "limit": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "count",
+                    "limit"
+                ]
+            },
+            "LevelLimitsDto": {
+                "type": "object",
+                "properties": {
+                    "policies": {
+                        "description": "Information about policies limit set for a level.",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LimitEntry"
+                            }
+                        ]
+                    },
+                    "bindings": {
+                        "description": "Information about policy bindings limit set for a level.",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LimitEntry"
+                            }
+                        ]
+                    },
+                    "boundaries": {
+                        "description": "Information about policy boundaries limit set for a level.",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LimitEntry"
+                            }
+                        ]
+                    }
+                },
+                "required": [
+                    "policies",
+                    "bindings",
+                    "boundaries"
+                ]
+            },
             "ServiceUserDto": {
                 "type": "object",
                 "properties": {
@@ -5940,8 +7124,6 @@
                     "uid",
                     "email",
                     "name",
-                    "surname",
-                    "description",
                     "createdAt"
                 ]
             },
@@ -5965,8 +7147,103 @@
                 },
                 "required": [
                     "results",
-                    "nextPageKey",
                     "totalCount"
+                ]
+            },
+            "AccountContractDto": {
+                "type": "object",
+                "properties": {
+                    "concurrentHostsUnits": {
+                        "type": "number",
+                        "description": "The total amount of host units that the account owns."
+                    },
+                    "hostUnitOverageAllowed": {
+                        "type": "boolean",
+                        "description": "The overage is (`true`) or is not (`false`) enabled for the account. \n\nIf the overage is enabled, the account can exceed the quota. To learn more about host units consumption, see [Application and Infrastructure Monitoring](https://dt-url.net/hu03ub5) in Dynatrace Documentation."
+                    }
+                },
+                "required": [
+                    "concurrentHostsUnits",
+                    "hostUnitOverageAllowed"
+                ]
+            },
+            "EnvironmentLimitListDto": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "description": "The ID of the environment."
+                    },
+                    "concurrentHostsUnits": {
+                        "type": "number",
+                        "description": "The total amount of host units assigned to the environment."
+                    },
+                    "hostUnitOverageAllowed": {
+                        "type": "boolean",
+                        "description": "The overage is (`true`) or is not (`false`) enabled for the environment. \n\nIf the overage is enabled, the environment can exceed the quota. To learn more about host units consumption, see [Application and Infrastructure Monitoring](https://dt-url.net/hu03ub5) in Dynatrace Documentation."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "The display name of the environment."
+                    }
+                },
+                "required": [
+                    "uuid",
+                    "concurrentHostsUnits",
+                    "hostUnitOverageAllowed",
+                    "name"
+                ]
+            },
+            "ContractLimitDto": {
+                "type": "object",
+                "properties": {
+                    "accountInfo": {
+                        "$ref": "#/components/schemas/AccountContractDto"
+                    },
+                    "environmentInfo": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/EnvironmentLimitListDto"
+                        }
+                    }
+                },
+                "required": [
+                    "accountInfo",
+                    "environmentInfo"
+                ]
+            },
+            "HostMonitoringOverageEnabledDto": {
+                "type": "object",
+                "properties": {
+                    "hostUnitOverageAllowed": {
+                        "type": "boolean",
+                        "description": "The overage is (`true`) or is not (`false`) enabled for the environment. \n\nIf the overage is enabled, the environment can exceed the quota."
+                    }
+                },
+                "required": [
+                    "hostUnitOverageAllowed"
+                ]
+            },
+            "EnvironmentChangeListDto": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "description": "The ID of the environment."
+                    },
+                    "concurrentHostsUnits": {
+                        "type": "number",
+                        "description": "The total amount of host units assigned to the environment."
+                    },
+                    "hostUnitOverageAllowed": {
+                        "type": "boolean",
+                        "description": "The overage is (`true`) or is not (`false`) enabled for the environment. \n\nIf the overage is enabled, the environment can exceed the quota. To learn more about host units consumption, see [Application and Infrastructure Monitoring](https://dt-url.net/hu03ub5) in Dynatrace Documentation."
+                    }
+                },
+                "required": [
+                    "uuid",
+                    "concurrentHostsUnits",
+                    "hostUnitOverageAllowed"
                 ]
             },
             "TenantResourceDto": {
@@ -6053,7 +7330,6 @@
                 },
                 "required": [
                     "id",
-                    "name",
                     "active",
                     "url"
                 ]
@@ -6126,6 +7402,10 @@
                         "type": "boolean",
                         "description": "If enabled the ip config allow list gets applied."
                     },
+                    "allowWebhookOverride": {
+                        "type": "boolean",
+                        "description": "If enabled the webhook ip allowlists will ignore the main allowlist CIDR range limitations."
+                    },
                     "allowlist": {
                         "description": "Contains a list of valid IP addresses in CIDR format which are allowed. If enabled it must not be empty.",
                         "type": "array",
@@ -6135,7 +7415,8 @@
                     }
                 },
                 "required": [
-                    "enabled"
+                    "enabled",
+                    "allowWebhookOverride"
                 ]
             },
             "SubscriptionSummaryDto": {
@@ -6988,6 +8269,289 @@
                 "required": [
                     "id",
                     "description"
+                ]
+            },
+            "ClaSubscriptionDto": {
+                "type": "object",
+                "properties": {
+                    "subscriptionId": {
+                        "type": "number",
+                        "description": "The ID of the Dynatrace Platform Subscription."
+                    },
+                    "start": {
+                        "type": "string",
+                        "description": "The start date and time of the subscription in `2021-05-01T15:11:00Z` format."
+                    },
+                    "end": {
+                        "type": "string",
+                        "description": "The end date and time of the subscription in `2021-05-01T15:11:00Z` format."
+                    }
+                },
+                "required": [
+                    "subscriptionId",
+                    "start",
+                    "end"
+                ]
+            },
+            "ClaSubscriptionListDto": {
+                "type": "object",
+                "properties": {
+                    "totalCount": {
+                        "type": "number",
+                        "description": "The number of entries in the list."
+                    },
+                    "records": {
+                        "description": "A list of subscriptions of the account.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ClaSubscriptionDto"
+                        }
+                    }
+                },
+                "required": [
+                    "totalCount",
+                    "records"
+                ]
+            },
+            "ClaClusterDto": {
+                "type": "object",
+                "properties": {
+                    "clusterUuid": {
+                        "type": "string",
+                        "description": "The ID of the cluster."
+                    }
+                },
+                "required": [
+                    "clusterUuid"
+                ]
+            },
+            "ClaClusterListDto": {
+                "type": "object",
+                "properties": {
+                    "totalCount": {
+                        "type": "number",
+                        "description": "The number of entries in the list."
+                    },
+                    "records": {
+                        "description": "A list of clusters of the account.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ClaClusterDto"
+                        }
+                    }
+                },
+                "required": [
+                    "totalCount",
+                    "records"
+                ]
+            },
+            "ClaEnvironmentDto": {
+                "type": "object",
+                "properties": {
+                    "environmentUuid": {
+                        "type": "string",
+                        "description": "The ID of the environments."
+                    }
+                },
+                "required": [
+                    "environmentUuid"
+                ]
+            },
+            "ClaEnvironmentListDto": {
+                "type": "object",
+                "properties": {
+                    "totalCount": {
+                        "type": "number",
+                        "description": "The number of entries in the list."
+                    },
+                    "records": {
+                        "description": "A list of environments of the account.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ClaEnvironmentDto"
+                        }
+                    }
+                },
+                "required": [
+                    "totalCount",
+                    "records"
+                ]
+            },
+            "ConsumptionReturnDto": {
+                "type": "object",
+                "properties": {
+                    "timeFrameStart": {
+                        "format": "date-time",
+                        "type": "string",
+                        "description": "The start date and time of the report interval in `2021-05-01T15:11:00Z` format."
+                    },
+                    "timeFrameEnd": {
+                        "format": "date-time",
+                        "type": "string",
+                        "description": "The end date and time of the report interval in `2021-05-01T15:11:00Z` format."
+                    },
+                    "consumptionType": {
+                        "type": "string",
+                        "description": "The name of the consumed units (for example, `Davis data units`)."
+                    },
+                    "quantity": {
+                        "type": "number",
+                        "description": "The quantity that has been deducted from the available unit's pool."
+                    }
+                },
+                "required": [
+                    "timeFrameStart",
+                    "timeFrameEnd",
+                    "consumptionType",
+                    "quantity"
+                ]
+            },
+            "ConsumptionReturnListDto": {
+                "type": "object",
+                "properties": {
+                    "totalCount": {
+                        "type": "number",
+                        "description": "The number of entries in the list."
+                    },
+                    "records": {
+                        "description": "A list of consumption records.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ConsumptionReturnDto"
+                        }
+                    }
+                },
+                "required": [
+                    "totalCount",
+                    "records"
+                ]
+            },
+            "ClusterOrEnvironmentAggregatedReturnDto": {
+                "type": "object",
+                "properties": {
+                    "resourceName": {
+                        "type": "string",
+                        "description": "The name of the resource."
+                    },
+                    "resourceType": {
+                        "type": "string",
+                        "description": "The type of the resource: environment or cluster."
+                    },
+                    "consumptionRecords": {
+                        "type": "object",
+                        "description": "A list of consumption records."
+                    }
+                },
+                "required": [
+                    "resourceName",
+                    "resourceType",
+                    "consumptionRecords"
+                ]
+            },
+            "ClaSubscriptionTermDto": {
+                "type": "object",
+                "properties": {
+                    "limit": {
+                        "type": "number",
+                        "description": "The annual [commit](https://dt-url.net/i503u3z) of the Dynatrace Platform Subscription."
+                    },
+                    "startDate": {
+                        "format": "date-time",
+                        "type": "string",
+                        "description": "The start date of the subscription in `2021-05-01T15:11:00Z` format."
+                    },
+                    "endDate": {
+                        "format": "date-time",
+                        "type": "string",
+                        "description": "The end date of the subscription in `2021-05-01T15:11:00Z` format."
+                    }
+                },
+                "required": [
+                    "limit",
+                    "startDate",
+                    "endDate"
+                ]
+            },
+            "ClaBudgetLimitRecordsDto": {
+                "type": "object",
+                "properties": {
+                    "clusterUuid": {
+                        "type": "string",
+                        "description": "The ID of the cluster to which the limit applies."
+                    },
+                    "environmentUuid": {
+                        "type": "string",
+                        "description": "The ID of the environment to which the limit applies."
+                    },
+                    "dimensionName": {
+                        "type": "string",
+                        "description": "The consumption units to which the limit applies."
+                    },
+                    "tierType": {
+                        "type": "string",
+                        "enum": [
+                            "LIMIT"
+                        ]
+                    },
+                    "startDate": {
+                        "format": "date-time",
+                        "type": "string",
+                        "description": "The date and time when the restriction takes effect in `2021-05-01T15:11:00Z` format. \n\n The limit is not enforeced in real-time and might lead to overages."
+                    },
+                    "endDate": {
+                        "format": "date-time",
+                        "type": "string",
+                        "description": "The date and time when the restriction ends in `2021-05-01T15:11:00Z` format. \n\n The limit is not enforeced in real-time and might lead to overages."
+                    },
+                    "amount": {
+                        "type": "number",
+                        "description": "The limit for the cluster or environment. \n\n If consumption exceeds the limit, monitoring will stop."
+                    },
+                    "subscriptionId": {
+                        "type": "number",
+                        "description": "The ID of the Dynatrace Platform Subscription."
+                    }
+                },
+                "required": [
+                    "clusterUuid",
+                    "environmentUuid",
+                    "dimensionName",
+                    "tierType",
+                    "startDate",
+                    "endDate",
+                    "amount",
+                    "subscriptionId"
+                ]
+            },
+            "ClaBudgetLimitRecordListDto": {
+                "type": "object",
+                "properties": {
+                    "totalCount": {
+                        "type": "number",
+                        "description": "The number of entries in the list."
+                    },
+                    "records": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ClaBudgetLimitRecordsDto"
+                        }
+                    }
+                },
+                "required": [
+                    "totalCount",
+                    "records"
+                ]
+            },
+            "ClaBudgetLimitDto": {
+                "type": "object",
+                "properties": {
+                    "limit": {
+                        "type": "number",
+                        "description": "The limit for the cluster or environment. Consumption will be restricted to this value."
+                    }
+                },
+                "required": [
+                    "limit"
                 ]
             },
             "PaginatedEnvironmentBreakdownDto": {

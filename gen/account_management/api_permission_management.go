@@ -43,10 +43,7 @@ func (r ApiAddGroupPermissionsRequest) Execute() (*http.Response, error) {
 /*
 AddGroupPermissions Assigns permissions to a user group. Existing permissions remain unaffected.
 
-Role based access is deprecated and will be removed soon, it is not advised to assign new role based permissions
-
-	       at this moment. Please read the following migration guide to migrate to managing permissions with policies and
-	       boundaries. <a href="https://dt-url.net/gx03uwa">Learn how to manage policies<a>
+Consider upgrading your role-based permissions to IAM policies by following this guide. <a href="https://dt-url.net/gx03uwa">Learn how to manage policies<a>
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 	@param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
@@ -150,10 +147,7 @@ func (r ApiGetGroupPermissionsRequest) Execute() (*PermissionsGroupDto, *http.Re
 /*
 GetGroupPermissions Lists all permissions of a user group
 
-Role based access is deprecated and will be removed soon, it is not advised to assign new role based permissions
-
-	       at this moment. Please read the following migration guide to migrate to managing permissions with policies and
-	       boundaries. <a href="https://dt-url.net/gx03uwa">Learn how to manage policies<a>
+Consider upgrading your role-based permissions to IAM policies by following this guide. <a href="https://dt-url.net/gx03uwa">Learn how to manage policies<a>
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 	@param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
@@ -272,10 +266,7 @@ func (r ApiOverwriteGroupPermissionsRequest) Execute() (*http.Response, error) {
 /*
 OverwriteGroupPermissions Sets permissions of a user group. Existing permissions are overwritten.
 
-Role based access is deprecated and will be removed soon, it is not advised to assign new role based permissions
-
-	       at this moment. Please read the following migration guide to migrate to managing permissions with policies and
-	       boundaries. <a href="https://dt-url.net/gx03uwa">Learn how to manage policies<a>
+Consider upgrading your role-based permissions to IAM policies by following this guide. <a href="https://dt-url.net/gx03uwa">Learn how to manage policies<a>
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 	@param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
@@ -400,10 +391,7 @@ func (r ApiRemoveGroupPermissionsRequest) Execute() (*http.Response, error) {
 /*
 RemoveGroupPermissions Removes a permission from a user group
 
-Role based access is deprecated and will be removed soon, it is not advised to assign new role based permissions
-
-	       at this moment. Please read the following migration guide to migrate to managing permissions with policies and
-	       boundaries. <a href="https://dt-url.net/gx03uwa">Learn how to manage policies<a>
+Consider upgrading your role-based permissions to IAM policies by following this guide. <a href="https://dt-url.net/gx03uwa">Learn how to manage policies<a>
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 	@param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
