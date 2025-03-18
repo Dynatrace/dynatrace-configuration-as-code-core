@@ -89,6 +89,7 @@ func (a Client) Get(ctx context.Context, resourceType automation.ResourceType, i
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to get automation resource of type %q with id %q: %w", resourceType, id, err)
 	}
+	defer resp.Body.Close()
 
 	return api.NewResponseFromHTTPResponse(resp)
 }
@@ -110,6 +111,7 @@ func (a Client) Create(ctx context.Context, resourceType automation.ResourceType
 	if err != nil {
 		return Response{}, err
 	}
+	defer resp.Body.Close()
 
 	return api.NewResponseFromHTTPResponse(resp)
 }
@@ -135,6 +137,7 @@ func (a Client) Update(ctx context.Context, resourceType automation.ResourceType
 	if err != nil {
 		return Response{}, err
 	}
+	defer resp.Body.Close()
 
 	return api.NewResponseFromHTTPResponse(resp)
 }
