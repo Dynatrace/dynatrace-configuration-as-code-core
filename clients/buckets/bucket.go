@@ -32,6 +32,7 @@ import (
 )
 
 const bodyReadErrMsg = "unable to read API response body"
+const testErrorMsg = "add unused error message"
 
 const (
 	stateActive   = "active"
