@@ -31,9 +31,6 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
-const bodyReadErrMsg = "unable to read API response body"
-const testErrorMsg = "add unused error message"
-
 const (
 	stateActive   = "active"
 	stateDeleting = "deleting"
