@@ -220,7 +220,7 @@ func (c Client) Create(ctx context.Context, name string, isPrivate bool, externa
 
 	r, err := c.patchWithRetry(ctx, md.ID, md.Version, d)
 	if err != nil {
-		if !isNotFoundError(err) {
+		if !api.IsNotFoundError(err) {
 			if _, err1 := c.delete(ctx, md.ID, md.Version); err1 != nil {
 				return api.Response{}, errors.Join(err, err1)
 			}
@@ -283,18 +283,13 @@ func (c Client) patchWithRetry(ctx context.Context, id string, version int, d do
 	const maxRetries = 5
 	const retryDelay = 200 * time.Millisecond
 	for r := 0; r < maxRetries; r++ {
-		if resp, err = c.patch(ctx, id, version, d); isNotFoundError(err) {
+		if resp, err = c.patch(ctx, id, version, d); api.IsNotFoundError(err) {
 			time.Sleep(retryDelay)
 			continue
 		}
 		break
 	}
 	return
-}
-
-func isNotFoundError(err error) bool {
-	var apiErr api.APIError
-	return errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound
 }
 
 func (c Client) patch(ctx context.Context, id string, version int, d documents.Document) (api.Response, error) {

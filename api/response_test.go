@@ -422,6 +422,40 @@ func TestAsResponseOrError(t *testing.T) {
 	})
 }
 
+func TestIsNotFoundError(t *testing.T) {
+	t.Run("404 error returns true", func(t *testing.T) {
+		err := api.APIError{StatusCode: http.StatusNotFound}
+		got := api.IsNotFoundError(err)
+		assert.Equal(t, true, got)
+	})
+
+	t.Run("Different error returns true", func(t *testing.T) {
+		err := api.APIError{StatusCode: 400}
+		got := api.IsNotFoundError(err)
+		assert.Equal(t, false, got)
+	})
+
+	t.Run("Not 404 api error returns false", func(t *testing.T) {
+		err := api.APIError{StatusCode: http.StatusForbidden}
+		got := api.IsNotFoundError(err)
+		assert.Equal(t, false, got)
+	})
+
+	t.Run("Not api error returns false", func(t *testing.T) {
+		err := customErr{StatusCode: http.StatusNotFound}
+		got := api.IsNotFoundError(err)
+		assert.Equal(t, false, got)
+	})
+}
+
+type customErr struct {
+	StatusCode int
+}
+
+func (e customErr) Error() string {
+	return "error"
+}
+
 type stubReaderCloser struct {
 	reader  io.Reader
 	readErr error

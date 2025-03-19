@@ -19,7 +19,6 @@ package automation
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -240,8 +239,7 @@ func (a Client) List(ctx context.Context, resourceType automation.ResourceType) 
 func (a Client) Upsert(ctx context.Context, resourceType automation.ResourceType, id string, data []byte) (result Response, err error) {
 	resp, err := a.Update(ctx, resourceType, id, data)
 	if err != nil {
-		var apiErr api.APIError
-		if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound {
+		if api.IsNotFoundError(err) {
 			return a.createWithID(ctx, resourceType, id, data)
 		}
 		return Response{}, err
