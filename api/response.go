@@ -273,3 +273,8 @@ func DecodePaginatedJSONObjects[T any](p PagedListResponse) ([]T, error) {
 
 	return res, nil
 }
+
+func IsNotFoundError(err error) bool {
+	var apiErr APIError
+	return errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound
+}

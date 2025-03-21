@@ -16,6 +16,7 @@ package api_test
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -420,6 +421,46 @@ func TestAsResponseOrError(t *testing.T) {
 		assert.Equal(t, apiErr.StatusCode, http.StatusOK)
 		assert.True(t, mockBody.closed)
 	})
+}
+
+func TestIsNotFoundError(t *testing.T) {
+	t.Run("404 error returns true", func(t *testing.T) {
+		err := api.APIError{StatusCode: http.StatusNotFound}
+		got := api.IsNotFoundError(err)
+		assert.Equal(t, true, got)
+	})
+
+	t.Run("Different error returns false", func(t *testing.T) {
+		err := api.APIError{StatusCode: 400}
+		got := api.IsNotFoundError(err)
+		assert.Equal(t, false, got)
+	})
+
+	t.Run("Not 404 api error returns false", func(t *testing.T) {
+		err := api.APIError{StatusCode: http.StatusForbidden}
+		got := api.IsNotFoundError(err)
+		assert.Equal(t, false, got)
+	})
+
+	t.Run("Not api error returns false", func(t *testing.T) {
+		err := customErr{StatusCode: http.StatusNotFound}
+		got := api.IsNotFoundError(err)
+		assert.Equal(t, false, got)
+	})
+
+	t.Run("Wrapped api error with status not found returns true", func(t *testing.T) {
+		err := fmt.Errorf("wrapping api error: %w", api.APIError{StatusCode: http.StatusNotFound})
+		got := api.IsNotFoundError(err)
+		assert.Equal(t, true, got)
+	})
+}
+
+type customErr struct {
+	StatusCode int
+}
+
+func (e customErr) Error() string {
+	return "error"
 }
 
 type stubReaderCloser struct {

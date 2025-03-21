@@ -423,11 +423,7 @@ func (c Client) awaitBucketActive(ctx context.Context, bucketName string) (api.R
 			apiResp, err := api.NewResponseFromHTTPResponse(r)
 			if err != nil {
 				apiErr := api.APIError{}
-				if !errors.As(err, &apiErr) {
-					return api.Response{}, err
-				}
-
-				if apiErr.StatusCode != http.StatusNotFound {
+				if !errors.Is(err, &apiErr) || !api.IsNotFoundError(err) {
 					return api.Response{}, err
 				}
 			} else {
@@ -466,10 +462,8 @@ func (c Client) awaitBucketRemoved(ctx context.Context, bucketName string) error
 
 			_, err = api.NewResponseFromHTTPResponse(r)
 			if err != nil {
-				apiError := api.APIError{}
-
 				// if http.StatusNotFound is returned then the bucket has now been removed
-				if errors.As(err, &apiError) && apiError.StatusCode == http.StatusNotFound {
+				if api.IsNotFoundError(err) {
 					logger.V(1).Info("Bucket was removed")
 					return nil
 				}
