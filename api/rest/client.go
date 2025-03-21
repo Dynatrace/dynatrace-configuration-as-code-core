@@ -19,12 +19,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/go-logr/logr"
-	"github.com/google/uuid"
 	"io"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/go-logr/logr"
+	"github.com/google/uuid"
 )
 
 // RequestOptions are additional options that should be applied
@@ -233,7 +234,7 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 		c.rateLimiter.Update(ctx, response.StatusCode, response.Header)
 	}
 
-	if c.retryOptions != nil && retryCount < c.retryOptions.MaxRetries {
+	if ShouldRetry(response.StatusCode) && c.retryOptions != nil && retryCount < c.retryOptions.MaxRetries {
 
 		shouldRetryFunc := c.retryOptions.ShouldRetryFunc
 		if options.CustomShouldRetryFunc != nil {

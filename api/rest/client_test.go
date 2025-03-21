@@ -328,6 +328,32 @@ func TestClient_WithRetries(t *testing.T) {
 	assert.Equal(t, 2, apiHits)
 }
 
+func TestClient_WithIgnoredRetries(t *testing.T) {
+	apiHits := 0
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rw.WriteHeader(http.StatusForbidden)
+		apiHits++
+	}))
+	defer server.Close()
+
+	baseURL, _ := url.Parse(server.URL)
+	client := NewClient(baseURL, nil, WithRetryOptions(&RetryOptions{
+		MaxRetries: 1,
+		ShouldRetryFunc: func(resp *http.Response) bool {
+			return resp.StatusCode != http.StatusOK
+		},
+	}))
+
+	ctx := testutils.ContextWithLogger(t)
+
+	resp, err := client.GET(ctx, "", RequestOptions{})
+	if err != nil {
+		t.Fatalf("failed to send GET request: %v", err)
+	}
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+	assert.Equal(t, 1, apiHits)
+}
+
 func TestClient_WithHTTPListener(t *testing.T) {
 
 	ctx := testutils.ContextWithLogger(t)
