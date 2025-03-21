@@ -26,7 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
 func TestResponse_DecodeJSON(t *testing.T) {
@@ -149,70 +148,6 @@ func TestDecodePaginatedJSONObjects(t *testing.T) {
 	assert.Equal(t, "six", res[5].Key)
 }
 
-func TestAsAPIError(t *testing.T) {
-	testCases := []struct {
-		name       string
-		statusCode int
-		expected   api.APIError
-		expectedOK bool
-	}{
-		{
-			name:       "Not an API error (2xx)",
-			statusCode: http.StatusOK,
-			expected:   api.APIError{},
-			expectedOK: false,
-		},
-		{
-			name:       "Not an API error (3xx)",
-			statusCode: http.StatusNotModified,
-			expected:   api.APIError{},
-			expectedOK: false,
-		},
-		{
-			name:       "API error (4xx)",
-			statusCode: http.StatusNotFound,
-			expected: api.APIError{
-				StatusCode: http.StatusNotFound,
-				Request: rest.RequestInfo{
-					Method: http.MethodGet,
-					URL:    "https://www.dt.com/resources",
-				},
-			},
-			expectedOK: true,
-		},
-		{
-			name:       "API error (5xx)",
-			statusCode: http.StatusServiceUnavailable,
-			expected: api.APIError{
-				StatusCode: http.StatusServiceUnavailable,
-				Request: rest.RequestInfo{
-					Method: http.MethodGet,
-					URL:    "https://www.dt.com/resources",
-				},
-			},
-			expectedOK: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			resp := api.Response{
-				StatusCode: tc.statusCode,
-				Request: rest.RequestInfo{
-					Method: http.MethodGet,
-					URL:    "https://www.dt.com/resources",
-				},
-			}
-
-			err, ok := resp.AsAPIError()
-
-			assert.IsType(t, tc.expected, err)
-			assert.Equal(t, tc.expected, err)
-			assert.Equal(t, tc.expectedOK, ok)
-		})
-	}
-}
-
 func TestPagedListResponse(t *testing.T) {
 	pr := api.PagedListResponse{
 		api.ListResponse{
@@ -232,87 +167,6 @@ func TestPagedListResponse(t *testing.T) {
 	}
 
 	assert.Equal(t, [][]byte{{'1'}, {'2'}, {'3'}, {'4'}}, pr.All())
-}
-
-func TestPagedListResponse_AsAPIError(t *testing.T) {
-	testCases := []struct {
-		name       string
-		given      api.PagedListResponse
-		expected   api.APIError
-		expectedOK bool
-	}{
-		{
-			"empty list is not an error",
-			api.PagedListResponse{},
-			api.APIError{},
-			false,
-		},
-		{
-			"single entry 4xx is an error",
-			api.PagedListResponse{
-				api.ListResponse{
-					Response: api.Response{
-						StatusCode: 403,
-					},
-				},
-			},
-			api.APIError{
-				StatusCode: 403,
-			},
-			true,
-		},
-		{
-			"single entry 5xx is an error",
-			api.PagedListResponse{
-				api.ListResponse{
-					Response: api.Response{
-						StatusCode: 500,
-					},
-				},
-			},
-			api.APIError{
-				StatusCode: 500,
-			},
-			true,
-		},
-		{
-			"several entries is not an error",
-			api.PagedListResponse{
-				api.ListResponse{
-					Response: api.Response{
-						StatusCode: 403,
-					},
-				},
-				api.ListResponse{
-					Response: api.Response{
-						StatusCode: 200,
-					},
-				},
-			},
-			api.APIError{},
-			false,
-		},
-		{
-			"single entry 2xx is not an error",
-			api.PagedListResponse{
-				api.ListResponse{
-					Response: api.Response{
-						StatusCode: 201,
-					},
-				},
-			},
-			api.APIError{},
-			false,
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			got, gotOK := tt.given.AsAPIError()
-			assert.Equal(t, tt.expected, got)
-			assert.Equal(t, tt.expectedOK, gotOK)
-		})
-	}
 }
 
 func TestNewResponseFromHTTPResponse(t *testing.T) {
