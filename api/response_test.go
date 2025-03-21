@@ -16,6 +16,7 @@ package api_test
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -429,7 +430,7 @@ func TestIsNotFoundError(t *testing.T) {
 		assert.Equal(t, true, got)
 	})
 
-	t.Run("Different error returns true", func(t *testing.T) {
+	t.Run("Different error returns false", func(t *testing.T) {
 		err := api.APIError{StatusCode: 400}
 		got := api.IsNotFoundError(err)
 		assert.Equal(t, false, got)
@@ -445,6 +446,12 @@ func TestIsNotFoundError(t *testing.T) {
 		err := customErr{StatusCode: http.StatusNotFound}
 		got := api.IsNotFoundError(err)
 		assert.Equal(t, false, got)
+	})
+
+	t.Run("Wrapped api error with status not found returns true", func(t *testing.T) {
+		err := fmt.Errorf("wrapping api error: %w", api.APIError{StatusCode: http.StatusNotFound})
+		got := api.IsNotFoundError(err)
+		assert.Equal(t, true, got)
 	})
 }
 
