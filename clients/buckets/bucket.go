@@ -55,7 +55,6 @@ type listResponse struct {
 }
 
 type retrySettings struct {
-	maxRetries           int
 	durationBetweenTries time.Duration
 	maxWaitDuration      time.Duration
 }
@@ -68,18 +67,16 @@ type Client struct {
 // Option represents a functional Option for the Client.
 type Option func(*Client)
 
-// WithRetrySettings sets the maximum number of retries as well as duration between retries.
+// WithRetrySettings sets the maximum retry time as well as duration between retries.
 // These settings are honored wherever retries are used in the Client - most notably in Client.Update and Client.Upsert,
 // as well as Client.Create when waiting for a bucket to become available after creation.
 //
 // Parameters:
-//   - maxRetries: maximum amount actions may be retries. (Some actions may ignore this and only honor maxWaitDuration)
 //   - durationBetweenTries: time.Duration to wait between tries.
 //   - maxWaitDuration: maximum time.Duration to wait before retrying is canceled. If you supply a context.Context with a timeout, the shorter of the two will be honored.
-func WithRetrySettings(maxRetries int, durationBetweenTries time.Duration, maxWaitDuration time.Duration) Option {
+func WithRetrySettings(durationBetweenTries time.Duration, maxWaitDuration time.Duration) Option {
 	return func(c *Client) {
 		c.retrySettings = retrySettings{
-			maxRetries:           maxRetries,
 			durationBetweenTries: durationBetweenTries,
 			maxWaitDuration:      maxWaitDuration,
 		}
@@ -100,7 +97,6 @@ func NewClient(client *rest.Client, option ...Option) *Client {
 	c := &Client{
 		apiClient: bucketAPI.NewClient(client),
 		retrySettings: retrySettings{
-			maxRetries:           15,
 			durationBetweenTries: time.Second,
 			maxWaitDuration:      2 * time.Minute,
 		},

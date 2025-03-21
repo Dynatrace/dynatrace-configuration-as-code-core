@@ -195,12 +195,12 @@ func (f factory) SLOClient(ctx context.Context) (*slo.Client, error) {
 
 // BucketClientWithRetrySettings creates and returns a new instance of buckets.Client with non-default retry settings.
 // For details about how retry settings are used, see buckets.WithRetrySettings.
-func (f factory) BucketClientWithRetrySettings(ctx context.Context, maxRetries int, durationBetweenTries time.Duration, maxWaitDuration time.Duration) (*buckets.Client, error) {
+func (f factory) BucketClientWithRetrySettings(ctx context.Context, durationBetweenTries time.Duration, maxWaitDuration time.Duration) (*buckets.Client, error) {
 	restClient, err := f.CreatePlatformClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return buckets.NewClient(restClient, buckets.WithRetrySettings(maxRetries, durationBetweenTries, maxWaitDuration)), nil
+	return buckets.NewClient(restClient, buckets.WithRetrySettings(durationBetweenTries, maxWaitDuration)), nil
 }
 
 // OpenPipelineClient creates and returns a new instance of openpipeline.Client for interacting with the openPipeline API.
