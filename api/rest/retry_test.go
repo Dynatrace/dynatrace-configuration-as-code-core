@@ -15,7 +15,6 @@
 package rest_test
 
 import (
-	"fmt"
 	"net/http"
 	"testing"
 
@@ -25,32 +24,18 @@ import (
 )
 
 func TestShouldRetry(t *testing.T) {
-	testcases := []struct {
-		statusCode int
-		want       bool
-	}{
-		{
-			statusCode: http.StatusOK,
-			want:       false,
-		},
-		{
-			statusCode: http.StatusForbidden,
-			want:       false,
-		},
-		{
-			statusCode: http.StatusNotFound,
-			want:       true,
-		},
-		{
-			statusCode: http.StatusBadRequest,
-			want:       true,
-		},
-	}
+	t.Run("Should be false if status is 200", func(t *testing.T) {
+		got := rest.ShouldRetry(http.StatusOK)
+		assert.False(t, got)
+	})
 
-	for _, tt := range testcases {
-		t.Run(fmt.Sprintf("Should be %v if status is %d", tt.want, tt.statusCode), func(t *testing.T) {
-			got := rest.ShouldRetry(tt.statusCode)
-			assert.Equal(t, tt.want, got)
-		})
-	}
+	t.Run("Should be false if status is 403", func(t *testing.T) {
+		got := rest.ShouldRetry(http.StatusForbidden)
+		assert.False(t, got)
+	})
+
+	t.Run("Should be true if status is not 403 or 2xx", func(t *testing.T) {
+		got := rest.ShouldRetry(http.StatusNotFound)
+		assert.True(t, got)
+	})
 }

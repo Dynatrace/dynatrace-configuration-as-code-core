@@ -16,11 +16,8 @@ package rest
 
 import (
 	"net/http"
-	"slices"
 	"time"
 )
-
-var ignoredStatusOnRetry = []int{http.StatusForbidden}
 
 type RetryFunc func(resp *http.Response) bool
 
@@ -53,5 +50,14 @@ func isStatusSuccess(statusCode int) bool {
 
 // ShouldRetry returns true if a retry should happen (e.g., not on 403 or 200, but on 429, etc.) which is valid for all kind of APIs
 func ShouldRetry(statusCode int) bool {
-	return !isStatusSuccess(statusCode) && !slices.Contains(ignoredStatusOnRetry, statusCode)
+	if isStatusSuccess(statusCode) {
+		return false
+	}
+
+	switch statusCode {
+	case http.StatusForbidden:
+		return false
+	default:
+		return true
+	}
 }
