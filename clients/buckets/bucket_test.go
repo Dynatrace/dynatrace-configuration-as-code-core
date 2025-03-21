@@ -71,6 +71,9 @@ const (
 }`
 )
 
+const bucketDurationBetweenTries = 0 * time.Second
+const bucketMaxWaitDuration = 30 * time.Second
+
 func TestGet(t *testing.T) {
 	t.Run("successfully fetch a bucket", func(t *testing.T) {
 
@@ -89,7 +92,7 @@ func TestGet(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -114,7 +117,7 @@ func TestGet(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -169,7 +172,7 @@ func TestList(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -195,7 +198,7 @@ func TestList(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -221,7 +224,7 @@ func TestList(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -287,7 +290,7 @@ func TestUpsert(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -328,7 +331,7 @@ func TestUpsert(t *testing.T) {
 		url, _ := url.Parse(server.URL) //nolint:errcheck
 
 		client := buckets.NewClient(rest.NewClient(url, server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -372,7 +375,7 @@ func TestUpsert(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -452,7 +455,7 @@ func TestUpsert(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -508,7 +511,7 @@ func TestUpsert(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -567,7 +570,7 @@ func TestUpsert(t *testing.T) {
 
 		client := buckets.NewClient(
 			rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, time.Minute))
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -619,7 +622,7 @@ func TestUpsert(t *testing.T) {
 
 		client := buckets.NewClient(
 			rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, time.Minute))
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -698,7 +701,7 @@ func TestUpsert(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 		data := []byte(activeBucketResponse)
 
 		ctx := testutils.ContextWithLogger(t)
@@ -793,7 +796,7 @@ func TestUpsert(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -843,7 +846,7 @@ func TestDelete(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -869,7 +872,7 @@ func TestDelete(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -940,7 +943,7 @@ func TestCreate(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -976,7 +979,7 @@ func TestCreate(t *testing.T) {
 		url, _ := url.Parse(server.URL) //nolint:errcheck
 
 		client := buckets.NewClient(rest.NewClient(url, server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -1014,7 +1017,7 @@ func TestCreate(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -1059,7 +1062,7 @@ func TestUpdate(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1127,7 +1130,7 @@ func TestUpdate(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1161,7 +1164,7 @@ func TestUpdate(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 		data := []byte(`{
 	 "bucketName": "bucket name",
 	 "table": "metrics",
@@ -1220,7 +1223,7 @@ func TestUpdate(t *testing.T) {
 
 		client := buckets.NewClient(
 			rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, time.Minute))
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1248,7 +1251,7 @@ func TestUpdate(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1286,7 +1289,7 @@ func TestUpdate(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1330,7 +1333,7 @@ func TestUpdate(t *testing.T) {
 
 		u, _ := url.Parse(server.URL)
 		client := buckets.NewClient(rest.NewClient(u, &http.Client{}),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1371,7 +1374,7 @@ func TestUpdate(t *testing.T) {
 
 		u, _ := url.Parse(server.URL)
 		client := buckets.NewClient(rest.NewClient(u, &http.Client{}),
-			buckets.WithRetrySettings(5, 0, 0)) // maxWaitDuration should time out immediately
+			buckets.WithRetrySettings(0, 0)) // maxWaitDuration should time out immediately
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1423,7 +1426,7 @@ func TestDecodingBucketResponses(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -1460,7 +1463,7 @@ func TestDecodingBucketResponses(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(5, 0, 2*time.Minute)) // retries without delay for tests
+			buckets.WithRetrySettings(bucketDurationBetweenTries, bucketMaxWaitDuration)) // retries without delay for tests
 
 		ctx := testutils.ContextWithLogger(t)
 
