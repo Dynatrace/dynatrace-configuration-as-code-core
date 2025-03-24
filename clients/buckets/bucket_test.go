@@ -1263,7 +1263,6 @@ func TestUpdate(t *testing.T) {
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
 		assert.Equal(t, http.StatusForbidden, apiError.StatusCode)
-
 	})
 
 	t.Run("Update fails because bucket is being deleted already", func(t *testing.T) {
@@ -1296,8 +1295,8 @@ func TestUpdate(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 
 		_, err := client.Update(ctx, "bucket name", data)
-		assert.ErrorIs(t, err, buckets.DeletingBucketErr)
-
+		deletingBucketErr := buckets.DeletingBucketErr{}
+		assert.ErrorAs(t, err, &deletingBucketErr)
 	})
 
 	t.Run("Update fails at first, but succeeds after retry", func(t *testing.T) {

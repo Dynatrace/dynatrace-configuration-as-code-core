@@ -160,7 +160,7 @@ func (c Client) List(ctx context.Context) (ListResponse, error) {
 	r := listResponse{}
 	err = json.Unmarshal(apiResp.Data, &r)
 	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, "failed to unmarshal json response")
+		logr.FromContextOrDiscard(ctx).Error(err, "Failed to unmarshal JSON response")
 		return ListResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
@@ -198,7 +198,15 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (Res
 	return c.create(ctx, bucketName, data)
 }
 
-var DeletingBucketErr = errors.New("cannot update bucket that is currently being deleted")
+// DeletingBucketErr is an error indicating a bucket ist currently being deleted.
+type DeletingBucketErr struct {
+	BucketName string
+}
+
+// Error returns a string representation of the DeletingBucketErr.
+func (d DeletingBucketErr) Error() string {
+	return fmt.Sprintf("cannot bucket '%s' as it is currently being deleted", d.BucketName)
+}
 
 // Update attempts to update a bucket's data using the provided apiClient. It employs a retry mechanism
 // in case of transient errors. The function returns a Response along with an error indicating the
@@ -244,16 +252,16 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 
 	current, err := unmarshalJSON(apiResp.Data)
 	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, "failed to unmarshal json response")
+		logr.FromContextOrDiscard(ctx).Error(err, "Failed to unmarshal JSON response")
 		return Response{}, err
 	}
 
 	if current.Status == stateDeleting {
-		return api.Response{}, DeletingBucketErr
+		return api.Response{}, DeletingBucketErr{BucketName: bucketName}
 	}
 
 	if bucketsEqual(apiResp.Data, data) {
-		logger.Info(fmt.Sprintf("Configuration unmodified, no need to update bucket with bucket name %q", bucketName))
+		logger.Info(fmt.Sprintf("Configuration unmodified, no need to update bucket '%s''", bucketName))
 
 		return api.Response{
 			StatusCode: 200,
@@ -262,7 +270,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 
 	// attempt update
 	if current.Status != stateActive {
-		logger.V(1).Info(fmt.Sprintf("Waiting for bucket with bucket name %q to reach updatable state - currently %s", bucketName, current.Status))
+		logger.V(1).Info(fmt.Sprintf("Bucket '%s' has status %s, waiting for it to become active...", bucketName, current.Status))
 		if _, err := c.awaitBucketActive(ctx, bucketName); err != nil {
 			return api.Response{}, err
 		}
@@ -315,7 +323,7 @@ func (c Client) Upsert(ctx context.Context, bucketName string, data []byte) (Res
 func (c Client) Delete(ctx context.Context, bucketName string) (Response, error) {
 	resp, err := c.apiClient.Delete(ctx, bucketName)
 	if err != nil {
-		return api.Response{}, fmt.Errorf("unable to delete object with bucket name %q: %w", bucketName, err)
+		return api.Response{}, fmt.Errorf("unable to delete bucket '%s': %w", bucketName, err)
 	}
 
 	apiiResp, apiErr := api.NewResponseFromHTTPResponse(resp)
@@ -328,7 +336,7 @@ func (c Client) Delete(ctx context.Context, bucketName string) (Response, error)
 	defer cancel() // cancel deadline if awaitBucketState returns before deadline
 	err = c.awaitBucketRemoved(timeoutCtx, bucketName)
 	if err != nil {
-		return api.Response{}, fmt.Errorf("unable to delete object with bucket name %q: %w", bucketName, err)
+		return api.Response{}, fmt.Errorf("unable to delete bucket '%s': %w", bucketName, err)
 	}
 
 	return apiiResp, apiErr
@@ -345,7 +353,7 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	resp, err := c.create(ctx, bucketName, data)
 	// If creating the bucket definition worked, return the result
 	if err == nil {
-		logger.Info(fmt.Sprintf("Created bucket with bucket name %q", bucketName))
+		logger.Info(fmt.Sprintf("Created bucket '%s'", bucketName))
 		return resp, nil
 	}
 
@@ -361,7 +369,7 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 
 	// If bucket is currently being deleted, wait for it to be gone, then re-create it
 	if b, err := unmarshalJSON(apiErr.Body); err != nil && b.Status == "deleting" {
-		logger.V(1).Info(fmt.Sprintf("Bucket %q is being deleted. Waiting before re-creation...", b.BucketName))
+		logger.V(1).Info(fmt.Sprintf("Bucket '%s' is being deleted. Waiting before re-creation...", b.BucketName))
 		if err := c.awaitBucketRemoved(ctx, bucketName); err != nil {
 			return Response{}, err
 		}
@@ -369,11 +377,12 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	}
 
 	// Try to update an existing bucket definition
-	logger.V(1).Info(fmt.Sprintf("Failed to create new object with bucket name '%s'. Trying to update existing object. API Error (HTTP %d): %s", bucketName, apiErr.StatusCode, apiErr.Body))
+	logger.V(1).Info(fmt.Sprintf("Failed to create bucket '%s'. Trying to update existing bucket definition. API Error (HTTP %d): %s", bucketName, apiErr.StatusCode, apiErr.Body))
 	apiResp, err := c.Update(ctx, bucketName, data)
 
-	if errors.Is(err, DeletingBucketErr) {
-		logger.V(1).Info(fmt.Sprintf("Failed to upsert bucket with name %q as it was being deleted. Re-creating...", bucketName))
+	deleteingBucketErr := DeletingBucketErr{}
+	if errors.As(err, &deleteingBucketErr) {
+		logger.V(1).Info(fmt.Sprintf("Failed to upsert bucket '%s' as it was being deleted. Re-creating...", bucketName))
 		if err := c.awaitBucketRemoved(ctx, bucketName); err != nil {
 			return Response{}, err
 		}
@@ -430,13 +439,13 @@ func (c Client) awaitBucketActive(ctx context.Context, bucketName string) (api.R
 				}
 
 				if res.Status == "active" {
-					logger.V(1).Info("Bucket became active and ready to use")
+					logger.V(1).Info(fmt.Sprintf("Bucket '%s' became active and ready to use", bucketName))
 					apiResp.StatusCode = http.StatusCreated // return 'created' instead of the GET APIs 'ok'
 					return apiResp, nil
 				}
 			}
 
-			logger.V(1).Info("Waiting for bucket to become active...")
+			logger.V(1).Info(fmt.Sprintf("Waiting for bucket '%s' to become active...", bucketName))
 			time.Sleep(c.retrySettings.durationBetweenTries)
 		}
 	}
@@ -460,14 +469,14 @@ func (c Client) awaitBucketRemoved(ctx context.Context, bucketName string) error
 			if err != nil {
 				// if http.StatusNotFound is returned then the bucket has now been removed
 				if api.IsNotFoundError(err) {
-					logger.V(1).Info("Bucket was removed")
+					logger.V(1).Info(fmt.Sprintf("Bucket '%s' was removed", bucketName))
 					return nil
 				}
 
 				return err
 			}
 
-			logger.V(1).Info("Waiting for bucket to be removed...")
+			logger.V(1).Info(fmt.Sprintf("Waiting for bucket '%s' to be removed...", bucketName))
 			time.Sleep(c.retrySettings.durationBetweenTries)
 		}
 	}
@@ -477,7 +486,7 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 	// try to get existing bucket definition
 	b, err := c.apiClient.Get(ctx, bucketName)
 	if err != nil {
-		return api.Response{}, fmt.Errorf("failed to get object with bucket name %q: %w", bucketName, err)
+		return api.Response{}, fmt.Errorf("failed to get definition for bucket '%s': %w", bucketName, err)
 	}
 
 	apiResp, err := api.NewResponseFromHTTPResponse(b)
