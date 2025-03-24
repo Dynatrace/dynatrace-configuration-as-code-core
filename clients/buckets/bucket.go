@@ -205,7 +205,7 @@ type DeletingBucketErr struct {
 
 // Error returns a string representation of the DeletingBucketErr.
 func (d DeletingBucketErr) Error() string {
-	return fmt.Sprintf("cannot bucket '%s' as it is currently being deleted", d.BucketName)
+	return fmt.Sprintf("cannot update bucket '%s' as it is currently being deleted", d.BucketName)
 }
 
 // Update attempts to update a bucket's data using the provided apiClient. It employs a retry mechanism
