@@ -44,15 +44,15 @@ jobs:
       - name: 🏗️ Compile
         run: make compile
 
-      - name: 🧪 Unit test
-        run: make test testopts="--junitfile test-result-${{ matrix.os }}-unit.xml"
+      - name: 🛠️ Generate mocks
+        run: make mocks
 
-      - name: ⬆️ Upload Test Results
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2
-        if: always()
-        with:
-          name: Test Results (${{ matrix.os }})
-          path: test-result-*.xml
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@3f7ff0ec4aeb6f95f5d67c998b71f272aa8a8b41 #v1.12.1
+
+      - name: 🧪 Unit test with coverage
+        run: gotestsum --format testdox --format-icons hivis -- -coverprofile=cov.out -v -race ./...
+
 
   upload_event:
     name: "Upload Event File"
