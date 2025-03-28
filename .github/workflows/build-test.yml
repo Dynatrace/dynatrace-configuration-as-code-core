@@ -53,6 +53,10 @@ jobs:
       - name: 🧪 Unit test with coverage
         run: gotestsum --format testdox --format-icons hivis -- -coverprofile=cov.out -v -race ./...
 
+      - name: ⬆️ SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@aa494459d7c39c106cc77b166de8b4250a32bb97 #v5.1.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   upload_event:
     name: "Upload Event File"
