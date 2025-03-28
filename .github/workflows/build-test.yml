@@ -45,16 +45,23 @@ jobs:
         run: make compile
 
       - name: 🛠️ Generate mocks
-        run: make mocks
+        run: make generate-mocks
 
       - name: Install gotestsum
         run: go install gotest.tools/gotestsum@3f7ff0ec4aeb6f95f5d67c998b71f272aa8a8b41 #v1.12.1
 
+      - name: 🧪 Unit test
+        if: matrix.os != 'ubuntu-latest'
+        run: gotestsum --format testdox --format-icons hivis -- -v -race ./...
+
+      # Only run coverage output on ubuntu latest
       - name: 🧪 Unit test with coverage
+        if: matrix.os == 'ubuntu-latest'
         run: gotestsum --format testdox --format-icons hivis -- -coverprofile=cov.out -v -race ./...
 
       - name: ⬆️ SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@aa494459d7c39c106cc77b166de8b4250a32bb97 #v5.1.0
+        if: matrix.os == 'ubuntu-latest'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
