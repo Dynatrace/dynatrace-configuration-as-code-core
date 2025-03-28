@@ -38,7 +38,6 @@ check:
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1
 	@golangci-lint run ./...
 
-.PHONY: generate-mocks
 generate-mocks:
 	@echo "Generating mocks"
 	@go install go.uber.org/mock/mockgen@v0.4
