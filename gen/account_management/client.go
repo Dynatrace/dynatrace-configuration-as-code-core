@@ -54,8 +54,6 @@ type APIClient struct {
 
 	DynatracePlatformSubscriptionAPI *DynatracePlatformSubscriptionAPIService
 
-	DynatracePlatformSubscriptionPriorToApril2023API *DynatracePlatformSubscriptionPriorToApril2023APIService
-
 	EnvironmentManagementAPI *EnvironmentManagementAPIService
 
 	GroupManagementAPI *GroupManagementAPIService
@@ -63,8 +61,6 @@ type APIClient struct {
 	PermissionManagementAPI *PermissionManagementAPIService
 
 	PolicyManagementAPI *PolicyManagementAPIService
-
-	QuotaManagementAPI *QuotaManagementAPIService
 
 	ReferenceDataAPI *ReferenceDataAPIService
 
@@ -92,12 +88,10 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.AccountLimitsAPI = (*AccountLimitsAPIService)(&c.common)
 	c.AccountSettingsAPI = (*AccountSettingsAPIService)(&c.common)
 	c.DynatracePlatformSubscriptionAPI = (*DynatracePlatformSubscriptionAPIService)(&c.common)
-	c.DynatracePlatformSubscriptionPriorToApril2023API = (*DynatracePlatformSubscriptionPriorToApril2023APIService)(&c.common)
 	c.EnvironmentManagementAPI = (*EnvironmentManagementAPIService)(&c.common)
 	c.GroupManagementAPI = (*GroupManagementAPIService)(&c.common)
 	c.PermissionManagementAPI = (*PermissionManagementAPIService)(&c.common)
 	c.PolicyManagementAPI = (*PolicyManagementAPIService)(&c.common)
-	c.QuotaManagementAPI = (*QuotaManagementAPIService)(&c.common)
 	c.ReferenceDataAPI = (*ReferenceDataAPIService)(&c.common)
 	c.ServiceUserManagementAPI = (*ServiceUserManagementAPIService)(&c.common)
 	c.UserManagementAPI = (*UserManagementAPIService)(&c.common)

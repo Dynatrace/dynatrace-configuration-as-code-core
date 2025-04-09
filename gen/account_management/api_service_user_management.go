@@ -35,7 +35,7 @@ func (r ApiCreateServiceUserForAccountRequest) ServiceUserDto(serviceUserDto Ser
 	return r
 }
 
-func (r ApiCreateServiceUserForAccountRequest) Execute() (*ServiceUserUuidDto, *http.Response, error) {
+func (r ApiCreateServiceUserForAccountRequest) Execute() (*ExternalServiceUserWithGroupUuidDto, *http.Response, error) {
 	return r.ApiService.CreateServiceUserForAccountExecute(r)
 }
 
@@ -56,13 +56,13 @@ func (a *ServiceUserManagementAPIService) CreateServiceUserForAccount(ctx contex
 
 // Execute executes the request
 //
-//	@return ServiceUserUuidDto
-func (a *ServiceUserManagementAPIService) CreateServiceUserForAccountExecute(r ApiCreateServiceUserForAccountRequest) (*ServiceUserUuidDto, *http.Response, error) {
+//	@return ExternalServiceUserWithGroupUuidDto
+func (a *ServiceUserManagementAPIService) CreateServiceUserForAccountExecute(r ApiCreateServiceUserForAccountRequest) (*ExternalServiceUserWithGroupUuidDto, *http.Response, error) {
 	var (
 		localVarHTTPMethod  = http.MethodPost
 		localVarPostBody    interface{}
 		formFiles           []formFile
-		localVarReturnValue *ServiceUserUuidDto
+		localVarReturnValue *ExternalServiceUserWithGroupUuidDto
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ServiceUserManagementAPIService.CreateServiceUserForAccount")
@@ -230,23 +230,117 @@ func (a *ServiceUserManagementAPIService) DeleteUserExecute(r ApiDeleteUserReque
 	return localVarHTTPResponse, nil
 }
 
+type ApiGetServiceUserRequest struct {
+	ctx         context.Context
+	ApiService  *ServiceUserManagementAPIService
+	accountUuid string
+	userUuid    string
+}
+
+func (r ApiGetServiceUserRequest) Execute() (*http.Response, error) {
+	return r.ApiService.GetServiceUserExecute(r)
+}
+
+/*
+GetServiceUser Get service user by uuid
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param accountUuid The ID of the required account.    You can find the UUID on the **Account Management** > **Identity & access management** > **OAuth clients** page, during creation of an OAuth client.
+	@param userUuid The UUID of the required user.
+	@return ApiGetServiceUserRequest
+*/
+func (a *ServiceUserManagementAPIService) GetServiceUser(ctx context.Context, accountUuid string, userUuid string) ApiGetServiceUserRequest {
+	return ApiGetServiceUserRequest{
+		ApiService:  a,
+		ctx:         ctx,
+		accountUuid: accountUuid,
+		userUuid:    userUuid,
+	}
+}
+
+// Execute executes the request
+func (a *ServiceUserManagementAPIService) GetServiceUserExecute(r ApiGetServiceUserRequest) (*http.Response, error) {
+	var (
+		localVarHTTPMethod = http.MethodGet
+		localVarPostBody   interface{}
+		formFiles          []formFile
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ServiceUserManagementAPIService.GetServiceUser")
+	if err != nil {
+		return nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/iam/v1/accounts/{accountUuid}/service-users/{userUuid}"
+	localVarPath = strings.Replace(localVarPath, "{"+"accountUuid"+"}", url.PathEscape(parameterValueToString(r.accountUuid, "accountUuid")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"userUuid"+"}", url.PathEscape(parameterValueToString(r.userUuid, "userUuid")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarHTTPResponse, newErr
+	}
+
+	return localVarHTTPResponse, nil
+}
+
 type ApiGetServiceUsersFromAccountRequest struct {
 	ctx         context.Context
 	ApiService  *ServiceUserManagementAPIService
 	accountUuid string
-	page        *int32
-	pageSize    *int32
+	page        *int
+	pageSize    *int
 	pageKey     *string
 }
 
 // The number of the requested page. Can be increased as long as **nextPageKey** is available in the response.
-func (r ApiGetServiceUsersFromAccountRequest) Page(page int32) ApiGetServiceUsersFromAccountRequest {
+func (r ApiGetServiceUsersFromAccountRequest) Page(page int) ApiGetServiceUsersFromAccountRequest {
 	r.page = &page
 	return r
 }
 
 // Defines the requested number of entries for the next page.
-func (r ApiGetServiceUsersFromAccountRequest) PageSize(pageSize int32) ApiGetServiceUsersFromAccountRequest {
+func (r ApiGetServiceUsersFromAccountRequest) PageSize(pageSize int) ApiGetServiceUsersFromAccountRequest {
 	r.pageSize = &pageSize
 	return r
 }
