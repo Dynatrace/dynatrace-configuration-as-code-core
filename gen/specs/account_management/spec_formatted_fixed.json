@@ -3069,7 +3069,14 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Success. The user has been fetched."
+                        "description": "Success. The user has been fetched.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExternalServiceUserWithGroupUuidDto"
+                                }
+                            }
+                        }
                     }
                 },
                 "tags": [
