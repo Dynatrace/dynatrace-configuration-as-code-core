@@ -2951,7 +2951,7 @@
                         "in": "query",
                         "description": "The number of the requested page. Can be increased as long as **nextPageKey** is available in the response.",
                         "schema": {
-                            "type": "int"
+                            "type": "integer"
                         }
                     },
                     {
@@ -2960,7 +2960,7 @@
                         "in": "query",
                         "description": "Defines the requested number of entries for the next page.",
                         "schema": {
-                            "type": "int"
+                            "type": "integer"
                         }
                     },
                     {
