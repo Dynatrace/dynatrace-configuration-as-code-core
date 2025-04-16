@@ -107,9 +107,7 @@ type PagedListResponse []ListResponse
 func (p PagedListResponse) All() [][]byte {
 	var ret [][]byte
 	for _, l := range []ListResponse(p) {
-		for _, o := range l.Objects {
-			ret = append(ret, o)
-		}
+		ret = append(ret, l.Objects...)
 	}
 	return ret
 }
