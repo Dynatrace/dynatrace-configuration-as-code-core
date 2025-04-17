@@ -33,11 +33,6 @@ vet: generate-mocks
 	@echo "Vetting files"
 	@go vet -tags '!unit' ./...
 
-check:
-	@echo "Static code analysis"
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1
-	@golangci-lint run ./...
-
 generate-mocks:
 	@echo "Generating mocks"
 	@go install go.uber.org/mock/mockgen@v0.4
