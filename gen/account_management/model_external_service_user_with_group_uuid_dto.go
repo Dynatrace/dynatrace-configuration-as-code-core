@@ -33,7 +33,7 @@ type ExternalServiceUserWithGroupUuidDto struct {
 	// The date and time when the user was created in `2021-05-01T15:11:00Z` format.
 	CreatedAt string `json:"createdAt"`
 	// Uuid of the group which enables assigning policy to service user
-	GroupUuid            string `json:"groupUuid"`
+	GroupUuid            *string `json:"groupUuid,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -43,13 +43,12 @@ type _ExternalServiceUserWithGroupUuidDto ExternalServiceUserWithGroupUuidDto
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewExternalServiceUserWithGroupUuidDto(uid string, email string, name string, createdAt string, groupUuid string) *ExternalServiceUserWithGroupUuidDto {
+func NewExternalServiceUserWithGroupUuidDto(uid string, email string, name string, createdAt string) *ExternalServiceUserWithGroupUuidDto {
 	this := ExternalServiceUserWithGroupUuidDto{}
 	this.Uid = uid
 	this.Email = email
 	this.Name = name
 	this.CreatedAt = createdAt
-	this.GroupUuid = groupUuid
 	return &this
 }
 
@@ -221,28 +220,36 @@ func (o *ExternalServiceUserWithGroupUuidDto) SetCreatedAt(v string) {
 	o.CreatedAt = v
 }
 
-// GetGroupUuid returns the GroupUuid field value
+// GetGroupUuid returns the GroupUuid field value if set, zero value otherwise.
 func (o *ExternalServiceUserWithGroupUuidDto) GetGroupUuid() string {
-	if o == nil {
+	if o == nil || IsNil(o.GroupUuid) {
 		var ret string
 		return ret
 	}
-
-	return o.GroupUuid
+	return *o.GroupUuid
 }
 
-// GetGroupUuidOk returns a tuple with the GroupUuid field value
+// GetGroupUuidOk returns a tuple with the GroupUuid field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 func (o *ExternalServiceUserWithGroupUuidDto) GetGroupUuidOk() (*string, bool) {
-	if o == nil {
+	if o == nil || IsNil(o.GroupUuid) {
 		return nil, false
 	}
-	return &o.GroupUuid, true
+	return o.GroupUuid, true
 }
 
-// SetGroupUuid sets field value
+// HasGroupUuid returns a boolean if a field has been set.
+func (o *ExternalServiceUserWithGroupUuidDto) HasGroupUuid() bool {
+	if o != nil && !IsNil(o.GroupUuid) {
+		return true
+	}
+
+	return false
+}
+
+// SetGroupUuid gets a reference to the given string and assigns it to the GroupUuid field.
 func (o *ExternalServiceUserWithGroupUuidDto) SetGroupUuid(v string) {
-	o.GroupUuid = v
+	o.GroupUuid = &v
 }
 
 func (o ExternalServiceUserWithGroupUuidDto) MarshalJSON() ([]byte, error) {
@@ -265,7 +272,9 @@ func (o ExternalServiceUserWithGroupUuidDto) ToMap() (map[string]interface{}, er
 		toSerialize["description"] = o.Description
 	}
 	toSerialize["createdAt"] = o.CreatedAt
-	toSerialize["groupUuid"] = o.GroupUuid
+	if !IsNil(o.GroupUuid) {
+		toSerialize["groupUuid"] = o.GroupUuid
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -283,7 +292,6 @@ func (o *ExternalServiceUserWithGroupUuidDto) UnmarshalJSON(data []byte) (err er
 		"email",
 		"name",
 		"createdAt",
-		"groupUuid",
 	}
 
 	allProperties := make(map[string]interface{})

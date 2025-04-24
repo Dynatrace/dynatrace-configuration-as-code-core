@@ -6256,8 +6256,7 @@
                     "uid",
                     "email",
                     "name",
-                    "createdAt",
-                    "groupUuid"
+                    "createdAt"
                 ]
             },
             "ExternalServiceUserDto": {
