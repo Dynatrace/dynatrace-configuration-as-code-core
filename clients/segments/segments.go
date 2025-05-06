@@ -15,49 +15,41 @@
 package segments
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"net/http"
+	"net/url"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/segments"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
-type Response = api.Response
+const endpointPath = "platform/storage/filter-segments/v1/filter-segments"
 
 const errMsg = "failed to %s segments: %w"
 const errMsgWithId = "failed to %s segments resource with id %s: %w"
 
 func NewClient(client *rest.Client) *Client {
-	c := &Client{
-		client: segments.NewClient(client),
-	}
-	return c
+	return &Client{restClient: client}
 }
 
-// Client can be used to interact with the Automation API
 type Client struct {
-	client client
+	restClient *rest.Client
 }
 
-//go:generate mockgen -source segments.go -package=segments -destination=client_mock.go
-type client interface {
-	List(ctx context.Context, ro rest.RequestOptions) (*http.Response, error)
-	Get(ctx context.Context, id string, ro rest.RequestOptions) (*http.Response, error)
-	Create(ctx context.Context, data []byte, ro rest.RequestOptions) (*http.Response, error)
-	Update(ctx context.Context, id string, data []byte, ro rest.RequestOptions) (*http.Response, error)
-	Delete(ctx context.Context, id string, ro rest.RequestOptions) (*http.Response, error)
-}
+func (c Client) List(ctx context.Context) (api.Response, error) {
+	path := endpointPath + ":lean" // minimal set of information is enough
 
-var _ client = (*segments.Client)(nil)
+	ro := rest.RequestOptions{
+		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
+		QueryParams:           url.Values{"add-fields": []string{"EXTERNALID"}},
+	}
 
-// List gets a complete set of available configs. The Data filed in response is normalized to json list of entries.
-func (c Client) List(ctx context.Context) (Response, error) {
-	resp, err := c.client.List(ctx, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	resp, err := c.restClient.GET(ctx, path, ro)
 	if err != nil {
-		return Response{}, fmt.Errorf(errMsg, "list", err)
+		return api.Response{}, fmt.Errorf(errMsg, "list", err)
 	}
 
 	apiResp, err := api.NewResponseFromHTTPResponse(resp)
@@ -85,18 +77,98 @@ func modifyBody(source []byte) ([]byte, error) {
 	return body, nil
 }
 
-// Get gets a complete configuration of segment with an ID
-func (c Client) Get(ctx context.Context, id string) (Response, error) {
-	resp, err := c.client.Get(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+func (c Client) Get(ctx context.Context, id string) (api.Response, error) {
+	if id == "" {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "get", id, errors.New(`argument "id" is empty`))
+	}
+
+	path, err := url.JoinPath(endpointPath, id)
 	if err != nil {
-		return Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
+		return api.Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
+	}
+
+	ro := rest.RequestOptions{
+		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
+		QueryParams:           url.Values{"add-fields": []string{"INCLUDES", "VARIABLES", "EXTERNALID", "RESOURCECONTEXT"}},
+	}
+
+	resp, err := c.restClient.GET(ctx, path, ro)
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
 	}
 
 	return api.NewResponseFromHTTPResponse(resp)
 }
 
-// GetAll gets a complete set of complete configuration for all available segments
-func (c Client) GetAll(ctx context.Context) ([]Response, error) {
+func (c Client) Create(ctx context.Context, body []byte) (api.Response, error) {
+	resp, err := c.restClient.POST(ctx, endpointPath, bytes.NewReader(body), rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsg, "create", err)
+	}
+
+	return api.NewResponseFromHTTPResponse(resp)
+}
+
+func (c Client) Update(ctx context.Context, id string, body []byte) (api.Response, error) {
+	if id == "" {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, errors.New(`argument "id" is empty`))
+	}
+
+	existing, err := c.Get(ctx, id)
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
+	}
+
+	var getResponse struct {
+		Version int    `json:"version"`
+		Owner   string `json:"owner"`
+	}
+	err = json.Unmarshal(existing.Data, &getResponse)
+	if err != nil || getResponse.Version == 0 || getResponse.Owner == "" {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
+	}
+
+	// Adds owner if not set(they are mandatory from the API),
+	// and always override uid with the uid that is getting updated
+	body, err = addOwnerAndUIDIfNotSet(body, getResponse.Owner, id)
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
+	}
+
+	path, err := url.JoinPath(endpointPath, id)
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
+	}
+
+	resp, err := c.restClient.PUT(ctx, path, bytes.NewReader(body), rest.RequestOptions{
+		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
+		QueryParams:           map[string][]string{"optimistic-locking-version": {fmt.Sprint(getResponse.Version)}}})
+	if err != nil {
+		return api.Response{}, fmt.Errorf("failed to update segments resource with id %s and version %d: %w", id, getResponse.Version, err)
+	}
+
+	return api.NewResponseFromHTTPResponse(resp)
+}
+
+func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
+	if id == "" {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "delete", id, errors.New(`argument "id" is empty`))
+	}
+
+	path, err := url.JoinPath(endpointPath, id)
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)
+	}
+
+	resp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)
+	}
+
+	return api.NewResponseFromHTTPResponse(resp)
+}
+
+func (c Client) GetAll(ctx context.Context) ([]api.Response, error) {
 	listResp, err := c.List(ctx)
 	if err != nil {
 		return nil, err
@@ -109,7 +181,7 @@ func (c Client) GetAll(ctx context.Context) ([]Response, error) {
 		return nil, fmt.Errorf(errMsg, "get all", err)
 	}
 
-	var result []Response
+	var result []api.Response
 	for _, s := range segments {
 		resp, err := c.Get(ctx, s.Uid)
 		if err != nil {
@@ -119,58 +191,6 @@ func (c Client) GetAll(ctx context.Context) ([]Response, error) {
 	}
 
 	return result, nil
-}
-
-func (c Client) Update(ctx context.Context, id string, data []byte) (Response, error) {
-	existing, err := c.Get(ctx, id)
-	if err != nil {
-		return Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
-	}
-
-	var getResponse struct {
-		Version int    `json:"version"`
-		Owner   string `json:"owner"`
-	}
-	err = json.Unmarshal(existing.Data, &getResponse)
-	if err != nil || getResponse.Version == 0 || getResponse.Owner == "" {
-		return Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
-	}
-
-	// Adds owner if not set(they are mandatory from the API),
-	// and always override uid with the uid that is getting updated
-	data, err = addOwnerAndUIDIfNotSet(data, getResponse.Owner, id)
-	if err != nil {
-		return Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
-	}
-
-	updateResourceResp, err := c.client.Update(ctx, id, data, rest.RequestOptions{
-		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
-		QueryParams:           map[string][]string{"optimistic-locking-version": {fmt.Sprint(getResponse.Version)}}})
-	if err != nil {
-		return Response{}, fmt.Errorf("failed to update segments resource with id %s and version %d: %w", id, getResponse.Version, err)
-	}
-
-	return api.NewResponseFromHTTPResponse(updateResourceResp)
-}
-
-// Create creates a new segment entry on the server
-func (c Client) Create(ctx context.Context, data []byte) (Response, error) {
-	resp, err := c.client.Create(ctx, data, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
-	if err != nil {
-		return Response{}, fmt.Errorf(errMsg, "create", err)
-	}
-
-	return api.NewResponseFromHTTPResponse(resp)
-}
-
-// Delete removes configuration for segment with given ID from a server.
-func (c Client) Delete(ctx context.Context, id string) (Response, error) {
-	resp, err := c.client.Delete(ctx, id, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
-	if err != nil {
-		return Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)
-	}
-
-	return api.NewResponseFromHTTPResponse(resp)
 }
 
 func unmarshalRequest(payload []byte) (map[string]any, error) {
