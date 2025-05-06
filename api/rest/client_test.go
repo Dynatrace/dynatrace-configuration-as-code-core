@@ -27,7 +27,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/pointer"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
 )
 
@@ -325,6 +327,34 @@ func TestClient_WithRetries(t *testing.T) {
 		t.Fatalf("failed to send GET request: %v", err)
 	}
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, 2, apiHits)
+}
+
+func TestClient_WithCustomRetriesOnRequest(t *testing.T) {
+	apiHits := 0
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rw.WriteHeader(http.StatusTooManyRequests)
+		apiHits++
+	}))
+	defer server.Close()
+
+	baseURL, _ := url.Parse(server.URL)
+	client := NewClient(baseURL, nil, WithRetryOptions(&RetryOptions{
+		MaxRetries:      10,
+		DelayAfterRetry: time.Duration(0),
+		ShouldRetryFunc: func(resp *http.Response) bool {
+			return resp.StatusCode != http.StatusOK
+		},
+	}))
+
+	ctx := testutils.ContextWithLogger(t)
+
+	startTime := time.Now()
+	resp, err := client.GET(ctx, "", RequestOptions{MaxRetries: pointer.Pointer(1), DelayAfterRetry: pointer.Pointer(time.Millisecond * 100)})
+	elapsedTime := time.Since(startTime)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, elapsedTime, time.Millisecond*100)
+	assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
 	assert.Equal(t, 2, apiHits)
 }
 
