@@ -19,18 +19,15 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/segments"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewClient(t *testing.T) {
@@ -60,22 +57,33 @@ func TestList(t *testing.T) {
     }
   ]`
 
-	mockClient := segments.NewMockclient(gomock.NewController(t))
-	mockClient.EXPECT().
-		List(gomock.AssignableToTypeOf(t.Context()), gomock.AssignableToTypeOf(rest.RequestOptions{})).
-		Return(&http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(apiResponse)),
-		}, nil)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodGet, r.Method)
+		require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments:lean", r.URL.Path)
 
-	fsClient := segments.NewTestClient(mockClient)
-	actual, err := fsClient.List(t.Context())
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(apiResponse))
+	}))
+	defer server.Close()
 
+	url, _ := url.Parse(server.URL)
+	client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+	resp, err := client.List(t.Context())
 	require.NoError(t, err)
-	require.JSONEq(t, expected, string(actual.Data))
+	require.JSONEq(t, expected, string(resp.Data))
 }
 
 func TestGet(t *testing.T) {
+	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
+		client := segments.NewClient(&rest.Client{})
+
+		actual, err := client.Get(t.Context(), "")
+
+		assert.Error(t, err)
+		assert.Empty(t, actual)
+	})
+
 	t.Run("ID doesn't exists on server returns error", func(t *testing.T) {
 		apiResponse := `{
   "error": {
@@ -84,17 +92,19 @@ func TestGet(t *testing.T) {
     "errorDetails": []
   }
 }`
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := segments.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			Get(ctx, "uid", gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusNotFound,
-				Body:       io.NopCloser(strings.NewReader(apiResponse)),
-			}, nil)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, http.MethodGet, r.Method)
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
 
-		fsClient := segments.NewTestClient(mockClient)
-		resp, err := fsClient.Get(ctx, "uid")
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(apiResponse))
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.Get(t.Context(), "uid")
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -128,17 +138,19 @@ func TestGet(t *testing.T) {
   ],
   "version": 1
 }`
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := segments.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			Get(ctx, "uid", gomock.Any()).
-			Return(&http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(apiResponse)),
-			}, nil)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, http.MethodGet, r.Method)
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
 
-		fsClient := segments.NewTestClient(mockClient)
-		resp, err := fsClient.Get(ctx, "uid")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(apiResponse))
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.Get(t.Context(), "uid")
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
@@ -150,17 +162,19 @@ func TestGet(t *testing.T) {
 func TestGetAll(t *testing.T) {
 	t.Run("getting list fails with error", func(t *testing.T) {
 		apiResponse := `{ "err" : "something went wrong" }`
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := segments.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			List(ctx, gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusBadRequest,
-				Body:       io.NopCloser(strings.NewReader(apiResponse)),
-			}, nil)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, http.MethodGet, r.Method)
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments:lean", r.URL.Path)
 
-		fsClient := segments.NewTestClient(mockClient)
-		resp, err := fsClient.GetAll(ctx)
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(apiResponse))
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.GetAll(t.Context())
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -172,30 +186,26 @@ func TestGetAll(t *testing.T) {
 	})
 
 	t.Run("getting individual object from server fails and return error", func(t *testing.T) {
-		apiResponse := `{
-  "filterSegments": [
-    {"uid": "pC7j2sEDzAQ"}
-  ]
-}
-`
-		apiResponse2 := `{ "err" : "something went wrong" }`
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := segments.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			List(ctx, gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(apiResponse)),
-			}, nil)
-		mockClient.EXPECT().
-			Get(ctx, "pC7j2sEDzAQ", gomock.Any()).
-			Return(&http.Response{
-				StatusCode: http.StatusInternalServerError,
-				Body:       io.NopCloser(strings.NewReader(apiResponse2)),
-			}, nil)
+		response := map[int]string{
+			0: `{"filterSegments": [{"uid": "pC7j2sEDzAQ"}]}`,
+			1: `{ "err" : "something went wrong" }`,
+		}
 
-		fsClient := segments.NewTestClient(mockClient)
-		resp, err := fsClient.GetAll(ctx)
+		i := 0
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, http.MethodGet, r.Method)
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments:lean", r.URL.Path)
+
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(response[i]))
+			i++
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.GetAll(t.Context())
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -203,18 +213,23 @@ func TestGetAll(t *testing.T) {
 		var apiErr api.APIError
 		errors.As(err, &apiErr)
 		assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
-		assert.Equal(t, apiResponse2, string(apiErr.Body))
 	})
 
 	t.Run("successfully returned all configuration from server", func(t *testing.T) {
-		apiResponse := `{
+		expectedEnding := map[int]string{
+			0: `:lean`,
+			1: `/qW5qn449RsG`,
+			2: `/pC7j2sEDzAQ`,
+		}
+		expectedResponse := map[int]string{
+			0: `{
   "filterSegments": [
     {"uid": "qW5qn449RsG"},
     {"uid": "pC7j2sEDzAQ"}
   ]
 }
-`
-		apiResponse2 := `    {
+`,
+			1: `{
       "uid": "qW5qn449RsG",
       "name": "dev_environment",
       "description": "only includes data of the dev environment",
@@ -223,8 +238,8 @@ func TestGetAll(t *testing.T) {
       "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
       "allowedOperations": ["READ", "WRITE", "DELETE"],
       "version": 2
-    }`
-		apiResponse3 := `   {
+    }`,
+			2: `   {
       "uid": "pC7j2sEDzAQ",
       "name": "dev_environment",
       "description": "only includes data of the dev environment",
@@ -233,44 +248,36 @@ func TestGetAll(t *testing.T) {
       "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
       "allowedOperations": ["READ", "WRITE", "DELETE"],
       "version": 1
-    }`
+    }`,
+		}
+		i := 0
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, http.MethodGet, r.Method)
+			url := "/platform/storage/filter-segments/v1/filter-segments" + expectedEnding[i]
+			require.Equal(t, url, r.URL.Path)
 
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := segments.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			List(ctx, gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(apiResponse)),
-			}, nil)
-		mockClient.EXPECT().
-			Get(ctx, "qW5qn449RsG", gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(apiResponse2)),
-			}, nil)
-		mockClient.EXPECT().
-			Get(ctx, "pC7j2sEDzAQ", gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(apiResponse3)),
-			}, nil)
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(expectedResponse[i]))
+			i++
+		}))
+		defer server.Close()
 
-		fsClient := segments.NewTestClient(mockClient)
-		resp, err := fsClient.GetAll(ctx)
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.GetAll(t.Context())
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
 		assert.Len(t, resp, 2)
-		assert.Equal(t, apiResponse2, string(resp[0].Data))
-		assert.Equal(t, apiResponse3, string(resp[1].Data))
-
+		for k := 1; k < len(expectedResponse); k++ {
+			assert.Equal(t, expectedResponse[k], string(resp[k-1].Data))
+		}
 	})
 }
 
 func TestCreate(t *testing.T) {
-	t.Run("successfully created new entity on server", func(t *testing.T) {
-		payload := `{
+	payload := `{
   "name": "dev_environment",
   "description": "only includes data of the dev environment",
   "variables": {
@@ -285,6 +292,27 @@ func TestCreate(t *testing.T) {
   ],
   "includes": []
 }`
+	t.Run("error returned from response, expected error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadGateway)
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		_, err := client.Create(t.Context(), []byte(payload))
+		assert.Error(t, err)
+	})
+	t.Run("error returned from client, expected error", func(t *testing.T) {
+		httpClient := &http.Client{}
+		path := &url.URL{}
+		client := segments.NewClient(rest.NewClient(path, httpClient))
+
+		_, err := client.Create(t.Context(), []byte(payload))
+		assert.Error(t, err)
+	})
+	t.Run("successfully created new entity on server", func(t *testing.T) {
 		apiResponse := `{
   "uid": "oKZQWWV0FpR",
   "name": "dev_environment",
@@ -298,18 +326,19 @@ func TestCreate(t *testing.T) {
   "includes": [],
   "version": 1
 }`
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, http.MethodPost, r.Method)
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments", r.URL.Path)
 
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := segments.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			Create(ctx, []byte(payload), gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(apiResponse)),
-			}, nil)
+			w.WriteHeader(http.StatusCreated)
+			w.Write([]byte(apiResponse))
+		}))
+		defer server.Close()
 
-		fsClient := segments.NewTestClient(mockClient)
-		resp, err := fsClient.Create(ctx, []byte(payload))
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.Create(t.Context(), []byte(payload))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
@@ -319,7 +348,26 @@ func TestCreate(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
+	t.Run("error returned from client, expected error", func(t *testing.T) {
+		httpClient := &http.Client{}
+		path := &url.URL{}
+		client := segments.NewClient(rest.NewClient(path, httpClient))
 
+		_, err := client.Update(t.Context(), "id", []byte(``))
+		assert.Error(t, err)
+	})
+	t.Run("id not provided, expecting validation error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("should failt at id validation")
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		_, err := client.Update(t.Context(), "", []byte(``))
+		assert.Error(t, err)
+	})
 	t.Run("unexpected error while checking for status on server", func(t *testing.T) {
 		payload := `{
   "uid": "qW5qn449RsG",
@@ -338,153 +386,276 @@ func TestUpdate(t *testing.T) {
   ],
   "includes": []
 }`
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := segments.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			Get(ctx, "uid", gomock.Any()).
-			Return(nil, errors.New("some unexpected error"))
 
-		fsClient := segments.NewTestClient(mockClient)
-		actual, err := fsClient.Update(ctx, "uid", []byte(payload))
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, http.MethodGet, r.Method)
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
+
+			w.WriteHeader(http.StatusBadGateway)
+			w.Write([]byte(``))
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.Update(t.Context(), "uid", []byte(payload))
 
 		require.Error(t, err)
-		require.Empty(t, actual)
+		require.Empty(t, resp)
 	})
-
 	t.Run("successfully updated existing entity on server, uid in provided payload not matching and gets overwritten", func(t *testing.T) {
 		uid := "D82a1jdA23a"
 		payload := `{
-  "allowedOperations" : [ "READ", "WRITE", "DELETE" ],
-  "description" : "only includes data of the dev environment",
-  "includes" : [ ],
-  "isPublic" : false,
-  "name" : "dev_environment",
-  "owner" : "2f321c04-566e-4779-b576-3c033b8cd9e9",
-  "uid" : "uid",
-  "variables" : {
-    "type" : "query",
-    "value" : "fetch logs | limit 1"
-  }
-}`
+		  "allowedOperations" : [ "READ", "WRITE", "DELETE" ],
+		  "description" : "only includes data of the dev environment",
+		  "includes" : [ ],
+		  "isPublic" : false,
+		  "name" : "dev_environment",
+		  "owner" : "2f321c04-566e-4779-b576-3c033b8cd9e9",
+		  "uid" : "uid",
+		  "variables" : {
+		    "type" : "query",
+		    "value" : "fetch logs | limit 1"
+		  }
+		}`
 
 		apiExistingResource := `{
-  "uid": "` + uid + `",
-  "name": "dev_environment",
-  "description": "only includes data of the dev environment",
-  "variables": {
-    "type": "query",
-    "value": "fetch logs | limit 1"
-  },
-  "isPublic": false,
-  "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
-  "includes": [
-    {
-      "filter": "here goes the filter",
-      "dataObject": "logs"
-    },
-    {
-      "filter": "here goes another filter",
-      "dataObject": "events"
-    }
-  ],
-  "version": 2
-}`
-		apiResponse := `{}`
+		  "uid": "` + uid + `",
+		  "name": "dev_environment",
+		  "description": "only includes data of the dev environment",
+		  "variables": {
+		    "type": "query",
+		    "value": "fetch logs | limit 1"
+		  },
+		  "isPublic": false,
+		  "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
+		  "includes": [
+		    {
+		      "filter": "here goes the filter",
+		      "dataObject": "logs"
+		    },
+		    {
+		      "filter": "here goes another filter",
+		      "dataObject": "events"
+		    }
+		  ],
+		  "version": 2
+		}`
 
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := segments.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			Get(ctx, uid, gomock.Any()).
-			Return(&http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(apiExistingResource)),
-			}, nil)
-		mockClient.EXPECT().
-			Update(ctx, uid, gomock.Any(), gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(apiResponse)),
-			}, nil).
-			Do(func(_, _, payload any, ro any) {
-				assertVersionParam(t, ro, "2")
-				assertRequestPayload(payload, t, uid, "2f321c04-566e-4779-b576-3c033b8cd9e9")
-			})
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, r.URL.Path)
+			switch r.Method {
+			case http.MethodGet:
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(apiExistingResource))
+				break
+			case http.MethodPut:
+				w.WriteHeader(http.StatusNoContent)
+				break
+			}
+		}))
+		defer server.Close()
 
-		fsClient := segments.NewTestClient(mockClient)
-		resp, err := fsClient.Update(ctx, uid, []byte(payload))
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.Update(t.Context(), uid, []byte(payload))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
-		assert.Equal(t, apiResponse, string(resp.Data))
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Empty(t, string(resp.Data))
+		assert.Equal(t, http.StatusNoContent, resp.StatusCode)
 	})
 	t.Run("successfully updated existing entity on server, payload without owner and uid", func(t *testing.T) {
+		uid := "D82a1jdA23a"
 		payload := `{
-  "allowedOperations" : [ "READ", "WRITE", "DELETE" ],
-  "description" : "only includes data of the dev environment",
-  "includes" : [ ],
-  "isPublic" : false,
-  "name" : "dev_environment",
-  "variables" : {
-    "type" : "query",
-    "value" : "fetch logs | limit 1"
-  }
-}`
+			  "allowedOperations" : [ "READ", "WRITE", "DELETE" ],
+			  "description" : "only includes data of the dev environment",
+			  "includes" : [ ],
+			  "isPublic" : false,
+			  "name" : "dev_environment",
+			  "variables" : {
+			    "type" : "query",
+			    "value" : "fetch logs | limit 1"
+			  }
+			}`
 
 		apiExistingResource := `{
-  "uid": "D82a1jdA23a",
-  "name": "dev_environment",
-  "description": "only includes data of the dev environment",
-  "variables": {
-    "type": "query",
-    "value": "fetch logs | limit 1"
-  },
-  "isPublic": false,
-  "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
-  "includes": [
-    {
-      "filter": "here goes the filter",
-      "dataObject": "logs"
-    },
-    {
-      "filter": "here goes another filter",
-      "dataObject": "events"
-    }
-  ],
-  "version": 2
-}`
-		apiResponse := `{}`
+			  "uid": "D82a1jdA23a",
+			  "name": "dev_environment",
+			  "description": "only includes data of the dev environment",
+			  "variables": {
+			    "type": "query",
+			    "value": "fetch logs | limit 1"
+			  },
+			  "isPublic": false,
+			  "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
+			  "includes": [
+			    {
+			      "filter": "here goes the filter",
+			      "dataObject": "logs"
+			    },
+			    {
+			      "filter": "here goes another filter",
+			      "dataObject": "events"
+			    }
+			  ],
+			  "version": 2
+			}`
 
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := segments.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			Get(ctx, "D82a1jdA23a", gomock.Any()).
-			Return(&http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(apiExistingResource)),
-			}, nil)
-		mockClient.EXPECT().
-			Update(ctx, "D82a1jdA23a", gomock.Any(), gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(apiResponse)),
-			}, nil).
-			Do(func(_, _, payload any, ro any) {
-				assertVersionParam(t, ro, "2")
-				assertRequestPayload(payload, t, "D82a1jdA23a", "2f321c04-566e-4779-b576-3c033b8cd9e9")
-			})
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, r.URL.Path)
+			switch r.Method {
+			case http.MethodGet:
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(apiExistingResource))
+				break
+			case http.MethodPut:
+				assertRequestPayload(t, r, uid, "2f321c04-566e-4779-b576-3c033b8cd9e9")
+				w.WriteHeader(http.StatusNoContent)
+				break
+			}
+		}))
+		defer server.Close()
 
-		fsClient := segments.NewTestClient(mockClient)
-		resp, err := fsClient.Update(ctx, "D82a1jdA23a", []byte(payload))
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.Update(t.Context(), uid, []byte(payload))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
-		assert.Equal(t, apiResponse, string(resp.Data))
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Empty(t, string(resp.Data))
+		assert.Equal(t, http.StatusNoContent, resp.StatusCode)
+	})
+	t.Run("error test case, return a get response without owner", func(t *testing.T) {
+		uid := "D82a1jdA23a"
+		payload := `{
+			  "allowedOperations" : [ "READ", "WRITE", "DELETE" ],
+			  "description" : "only includes data of the dev environment",
+			  "includes" : [ ],
+			  "isPublic" : false,
+			  "name" : "dev_environment",
+			  "variables" : {
+			    "type" : "query",
+			    "value" : "fetch logs | limit 1"
+			  }
+			}`
+
+		apiExistingResource := `{
+			  "uid": "D82a1jdA23a",
+			  "name": "dev_environment",
+			  "description": "only includes data of the dev environment",
+			  "variables": {
+			    "type": "query",
+			    "value": "fetch logs | limit 1"
+			  },
+			  "isPublic": false,
+			  "includes": [
+			    {
+			      "filter": "here goes the filter",
+			      "dataObject": "logs"
+			    },
+			    {
+			      "filter": "here goes another filter",
+			      "dataObject": "events"
+			    }
+			  ],
+			  "version": 2
+			}`
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, r.URL.Path)
+			switch r.Method {
+			case http.MethodGet:
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(apiExistingResource))
+				break
+			case http.MethodPut:
+				t.Errorf("should failt at owner validation")
+				break
+			}
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.Update(t.Context(), uid, []byte(payload))
+
+		assert.Empty(t, resp)
+		assert.Error(t, err)
+	})
+	t.Run("error test case, malformed payload provided to update", func(t *testing.T) {
+		uid := "D82a1jdA23a"
+		payload := `{///---....}`
+
+		apiExistingResource := `{
+			  "uid": "D82a1jdA23a",
+			  "name": "dev_environment",
+			  "description": "only includes data of the dev environment",
+			  "variables": {
+			    "type": "query",
+			    "value": "fetch logs | limit 1"
+			  },
+			  "isPublic": false,
+			  "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
+			  "includes": [
+			    {
+			      "filter": "here goes the filter",
+			      "dataObject": "logs"
+			    },
+			    {
+			      "filter": "here goes another filter",
+			      "dataObject": "events"
+			    }
+			  ],
+			  "version": 2
+			}`
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, r.URL.Path)
+			switch r.Method {
+			case http.MethodGet:
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(apiExistingResource))
+				break
+			case http.MethodPut:
+				t.Errorf("should failt at unmarshall payload")
+				break
+			}
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.Update(t.Context(), uid, []byte(payload))
+
+		assert.Empty(t, resp)
+		assert.Error(t, err)
 	})
 }
 
 func TestDelete(t *testing.T) {
+	t.Run("error returned from client, expected error", func(t *testing.T) {
+		httpClient := &http.Client{}
+		path := &url.URL{}
+		client := segments.NewClient(rest.NewClient(path, httpClient))
+
+		_, err := client.Delete(t.Context(), "id")
+		assert.Error(t, err)
+	})
+	t.Run("error empty id provided, expected error", func(t *testing.T) {
+		httpClient := &http.Client{}
+		path := &url.URL{}
+		client := segments.NewClient(rest.NewClient(path, httpClient))
+
+		_, err := client.Delete(t.Context(), "")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "id")
+	})
 	t.Run("ID doesn't exists on server returns error", func(t *testing.T) {
 		apiResponse := `{
 	 "error": {
@@ -493,17 +664,19 @@ func TestDelete(t *testing.T) {
 	   "errorDetails": []
 	 }
 	}`
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := segments.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			Delete(ctx, "uid", gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusNotFound,
-				Body:       io.NopCloser(strings.NewReader(apiResponse)),
-			}, nil)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, http.MethodDelete, r.Method)
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
 
-		fsClient := segments.NewTestClient(mockClient)
-		resp, err := fsClient.Delete(ctx, "uid")
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(apiResponse))
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.Delete(t.Context(), "uid")
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -515,40 +688,35 @@ func TestDelete(t *testing.T) {
 	})
 
 	t.Run("successfully deleted entity with ID from server", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, http.MethodDelete, r.Method)
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
 
-		ctx := testutils.ContextWithLogger(t)
-		mockClient := segments.NewMockclient(gomock.NewController(t))
-		mockClient.EXPECT().
-			Delete(ctx, "uid", gomock.AssignableToTypeOf(rest.RequestOptions{})).
-			Return(&http.Response{
-				StatusCode: http.StatusNoContent,
-				Body:       io.NopCloser(strings.NewReader("")),
-			}, nil)
+			w.WriteHeader(http.StatusNoContent)
+			w.Write([]byte(``))
+		}))
+		defer server.Close()
 
-		fsClient := segments.NewTestClient(mockClient)
-		resp, err := fsClient.Delete(ctx, "uid")
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.Delete(t.Context(), "uid")
 
 		assert.NoError(t, err)
 		assert.Equal(t, resp.StatusCode, http.StatusNoContent)
 	})
 }
 
-func assertVersionParam(t *testing.T, ro any, version string) {
-	require.IsType(t, rest.RequestOptions{}, ro)
-	require.Contains(t, ro.(rest.RequestOptions).QueryParams, "optimistic-locking-version")
-	require.Equal(t, ro.(rest.RequestOptions).QueryParams, url.Values{"optimistic-locking-version": {version}})
-}
-
-func assertRequestPayload(payload any, t *testing.T, expectedUID string, expectedOwner string) {
-	data, ok := payload.([]byte)
-	if !ok {
+func assertRequestPayload(t *testing.T, r *http.Request, expectedUID string, expectedOwner string) {
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
 		t.Error("invalid payload type")
 	}
 	var testRequest struct {
 		Owner string `json:"owner"`
 		UID   string `json:"uid"`
 	}
-	err := json.Unmarshal(data, &testRequest)
+	err = json.Unmarshal(data, &testRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
