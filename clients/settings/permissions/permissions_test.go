@@ -41,11 +41,12 @@ func TestClient_GetAllAccessors(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
 		actual, err := client.GetAllAccessors(t.Context(), "")
-		var errorGet permissions.ErrorPermissionGet
-
 		assert.Error(t, err)
+
+		var errPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errPermissions)
 		assert.ErrorAs(t, err, &permissions.ErrorMissingObjectID)
-		assert.ErrorAs(t, err, &errorGet)
+		assert.Equal(t, permissions.GET, errPermissions.Operation)
 		assert.Empty(t, actual)
 	})
 
@@ -140,11 +141,12 @@ func TestClient_GetAllAccessors(t *testing.T) {
 
 		server.Close()
 		resp, err := client.GetAllAccessors(t.Context(), "some-object-id")
-
-		var errorGet permissions.ErrorPermissionGet
-		assert.Error(t, err)
-		assert.ErrorAs(t, err, &errorGet)
 		assert.Empty(t, resp)
+		assert.Error(t, err)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.Equal(t, permissions.GET, errorPermissions.Operation)
 	})
 }
 
@@ -153,13 +155,13 @@ func TestClient_GetAllUsersAccessor(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
 		actual, err := client.GetAllUsersAccessor(t.Context(), "")
-
-		var errorGet permissions.ErrorPermissionGet
-
-		assert.Error(t, err)
-		assert.ErrorAs(t, err, &permissions.ErrorMissingObjectID)
-		assert.ErrorAs(t, err, &errorGet)
 		assert.Empty(t, actual)
+		assert.Error(t, err)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.ErrorIs(t, errorPermissions, permissions.ErrorMissingObjectID)
+		assert.Equal(t, permissions.GET, errorPermissions.Operation)
 	})
 
 	t.Run("successfully requesting all-user permissions for requested objectID", func(t *testing.T) {
@@ -222,11 +224,12 @@ func TestClient_GetAllUsersAccessor(t *testing.T) {
 
 		server.Close()
 		resp, err := client.GetAllUsersAccessor(t.Context(), "some-object-id")
-
-		var errorGet permissions.ErrorPermissionGet
-		assert.Error(t, err)
-		assert.ErrorAs(t, err, &errorGet)
 		assert.Empty(t, resp)
+		assert.Error(t, err)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.Equal(t, permissions.GET, errorPermissions.Operation)
 	})
 }
 
@@ -234,40 +237,40 @@ func TestClient_GetAccessor(t *testing.T) {
 	t.Run("when called without object id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.GetAccessor(t.Context(), "", "user", "user-id")
-
-		var errorGet permissions.ErrorPermissionGet
-
+		resp, err := client.GetAccessor(t.Context(), "", "user", "user-id")
+		assert.Empty(t, resp)
 		assert.Error(t, err)
-		assert.ErrorAs(t, err, &permissions.ErrorMissingObjectID)
-		assert.ErrorAs(t, err, &errorGet)
-		assert.Empty(t, actual)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.ErrorIs(t, errorPermissions, permissions.ErrorMissingObjectID)
+		assert.Equal(t, permissions.GET, errorPermissions.Operation)
 	})
 
 	t.Run("when called without accessor type parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
 		actual, err := client.GetAccessor(t.Context(), "my-object-id", "", "user-id")
-
-		var errorGet permissions.ErrorPermissionGet
-
-		assert.Error(t, err)
-		assert.ErrorAs(t, err, &permissions.ErrorMissingAccessorType)
-		assert.ErrorAs(t, err, &errorGet)
 		assert.Empty(t, actual)
+		assert.Error(t, err)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.ErrorIs(t, errorPermissions, permissions.ErrorMissingAccessorType)
+		assert.Equal(t, permissions.GET, errorPermissions.Operation)
 	})
 
 	t.Run("when called without accessor id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
 		actual, err := client.GetAccessor(t.Context(), "my-object-id", "group", "")
-
-		var errorGet permissions.ErrorPermissionGet
-
-		assert.Error(t, err)
-		assert.ErrorAs(t, err, &permissions.ErrorMissingAccessorID)
-		assert.ErrorAs(t, err, &errorGet)
 		assert.Empty(t, actual)
+		assert.Error(t, err)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.ErrorIs(t, errorPermissions, permissions.ErrorMissingAccessorID)
+		assert.Equal(t, permissions.GET, errorPermissions.Operation)
 	})
 
 	t.Run("successfully requesting group permissions for requested objectID and groupID", func(t *testing.T) {
@@ -313,7 +316,6 @@ func TestClient_GetAccessor(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		resp, err := client.GetAccessor(t.Context(), "some-object-id", "user", "uid")
-
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
 
@@ -330,11 +332,12 @@ func TestClient_GetAccessor(t *testing.T) {
 
 		server.Close()
 		resp, err := client.GetAccessor(t.Context(), "some-object-id", "user", "uid")
-
-		var errorGet permissions.ErrorPermissionGet
-		assert.Error(t, err)
-		assert.ErrorAs(t, err, &errorGet)
 		assert.Empty(t, resp)
+		assert.Error(t, err)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.Equal(t, permissions.GET, errorPermissions.Operation)
 	})
 }
 
@@ -342,14 +345,14 @@ func TestClient_Create(t *testing.T) {
 	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.Create(t.Context(), "", nil)
-
-		var errorCreate permissions.ErrorPermissionCreate
-
+		resp, err := client.Create(t.Context(), "", nil)
+		assert.Empty(t, resp)
 		assert.Error(t, err)
-		assert.ErrorAs(t, err, &permissions.ErrorMissingObjectID)
-		assert.ErrorAs(t, err, &errorCreate)
-		assert.Empty(t, actual)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.ErrorIs(t, errorPermissions, permissions.ErrorMissingObjectID)
+		assert.Equal(t, permissions.POST, errorPermissions.Operation)
 	})
 
 	t.Run("successful creation of settings object permission with given payload", func(t *testing.T) {
@@ -384,12 +387,13 @@ func TestClient_Create(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		actual, err := client.Create(t.Context(), "my-object-id", json.RawMessage(given))
-
-		var errorCreate permissions.ErrorPermissionCreate
+		resp, err := client.Create(t.Context(), "my-object-id", json.RawMessage(given))
+		assert.Empty(t, resp)
 		assert.Error(t, err)
-		assert.ErrorAs(t, err, &errorCreate)
-		assert.Empty(t, actual)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.Equal(t, permissions.POST, errorPermissions.Operation)
 	})
 }
 
@@ -397,14 +401,14 @@ func TestClient_UpdateAllUsersAccessor(t *testing.T) {
 	t.Run("when called without object id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.UpdateAllUsersAccessor(t.Context(), "", nil)
-
-		var errorUpdate permissions.ErrorPermissionUpdate
-
+		resp, err := client.UpdateAllUsersAccessor(t.Context(), "", nil)
+		assert.Empty(t, resp)
 		assert.Error(t, err)
-		assert.ErrorAs(t, err, &permissions.ErrorMissingObjectID)
-		assert.ErrorAs(t, err, &errorUpdate)
-		assert.Empty(t, actual)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.ErrorIs(t, errorPermissions, permissions.ErrorMissingObjectID)
+		assert.Equal(t, permissions.PUT, errorPermissions.Operation)
 	})
 
 	t.Run("successful permission update for settings object with given payload", func(t *testing.T) {
@@ -472,11 +476,12 @@ func TestClient_UpdateAllUsersAccessor(t *testing.T) {
 
 		server.Close()
 		resp, err := client.UpdateAllUsersAccessor(t.Context(), "my-object-id", json.RawMessage(given))
-
-		var errorUpdate permissions.ErrorPermissionUpdate
-		assert.Error(t, err)
-		assert.ErrorAs(t, err, &errorUpdate)
 		assert.Empty(t, resp)
+		assert.Error(t, err)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.Equal(t, permissions.PUT, errorPermissions.Operation)
 	})
 }
 
@@ -484,40 +489,40 @@ func TestClient_UpdateAccessor(t *testing.T) {
 	t.Run("when called without object id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.UpdateAccessor(t.Context(), "", "user", "uid", nil)
-
-		var errorUpdate permissions.ErrorPermissionUpdate
-
+		resp, err := client.UpdateAccessor(t.Context(), "", "user", "uid", nil)
+		assert.Empty(t, resp)
 		assert.Error(t, err)
-		assert.ErrorAs(t, err, &permissions.ErrorMissingObjectID)
-		assert.ErrorAs(t, err, &errorUpdate)
-		assert.Empty(t, actual)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.ErrorIs(t, errorPermissions, permissions.ErrorMissingObjectID)
+		assert.Equal(t, permissions.PUT, errorPermissions.Operation)
 	})
 
 	t.Run("when called without accessor type parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.UpdateAccessor(t.Context(), "object-id", "", "uid", nil)
-
-		var errorUpdate permissions.ErrorPermissionUpdate
-
+		resp, err := client.UpdateAccessor(t.Context(), "object-id", "", "uid", nil)
+		assert.Empty(t, resp)
 		assert.Error(t, err)
-		assert.ErrorAs(t, err, &permissions.ErrorMissingAccessorType)
-		assert.ErrorAs(t, err, &errorUpdate)
-		assert.Empty(t, actual)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.ErrorIs(t, errorPermissions, permissions.ErrorMissingAccessorType)
+		assert.Equal(t, permissions.PUT, errorPermissions.Operation)
 	})
 
 	t.Run("when called without accessor id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.UpdateAccessor(t.Context(), "object-id", "user", "", nil)
-
-		var errorUpdate permissions.ErrorPermissionUpdate
-
+		resp, err := client.UpdateAccessor(t.Context(), "object-id", "user", "", nil)
+		assert.Empty(t, resp)
 		assert.Error(t, err)
-		assert.ErrorAs(t, err, &permissions.ErrorMissingAccessorID)
-		assert.ErrorAs(t, err, &errorUpdate)
-		assert.Empty(t, actual)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.ErrorIs(t, errorPermissions, permissions.ErrorMissingAccessorID)
+		assert.Equal(t, permissions.PUT, errorPermissions.Operation)
 	})
 
 	t.Run("successful permission update for settings object with given payload", func(t *testing.T) {
@@ -586,11 +591,12 @@ func TestClient_UpdateAccessor(t *testing.T) {
 
 		server.Close()
 		resp, err := client.UpdateAccessor(t.Context(), "some-object-id", "user", "uid", json.RawMessage(given))
-
-		var errorUpdate permissions.ErrorPermissionUpdate
-		assert.Error(t, err)
-		assert.ErrorAs(t, err, &errorUpdate)
 		assert.Empty(t, resp)
+		assert.Error(t, err)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.Equal(t, permissions.PUT, errorPermissions.Operation)
 	})
 }
 
@@ -599,39 +605,39 @@ func TestClient_DeleteAccessor(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
 		actual, err := client.DeleteAccessor(t.Context(), "", "user", "uid")
-
-		var errorGet permissions.ErrorPermissionDelete
-
-		assert.Error(t, err)
-		assert.ErrorAs(t, err, &permissions.ErrorMissingObjectID)
-		assert.ErrorAs(t, err, &errorGet)
 		assert.Empty(t, actual)
+		assert.Error(t, err)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.ErrorIs(t, errorPermissions, permissions.ErrorMissingObjectID)
+		assert.Equal(t, permissions.DELETE, errorPermissions.Operation)
 	})
 
 	t.Run("when called without accessor type parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
 		actual, err := client.DeleteAccessor(t.Context(), "object-id", "", "uid")
-
-		var errorDelete permissions.ErrorPermissionDelete
-
-		assert.Error(t, err)
-		assert.ErrorAs(t, err, &permissions.ErrorMissingAccessorType)
-		assert.ErrorAs(t, err, &errorDelete)
 		assert.Empty(t, actual)
+		assert.Error(t, err)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.ErrorIs(t, errorPermissions, permissions.ErrorMissingAccessorType)
+		assert.Equal(t, permissions.DELETE, errorPermissions.Operation)
 	})
 
 	t.Run("when called without accessor id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
 		actual, err := client.DeleteAccessor(t.Context(), "object-id", "user", "")
-
-		var errorDelete permissions.ErrorPermissionDelete
-
-		assert.Error(t, err)
-		assert.ErrorAs(t, err, &permissions.ErrorMissingAccessorID)
-		assert.ErrorAs(t, err, &errorDelete)
 		assert.Empty(t, actual)
+		assert.Error(t, err)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.ErrorIs(t, errorPermissions, permissions.ErrorMissingAccessorID)
+		assert.Equal(t, permissions.DELETE, errorPermissions.Operation)
 	})
 
 	t.Run("successfully deleted permissions for settings object", func(t *testing.T) {
@@ -693,11 +699,12 @@ func TestClient_DeleteAccessor(t *testing.T) {
 
 		server.Close()
 		actual, err := client.DeleteAccessor(t.Context(), "some-unknown-id", "user", "uid")
-
-		var errorDelete permissions.ErrorPermissionDelete
-		assert.Error(t, err)
-		assert.ErrorAs(t, err, &errorDelete)
 		assert.Empty(t, actual)
+		assert.Error(t, err)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.Equal(t, permissions.DELETE, errorPermissions.Operation)
 	})
 }
 
@@ -706,13 +713,13 @@ func TestClient_DeleteAllUsersAccessor(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
 		actual, err := client.DeleteAllUsersAccessor(t.Context(), "")
-
-		var errorDelete permissions.ErrorPermissionDelete
-
-		assert.Error(t, err)
-		assert.ErrorAs(t, err, &permissions.ErrorMissingObjectID)
-		assert.ErrorAs(t, err, &errorDelete)
 		assert.Empty(t, actual)
+		assert.Error(t, err)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.ErrorIs(t, errorPermissions, permissions.ErrorMissingObjectID)
+		assert.Equal(t, permissions.DELETE, errorPermissions.Operation)
 	})
 
 	t.Run("successfully deleted permissions for settings object", func(t *testing.T) {
@@ -774,10 +781,11 @@ func TestClient_DeleteAllUsersAccessor(t *testing.T) {
 
 		server.Close()
 		actual, err := client.DeleteAllUsersAccessor(t.Context(), "some-unknown-id")
-
-		var errorDelete permissions.ErrorPermissionDelete
-		assert.Error(t, err)
-		assert.ErrorAs(t, err, &errorDelete)
 		assert.Empty(t, actual)
+		assert.Error(t, err)
+
+		var errorPermissions permissions.ErrorPermissions
+		assert.ErrorAs(t, err, &errorPermissions)
+		assert.Equal(t, permissions.DELETE, errorPermissions.Operation)
 	})
 }

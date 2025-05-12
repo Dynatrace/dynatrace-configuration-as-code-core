@@ -45,11 +45,11 @@ func (c *Client) GetAllUsersAccessor(ctx context.Context, objectID string) (api.
 
 func (c *Client) GetAccessor(ctx context.Context, objectID string, accessorType string, accessorID string) (api.Response, error) {
 	if accessorType == "" {
-		return api.Response{}, ErrorPermissionGet{ErrorMissingAccessorType}
+		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorType, Operation: GET}
 	}
 
 	if accessorID == "" {
-		return api.Response{}, ErrorPermissionGet{ErrorMissingAccessorID}
+		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorID, Operation: GET}
 	}
 
 	return c.get(ctx, objectID, accessorType, accessorID)
@@ -57,18 +57,18 @@ func (c *Client) GetAccessor(ctx context.Context, objectID string, accessorType 
 
 func (c *Client) get(ctx context.Context, objectID string, accessorType string, accessorID string) (api.Response, error) {
 	if objectID == "" {
-		return api.Response{}, ErrorPermissionGet{ErrorMissingObjectID}
+		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingObjectID, Operation: GET}
 	}
 
 	path, err := url.JoinPath(endpointConfigPath, objectID, permissionResourcePath, accessorType, accessorID)
 	if err != nil {
-		return api.Response{}, ErrorPermissionGet{err}
+		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: GET}
 	}
 
 	resp, err := c.client.GET(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 
 	if err != nil {
-		return api.Response{}, ErrorPermissionGet{err}
+		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: GET}
 	}
 
 	return api.NewResponseFromHTTPResponse(resp)
@@ -76,17 +76,17 @@ func (c *Client) get(ctx context.Context, objectID string, accessorType string, 
 
 func (c *Client) Create(ctx context.Context, objectID string, body []byte) (api.Response, error) {
 	if objectID == "" {
-		return api.Response{}, ErrorPermissionCreate{ErrorMissingObjectID}
+		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingObjectID, Operation: POST}
 	}
 
 	path, err := url.JoinPath(endpointConfigPath, objectID, permissionResourcePath)
 	if err != nil {
-		return api.Response{}, ErrorPermissionCreate{err}
+		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: POST}
 	}
 
 	resp, err := c.client.POST(ctx, path, bytes.NewReader(body), rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	if err != nil {
-		return api.Response{}, ErrorPermissionCreate{err}
+		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: POST}
 	}
 
 	return api.NewResponseFromHTTPResponse(resp)
@@ -98,11 +98,11 @@ func (c *Client) UpdateAllUsersAccessor(ctx context.Context, objectID string, bo
 
 func (c *Client) UpdateAccessor(ctx context.Context, objectID string, accessorType string, accessorID string, body []byte) (api.Response, error) {
 	if accessorType == "" {
-		return api.Response{}, ErrorPermissionUpdate{ErrorMissingAccessorType}
+		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorType, Operation: PUT}
 	}
 
 	if accessorID == "" {
-		return api.Response{}, ErrorPermissionUpdate{ErrorMissingAccessorID}
+		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorID, Operation: PUT}
 	}
 
 	return c.update(ctx, objectID, accessorType, accessorID, body)
@@ -110,18 +110,18 @@ func (c *Client) UpdateAccessor(ctx context.Context, objectID string, accessorTy
 
 func (c *Client) update(ctx context.Context, objectID string, accessorType string, accessorID string, body []byte) (api.Response, error) {
 	if objectID == "" {
-		return api.Response{}, ErrorPermissionUpdate{ErrorMissingObjectID}
+		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingObjectID, Operation: PUT}
 	}
 
 	path, err := url.JoinPath(endpointConfigPath, objectID, permissionResourcePath, accessorType, accessorID)
 	if err != nil {
-		return api.Response{}, ErrorPermissionUpdate{err}
+		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: PUT}
 	}
 
 	httpResp, err := c.client.PUT(ctx, path, bytes.NewReader(body), rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 
 	if err != nil {
-		return api.Response{}, ErrorPermissionUpdate{err}
+		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: PUT}
 	}
 
 	return api.NewResponseFromHTTPResponse(httpResp)
@@ -133,11 +133,11 @@ func (c *Client) DeleteAllUsersAccessor(ctx context.Context, objectID string) (a
 
 func (c *Client) DeleteAccessor(ctx context.Context, objectID string, accessorType string, accessorID string) (api.Response, error) {
 	if accessorType == "" {
-		return api.Response{}, ErrorPermissionDelete{ErrorMissingAccessorType}
+		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorType, Operation: DELETE}
 	}
 
 	if accessorID == "" {
-		return api.Response{}, ErrorPermissionDelete{ErrorMissingAccessorID}
+		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorID, Operation: DELETE}
 	}
 
 	return c.delete(ctx, objectID, accessorType, accessorID)
@@ -145,18 +145,18 @@ func (c *Client) DeleteAccessor(ctx context.Context, objectID string, accessorTy
 
 func (c *Client) delete(ctx context.Context, objectID string, accessorType string, accessorID string) (api.Response, error) {
 	if objectID == "" {
-		return api.Response{}, ErrorPermissionDelete{ErrorMissingObjectID}
+		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingObjectID, Operation: DELETE}
 	}
 
 	path, err := url.JoinPath(endpointConfigPath, objectID, permissionResourcePath, accessorType, accessorID)
 	if err != nil {
-		return api.Response{}, ErrorPermissionDelete{err}
+		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: DELETE}
 	}
 
 	httpResp, err := c.client.DELETE(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 
 	if err != nil {
-		return api.Response{}, ErrorPermissionDelete{err}
+		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: DELETE}
 	}
 
 	return api.NewResponseFromHTTPResponse(httpResp)
