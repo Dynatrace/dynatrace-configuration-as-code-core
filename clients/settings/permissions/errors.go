@@ -25,34 +25,24 @@ var (
 	ErrorMissingAccessorType = errors.New("accessorType cannot be empty")
 )
 
-type ErrorPermissionGet struct {
-	Err error
+type ClientOperation string
+
+const (
+	GET    ClientOperation = "get"
+	POST   ClientOperation = "create"
+	PUT    ClientOperation = "update"
+	DELETE ClientOperation = "delete"
+)
+
+type ErrorPermissions struct {
+	Wrapped   error
+	Operation ClientOperation
 }
 
-func (e ErrorPermissionGet) Error() string {
-	return fmt.Sprintf("failed to get permission(s): %v", e.Err)
+func (e ErrorPermissions) Error() string {
+	return fmt.Sprintf("failed to %v permission(s): %v", e.Operation, e.Wrapped)
 }
 
-type ErrorPermissionCreate struct {
-	Err error
-}
-
-func (e ErrorPermissionCreate) Error() string {
-	return fmt.Sprintf("failed to create permission: %v", e.Err)
-}
-
-type ErrorPermissionUpdate struct {
-	Err error
-}
-
-func (e ErrorPermissionUpdate) Error() string {
-	return fmt.Sprintf("failed to update permission: %v", e.Err)
-}
-
-type ErrorPermissionDelete struct {
-	Err error
-}
-
-func (e ErrorPermissionDelete) Error() string {
-	return fmt.Sprintf("failed to delete permission object: %v", e.Err)
+func (e ErrorPermissions) Unwrap() error {
+	return e.Wrapped
 }
