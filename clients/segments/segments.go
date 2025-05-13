@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
@@ -42,12 +43,10 @@ type Client struct {
 func (c Client) List(ctx context.Context) (api.Response, error) {
 	path := endpointPath + ":lean" // minimal set of information is enough
 
-	ro := rest.RequestOptions{
+	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{
 		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
 		QueryParams:           url.Values{"add-fields": []string{"EXTERNALID"}},
-	}
-
-	resp, err := c.restClient.GET(ctx, path, ro)
+	})
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsg, "list", err)
 	}
@@ -87,12 +86,10 @@ func (c Client) Get(ctx context.Context, id string) (api.Response, error) {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
 	}
 
-	ro := rest.RequestOptions{
+	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{
 		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
 		QueryParams:           url.Values{"add-fields": []string{"INCLUDES", "VARIABLES", "EXTERNALID", "RESOURCECONTEXT"}},
-	}
-
-	resp, err := c.restClient.GET(ctx, path, ro)
+	})
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
 	}
@@ -142,7 +139,7 @@ func (c Client) Update(ctx context.Context, id string, body []byte) (api.Respons
 
 	resp, err := c.restClient.PUT(ctx, path, bytes.NewReader(body), rest.RequestOptions{
 		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
-		QueryParams:           map[string][]string{"optimistic-locking-version": {fmt.Sprint(getResponse.Version)}}})
+		QueryParams:           map[string][]string{"optimistic-locking-version": {strconv.Itoa(getResponse.Version)}}})
 	if err != nil {
 		return api.Response{}, fmt.Errorf("failed to update segments resource with id %s and version %d: %w", id, getResponse.Version, err)
 	}
