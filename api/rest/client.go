@@ -22,6 +22,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -99,9 +100,10 @@ func WithRateLimiter() Option {
 
 // Client represents a general HTTP client
 type Client struct {
-	baseURL    *url.URL          // Base URL of the server
-	httpClient *http.Client      // Custom HTTP client support
-	headers    map[string]string // Custom headers to be set
+	baseURL     *url.URL          // Base URL of the server
+	httpClient  *http.Client      // Custom HTTP client support
+	headers     map[string]string // Custom headers to be set
+	headerMutex *sync.RWMutex
 
 	concurrentRequestLimiter *ConcurrentRequestLimiter // Concurrent request limiter component (optional)
 	timeout                  time.Duration             // Request timeout (optional)
@@ -113,9 +115,10 @@ type Client struct {
 // NewClient creates a new instance of the Client with specified options.
 func NewClient(baseURL *url.URL, httpClient *http.Client, opts ...Option) *Client {
 	client := &Client{
-		baseURL:    baseURL,
-		headers:    make(map[string]string),
-		httpClient: httpClient,
+		baseURL:     baseURL,
+		headers:     make(map[string]string),
+		headerMutex: &sync.RWMutex{},
+		httpClient:  httpClient,
 	}
 
 	for _, opt := range opts {
@@ -162,6 +165,8 @@ func (c *Client) DELETE(ctx context.Context, endpoint string, options RequestOpt
 
 // SetHeader sets a custom header for the HTTP client.
 func (c *Client) SetHeader(key, value string) {
+	c.headerMutex.Lock()
+	defer c.headerMutex.Unlock()
 	c.headers[key] = value
 }
 
@@ -171,22 +176,17 @@ func (c *Client) BaseURL() *url.URL {
 }
 
 func (c *Client) acquireLockAndSendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
-
 	// Apply concurrent request limiting if concurrentRequestLimiter is set
 	if c.concurrentRequestLimiter != nil {
 		c.concurrentRequestLimiter.Acquire()
 		defer c.concurrentRequestLimiter.Release()
 	}
 
+	c.setHeadersOnRequest(req, options)
 	return c.sendWithRetries(ctx, req, retryCount, options)
 }
 
-func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
-	logger := logr.FromContextOrDiscard(ctx)
-	if c.rateLimiter != nil {
-		c.rateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
-	}
-
+func (c *Client) setHeadersOnRequest(req *http.Request, options RequestOptions) {
 	// Set Content-Type header accordingly
 	if options.ContentType != "" {
 		req.Header.Set("Content-type", options.ContentType)
@@ -195,8 +195,17 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 	}
 
 	// set fixed headers
+	c.headerMutex.RLock()
+	defer c.headerMutex.RUnlock()
 	for key, value := range c.headers {
 		req.Header.Set(key, value)
+	}
+}
+
+func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
+	logger := logr.FromContextOrDiscard(ctx)
+	if c.rateLimiter != nil {
+		c.rateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
 	}
 
 	if c.httpClient == nil {
