@@ -20,9 +20,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"net/http"
 	"net/url"
+
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
 const endpointPath = "platform/storage/management/v1/bucket-definitions"
@@ -116,8 +117,10 @@ func (c Client) Update(ctx context.Context, bucketName string, bucketVersion str
 	}
 
 	return c.client.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{
-		QueryParams:           url.Values{"optimistic-locking-version": []string{bucketVersion}},
-		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
+		QueryParams: url.Values{"optimistic-locking-version": []string{bucketVersion}},
+		CustomShouldRetryFunc: func(resp *http.Response) bool {
+			return rest.ShouldRetry(resp.StatusCode)
+		},
 	})
 }
 
