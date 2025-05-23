@@ -67,6 +67,7 @@ type factory struct {
 	concurrentRequestLimit int                       // The number of allowed concurrent requests
 	rateLimiterEnabled     bool                      // Enables rate limiter for clients
 	retryOptions           *rest.RetryOptions        // The retry strategy
+	customHeaders          map[string]string         // Custom HTTP headers
 }
 
 // WithOAuthCredentials sets the OAuth2 client credentials configuration for the factory.
@@ -128,6 +129,14 @@ func (f factory) WithRateLimiter(enabled bool) factory {
 // WithRetryOptions sets the RetryOptions for the underlying rest/http clients.
 func (f factory) WithRetryOptions(retryOptions *rest.RetryOptions) factory {
 	f.retryOptions = retryOptions
+	return f
+}
+
+// WithCustomHeaders sets the custom headers to be set for the underlying rest/http clients
+// These headers will be set last, meaning, other previously set headers with the same key will be overwritten.
+// Also, if the headers contain a User-Agent header, this will take precedence over the value set via WithUserAgent
+func (f factory) WithCustomHeaders(headers map[string]string) factory {
+	f.customHeaders = headers
 	return f
 }
 
@@ -249,6 +258,9 @@ func (f factory) createRestClient(u string, httpClient *http.Client) (*rest.Clie
 	restClient := rest.NewClient(parsedURL, httpClient, opts...)
 	if f.userAgent != "" {
 		restClient.SetHeader("User-Agent", f.userAgent)
+	}
+	for headerKey, headerValue := range f.customHeaders {
+		restClient.SetHeader(headerKey, headerValue)
 	}
 
 	return restClient, nil
