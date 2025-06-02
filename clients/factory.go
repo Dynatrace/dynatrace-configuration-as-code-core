@@ -36,7 +36,7 @@ import (
 )
 
 // ErrOAuthCredentialsMissing indicates that no OAuth2 client credentials were provided.
-var ErrOAuthCredentialsMissing = errors.New("no OAuth2 client credentials provided")
+var ErrOAuthCredentialsMissing = errors.New("no OAuth2 client credentials or platform token provided")
 
 // ErrPlatformURLMissing indicates that no platform API URL was provided.
 var ErrPlatformURLMissing = errors.New("no platform API URL provided")
@@ -62,6 +62,7 @@ type factory struct {
 	accountURL             string                    // The base URL for account APIs
 	oauthConfig            *clientcredentials.Config // Configuration for OAuth2 client credentials
 	accessToken            string                    // Access token for API
+	platformToken          string                    // Platform token for platform APIs
 	userAgent              string                    // The User-Agent header to be set
 	httpListener           *rest.HTTPListener        // The HTTP listener to be set
 	concurrentRequestLimit int                       // The number of allowed concurrent requests
@@ -72,6 +73,12 @@ type factory struct {
 // WithOAuthCredentials sets the OAuth2 client credentials configuration for the factory.
 func (f factory) WithOAuthCredentials(config clientcredentials.Config) factory {
 	f.oauthConfig = &config
+	return f
+}
+
+// WithPlatformToken sets a platform token used by platform clients
+func (f factory) WithPlatformToken(token string) factory {
+	f.platformToken = token
 	return f
 }
 
@@ -214,12 +221,16 @@ func (f factory) OpenPipelineClient(ctx context.Context) (*openpipeline.Client, 
 
 // CreatePlatformClient creates a REST client configured for accessing platform APIs.
 func (f factory) CreatePlatformClient(ctx context.Context) (*rest.Client, error) {
-	if f.oauthConfig == nil {
+	if f.platformURL == "" {
+		return nil, ErrPlatformURLMissing
+	}
+
+	if f.oauthConfig == nil && f.platformToken == "" {
 		return nil, ErrOAuthCredentialsMissing
 	}
 
-	if f.platformURL == "" {
-		return nil, ErrPlatformURLMissing
+	if f.platformToken != "" {
+		return f.createRestClient(f.platformURL, auth.NewPlatformTokenBasedClient(f.platformToken))
 	}
 
 	return f.createRestClient(f.platformURL, auth.NewOAuthBasedClient(ctx, *f.oauthConfig))
