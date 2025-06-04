@@ -15,11 +15,13 @@
 package buckets
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -27,13 +29,13 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
-	bucketAPI "github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/buckets"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
 const (
 	stateActive   = "active"
 	stateDeleting = "deleting"
+	endpointPath  = "platform/storage/management/v1/bucket-definitions"
 )
 
 type bucketResponse struct {
@@ -41,8 +43,6 @@ type bucketResponse struct {
 	Status     string `json:"status"`
 	Version    int    `json:"version"`
 }
-
-type Response = api.Response
 
 // ListResponse is a Bucket API response containing multiple bucket objects.
 // For convenience, it contains a slice of Buckets in addition to the base api.Response data.
@@ -58,7 +58,7 @@ type retrySettings struct {
 }
 
 type Client struct {
-	apiClient     *bucketAPI.Client
+	restClient    *rest.Client
 	retrySettings retrySettings
 }
 
@@ -92,8 +92,9 @@ func WithRetrySettings(durationBetweenTries time.Duration, maxWaitDuration time.
 // Returns:
 //   - *Client: A pointer to a new Client instance initialized with the provided rest.Client and logger.
 func NewClient(client *rest.Client, option ...Option) *Client {
+	client.SetHeader("Cache-Control", "no-cache")
 	c := &Client{
-		apiClient: bucketAPI.NewClient(client),
+		restClient: client,
 		retrySettings: retrySettings{
 			durationBetweenTries: time.Second,
 			maxWaitDuration:      2 * time.Minute,
@@ -122,8 +123,13 @@ func NewClient(client *rest.Client, option ...Option) *Client {
 // Returns:
 //   - Response: A Response containing the result of the HTTP call, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (c Client) Get(ctx context.Context, bucketName string) (Response, error) {
-	resp, err := c.apiClient.Get(ctx, bucketName)
+func (c Client) Get(ctx context.Context, bucketName string) (api.Response, error) {
+	path, err := url.JoinPath(endpointPath, bucketName)
+	if err != nil {
+		return api.Response{}, fmt.Errorf("failed to create URL: %w", err)
+	}
+
+	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	if err != nil {
 		return api.Response{}, err
 	}
@@ -146,7 +152,7 @@ func (c Client) Get(ctx context.Context, bucketName string) (Response, error) {
 //   - []Response: A slice of bucket Response containing the individual buckets resulting from the HTTP call, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
 func (c Client) List(ctx context.Context) (ListResponse, error) {
-	resp, err := c.apiClient.List(ctx)
+	resp, err := c.restClient.GET(ctx, endpointPath, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	if err != nil {
 		return ListResponse{}, fmt.Errorf("failed to list buckets:%w", err)
 	}
@@ -192,7 +198,7 @@ func (c Client) List(ctx context.Context) (ListResponse, error) {
 // Returns:
 //   - Response: A Response containing the result of the HTTP call, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (c Client) Create(ctx context.Context, bucketName string, data []byte) (Response, error) {
+func (c Client) Create(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
 	return c.create(ctx, bucketName, data)
 }
 
@@ -230,7 +236,7 @@ func (d DeletingBucketErr) Error() string {
 // Returns:
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Response, error) {
+func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
 
 	logger := logr.FromContextOrDiscard(ctx)
 
@@ -238,12 +244,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	defer cancel()
 
 	// get current state of the bucket
-	resp, err := c.apiClient.Get(ctx, bucketName)
-	if err != nil {
-		return api.Response{}, err
-	}
-
-	apiResp, err := api.NewResponseFromHTTPResponse(resp)
+	apiResp, err := c.Get(ctx, bucketName)
 	if err != nil {
 		return api.Response{}, err
 	}
@@ -251,7 +252,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 	current, err := unmarshalJSON(apiResp.Data)
 	if err != nil {
 		logr.FromContextOrDiscard(ctx).Error(err, "Failed to unmarshal JSON response")
-		return Response{}, err
+		return api.Response{}, err
 	}
 
 	if current.Status == stateDeleting {
@@ -296,7 +297,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (Res
 // Returns:
 //   - Response: A Response containing the result of the HTTP call, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (c Client) Upsert(ctx context.Context, bucketName string, data []byte) (Response, error) {
+func (c Client) Upsert(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
 	if bucketName == "" {
 		return api.Response{}, fmt.Errorf("bucketName must be non-empty")
 	}
@@ -318,8 +319,17 @@ func (c Client) Upsert(ctx context.Context, bucketName string, data []byte) (Res
 // Returns:
 //   - Response: A Response containing the result of the HTTP call, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
-func (c Client) Delete(ctx context.Context, bucketName string) (Response, error) {
-	resp, err := c.apiClient.Delete(ctx, bucketName)
+func (c Client) Delete(ctx context.Context, bucketName string) (api.Response, error) {
+	if bucketName == "" {
+		return api.Response{}, fmt.Errorf("bucketName must be non-empty")
+	}
+	path, err := url.JoinPath(endpointPath, bucketName)
+	if err != nil {
+		return api.Response{}, fmt.Errorf("failed to create URL: %w", err)
+	}
+
+	resp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+
 	if err != nil {
 		return api.Response{}, fmt.Errorf("unable to delete bucket '%s': %w", bucketName, err)
 	}
@@ -341,7 +351,7 @@ func (c Client) Delete(ctx context.Context, bucketName string) (Response, error)
 }
 
 // upsert is an internal function used by Upsert to perform the create or update logic.
-func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Response, error) {
+func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
 
 	logger := logr.FromContextOrDiscard(ctx)
 	ctx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
@@ -369,7 +379,7 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	if b, err := unmarshalJSON(apiErr.Body); err != nil && b.Status == "deleting" {
 		logger.V(1).Info(fmt.Sprintf("Bucket '%s' is being deleted. Waiting before re-creation...", b.BucketName))
 		if err := c.awaitBucketRemoved(ctx, bucketName); err != nil {
-			return Response{}, err
+			return api.Response{}, err
 		}
 		return c.Create(ctx, bucketName, data)
 	}
@@ -382,7 +392,7 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (Res
 	if errors.As(err, &deleteingBucketErr) {
 		logger.V(1).Info(fmt.Sprintf("Failed to upsert bucket '%s' as it was being deleted. Re-creating...", bucketName))
 		if err := c.awaitBucketRemoved(ctx, bucketName); err != nil {
-			return Response{}, err
+			return api.Response{}, err
 		}
 		return c.Create(ctx, bucketName, data)
 	}
@@ -393,7 +403,7 @@ func (c Client) create(ctx context.Context, bucketName string, data []byte) (api
 	if err := setBucketName(bucketName, &data); err != nil {
 		return api.Response{}, fmt.Errorf("unable to set bucket name: %w", err)
 	}
-	r, err := c.apiClient.Create(ctx, data)
+	r, err := c.restClient.POST(ctx, endpointPath, bytes.NewReader(data), rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	if err != nil {
 		return api.Response{}, fmt.Errorf("failed to create bucket with name '%s': %w", bucketName, err)
 	}
@@ -418,12 +428,8 @@ func (c Client) awaitBucketActive(ctx context.Context, bucketName string) (api.R
 			return api.Response{}, fmt.Errorf("context canceled before bucket '%s' became available", bucketName)
 		default:
 			// query bucket
-			r, err := c.apiClient.Get(ctx, bucketName)
-			if err != nil {
-				return api.Response{}, err
-			}
+			apiResp, err := c.Get(ctx, bucketName)
 
-			apiResp, err := api.NewResponseFromHTTPResponse(r)
 			if err != nil {
 				apiErr := api.APIError{}
 				if !errors.Is(err, &apiErr) || !api.IsNotFoundError(err) {
@@ -458,12 +464,7 @@ func (c Client) awaitBucketRemoved(ctx context.Context, bucketName string) error
 			return fmt.Errorf("context canceled before bucket '%s' was removed", bucketName)
 		default:
 			// query bucket
-			r, err := c.apiClient.Get(ctx, bucketName)
-			if err != nil {
-				return err
-			}
-
-			_, err = api.NewResponseFromHTTPResponse(r)
+			_, err := c.Get(ctx, bucketName)
 			if err != nil {
 				// if http.StatusNotFound is returned then the bucket has now been removed
 				if api.IsNotFoundError(err) {
@@ -482,14 +483,9 @@ func (c Client) awaitBucketRemoved(ctx context.Context, bucketName string) error
 
 func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
 	// try to get existing bucket definition
-	b, err := c.apiClient.Get(ctx, bucketName)
+	apiResp, err := c.Get(ctx, bucketName)
 	if err != nil {
 		return api.Response{}, fmt.Errorf("failed to get definition for bucket '%s': %w", bucketName, err)
-	}
-
-	apiResp, err := api.NewResponseFromHTTPResponse(b)
-	if err != nil {
-		return api.Response{}, err
 	}
 
 	// try to unmarshal into internal struct
@@ -513,7 +509,16 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 		return api.Response{}, fmt.Errorf("unable to marshal data: %w", err)
 	}
 
-	resp, err := c.apiClient.Update(ctx, bucketName, strconv.Itoa(res.Version), data)
+	path, err := url.JoinPath(endpointPath, bucketName)
+	if err != nil {
+		return api.Response{}, fmt.Errorf("failed to join URL: %w", err)
+	}
+
+	resp, err := c.restClient.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{
+		QueryParams:           url.Values{"optimistic-locking-version": []string{strconv.Itoa(res.Version)}},
+		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
+	})
+
 	if err != nil {
 		return api.Response{}, err
 	}
