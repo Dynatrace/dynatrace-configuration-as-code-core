@@ -15,12 +15,15 @@
 package clients
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2/clientcredentials"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/accounts"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
@@ -523,4 +526,25 @@ func TestClientClassicURLParsingError(t *testing.T) {
 	restClient, err = f.CreateClassicClient()
 	assert.Nil(t, restClient)
 	assert.ErrorContains(t, err, failedToParseURL)
+}
+
+func TestFactory_WithCustomHeaders(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "some-value", r.Header.Get("Some-Key"))
+		assert.Equal(t, "MyUserAgent", r.Header.Get("User-Agent"))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte{})
+	}))
+
+	f := Factory().
+		WithUserAgent("MyUserAgent").
+		WithCustomHeaders(map[string]string{"Some-Key": "some-value"})
+
+	restClient, err := f.createRestClient(server.URL, server.Client())
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
+
+	resp, err := restClient.GET(t.Context(), "", rest.RequestOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
