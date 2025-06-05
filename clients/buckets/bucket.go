@@ -377,15 +377,6 @@ func (c Client) upsert(ctx context.Context, bucketName string, data []byte) (api
 		return api.Response{}, apiErr
 	}
 
-	// If bucket is currently being deleted, wait for it to be gone, then re-create it
-	if b, err := unmarshalJSON(apiErr.Body); err != nil && b.Status == "deleting" {
-		logger.V(1).Info(fmt.Sprintf("Bucket '%s' is being deleted. Waiting before re-creation...", b.BucketName))
-		if err := c.awaitBucketRemoved(ctx, bucketName); err != nil {
-			return api.Response{}, err
-		}
-		return c.Create(ctx, bucketName, data)
-	}
-
 	// Try to update an existing bucket definition
 	logger.V(1).Info(fmt.Sprintf("Failed to create bucket '%s'. Trying to update existing bucket definition. API Error (HTTP %d): %s", bucketName, apiErr.StatusCode, apiErr.Body))
 	apiResp, err := c.Update(ctx, bucketName, data)
