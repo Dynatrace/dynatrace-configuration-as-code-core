@@ -38,6 +38,8 @@ const (
 	endpointPath  = "platform/storage/management/v1/bucket-definitions"
 )
 
+var ErrBucketEmpty = fmt.Errorf("bucketName must be non-empty")
+
 type bucketResponse struct {
 	BucketName string `json:"bucketName"`
 	Status     string `json:"status"`
@@ -299,7 +301,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api
 //   - error: An error if the HTTP call fails or another error happened.
 func (c Client) Upsert(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
 	if bucketName == "" {
-		return api.Response{}, fmt.Errorf("bucketName must be non-empty")
+		return api.Response{}, ErrBucketEmpty
 	}
 	return c.upsert(ctx, bucketName, data)
 }
@@ -321,7 +323,7 @@ func (c Client) Upsert(ctx context.Context, bucketName string, data []byte) (api
 //   - error: An error if the HTTP call fails or another error happened.
 func (c Client) Delete(ctx context.Context, bucketName string) (api.Response, error) {
 	if bucketName == "" {
-		return api.Response{}, fmt.Errorf("bucketName must be non-empty")
+		return api.Response{}, ErrBucketEmpty
 	}
 	path, err := url.JoinPath(endpointPath, bucketName)
 	if err != nil {

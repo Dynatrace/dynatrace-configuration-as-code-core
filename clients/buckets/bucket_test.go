@@ -17,17 +17,19 @@ package buckets_test
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
 )
 
 const (
@@ -256,6 +258,16 @@ func TestList(t *testing.T) {
 }
 
 func TestUpsert(t *testing.T) {
+	t.Run("fails if bucket name is empty", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+		defer server.Close()
+		url, _ := url.Parse(server.URL)
+
+		client := buckets.NewClient(rest.NewClient(url, server.Client()),
+			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		_, err := client.Upsert(t.Context(), "", []byte{})
+		assert.ErrorIs(t, err, buckets.ErrBucketEmpty)
+	})
 
 	t.Run("create new bucket - OK", func(t *testing.T) {
 
@@ -815,6 +827,16 @@ func TestUpsert(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
+	t.Run("fails if bucket name is empty", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+		defer server.Close()
+		url, _ := url.Parse(server.URL)
+
+		client := buckets.NewClient(rest.NewClient(url, server.Client()),
+			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		_, err := client.Delete(t.Context(), "")
+		assert.ErrorIs(t, err, buckets.ErrBucketEmpty)
+	})
 
 	t.Run("delete bucket - OK", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
@@ -1380,6 +1402,21 @@ func TestUpdate(t *testing.T) {
 		ctx := testutils.ContextWithLogger(t)
 		_, err := client.Update(ctx, "bucket name", data)
 		assert.ErrorContains(t, err, "deadline")
+	})
+
+	t.Run("Update fails if waiting for buckets takes too long", func(t *testing.T) {
+		mux := http.NewServeMux()
+		mux.HandleFunc("GET /platform/storage/management/v1/bucket-definitions/bucket-name", func(rw http.ResponseWriter, req *http.Request) {
+			rw.Write([]byte(creatingBucketResponse))
+		})
+		server := httptest.NewServer(mux)
+		defer server.Close()
+
+		u, _ := url.Parse(server.URL)
+		client := buckets.NewClient(rest.NewClient(u, &http.Client{}),
+			buckets.WithRetrySettings(time.Millisecond*100, time.Millisecond*50)) // sleep for 100ms after getting the bucket response for awaitBucketActive and timeout occurs after 50ms
+		_, err := client.Update(t.Context(), "bucket-name", []byte("{}"))
+		assert.ErrorContains(t, err, "context canceled")
 	})
 }
 
