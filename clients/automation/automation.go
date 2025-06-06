@@ -46,6 +46,16 @@ const (
 	SchedulingRules
 )
 
+const (
+	errMsg          = "failed to %s automation resource of type %v: %w"
+	errMsgWithId    = "failed to %s automation resource of type %v with id %s: %w"
+	getOperation    = "get"
+	updateOperation = "update"
+	listOperation   = "list"
+	deleteOperation = "delete"
+	createOperation = "create"
+)
+
 var (
 	resources = map[ResourceType]Resource{
 		Workflows:         {Path: "/platform/automation/v1/workflows"},
@@ -105,11 +115,11 @@ type Client struct {
 //   - error: An error if the HTTP call fails or another error happened.
 func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (api.Response, error) {
 	if id == "" {
-		return api.Response{}, ErrMissingID
+		return api.Response{}, fmt.Errorf(errMsg, getOperation, resourceType, ErrMissingID)
 	}
 	path, err := url.JoinPath(resources[resourceType].Path, id)
 	if err != nil {
-		return api.Response{}, wrapUrlError(err)
+		return api.Response{}, fmt.Errorf(errMsgWithId, getOperation, resourceType, id, err)
 	}
 
 	resp, err := a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (*http.Response, error) {
@@ -117,7 +127,7 @@ func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (
 	})
 
 	if err != nil {
-		return api.Response{}, fmt.Errorf("failed to get automation resource of type %q with id %q: %w", resourceType, id, err)
+		return api.Response{}, fmt.Errorf(errMsgWithId, getOperation, resourceType, id, err)
 	}
 
 	return api.NewResponseFromHTTPResponse(resp)
@@ -140,7 +150,7 @@ func (a Client) Create(ctx context.Context, resourceType ResourceType, data []by
 		return a.restClient.POST(ctx, resources[resourceType].Path, bytes.NewReader(data), options)
 	})
 	if err != nil {
-		return api.Response{}, err
+		return api.Response{}, fmt.Errorf(errMsg, createOperation, resourceType, err)
 	}
 
 	return api.NewResponseFromHTTPResponse(resp)
@@ -161,21 +171,21 @@ func (a Client) Create(ctx context.Context, resourceType ResourceType, data []by
 //   - error: An error if the HTTP call fails or another error happened.
 func (a Client) Update(ctx context.Context, resourceType ResourceType, id string, data []byte) (api.Response, error) {
 	if err := rmIDField(&data); err != nil {
-		return api.Response{}, fmt.Errorf("unable to remove id field from payload in order to update object with ID %s: %w", id, err)
+		return api.Response{}, fmt.Errorf(errMsgWithId, updateOperation, resourceType, id, fmt.Errorf("unable to remove id field from payload in order to update object: %w", err))
 	}
 	if id == "" {
-		return api.Response{}, ErrMissingID
+		return api.Response{}, fmt.Errorf(errMsg, updateOperation, resourceType, ErrMissingID)
 	}
 	path, err := url.JoinPath(resources[resourceType].Path, id)
 	if err != nil {
-		return api.Response{}, wrapUrlError(err)
+		return api.Response{}, fmt.Errorf(errMsgWithId, updateOperation, resourceType, id, err)
 	}
 
 	resp, err := a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (*http.Response, error) {
 		return a.restClient.PUT(ctx, path, bytes.NewReader(data), options)
 	})
 	if err != nil {
-		return api.Response{}, err
+		return api.Response{}, fmt.Errorf(errMsgWithId, updateOperation, resourceType, id, err)
 	}
 
 	return api.NewResponseFromHTTPResponse(resp)
@@ -238,7 +248,7 @@ func (a Client) listPage(ctx context.Context, resourceType ResourceType, wfAdmin
 
 	resp, err := a.restClient.GET(ctx, resources[resourceType].Path, opts)
 	if err != nil {
-		return listNextResult{}, fmt.Errorf("failed to list automation resources: %w", err)
+		return listNextResult{}, fmt.Errorf(errMsg, listOperation, resourceType, err)
 	}
 	defer resp.Body.Close()
 
@@ -310,7 +320,7 @@ func (a Client) Upsert(ctx context.Context, resourceType ResourceType, id string
 func (a Client) createWithID(ctx context.Context, resourceType ResourceType, id string, data []byte) (api.Response, error) {
 	// make sure actual "id" field is set in payload
 	if err := setIDField(id, &data); err != nil {
-		return api.Response{}, fmt.Errorf("unable to set the id field in order to crate object with id %s: %w", id, err)
+		return api.Response{}, fmt.Errorf(errMsgWithId, createOperation, resourceType, id, fmt.Errorf("unable to set the id field in order to create object: %w", err))
 	}
 
 	return a.Create(ctx, resourceType, data)
@@ -353,11 +363,11 @@ func (a Client) makeRequestWithAdminAccess(resourceType ResourceType, request fu
 //   - error: An error if the HTTP call fails or another error happened.
 func (a Client) Delete(ctx context.Context, resourceType ResourceType, id string) (api.Response, error) {
 	if id == "" {
-		return api.Response{}, ErrMissingID
+		return api.Response{}, fmt.Errorf(errMsg, deleteOperation, resourceType, ErrMissingID)
 	}
 	path, err := url.JoinPath(resources[resourceType].Path, id)
 	if err != nil {
-		return api.Response{}, wrapUrlError(err)
+		return api.Response{}, fmt.Errorf(errMsgWithId, deleteOperation, resourceType, id, err)
 	}
 
 	resp, err := a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (*http.Response, error) {
@@ -375,14 +385,10 @@ func (a Client) Delete(ctx context.Context, resourceType ResourceType, id string
 	})
 
 	if err != nil {
-		return api.Response{}, err
+		return api.Response{}, fmt.Errorf(errMsgWithId, deleteOperation, resourceType, id, err)
 	}
 
 	return api.NewResponseFromHTTPResponse(resp)
-}
-
-func wrapUrlError(err error) error {
-	return fmt.Errorf("failed to create URL: %w", err)
 }
 
 func unmarshalJSONList(raw *http.Response) (listResponse, error) {
