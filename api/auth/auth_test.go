@@ -79,7 +79,7 @@ func TestNewTokenBasedClient(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	client := NewTokenBasedClient(t.Context(), "api-token")
+	client := NewApiTokenBasedClient(t.Context(), "api-token")
 
 	// Make a request to the mock API server
 	resp, err := client.Get(apiServer.URL)

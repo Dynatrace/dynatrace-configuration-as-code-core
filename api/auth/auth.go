@@ -24,7 +24,7 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
-func NewTokenBasedClient(ctx context.Context, apiToken string) *http.Client {
+func NewApiTokenBasedClient(ctx context.Context, apiToken string) *http.Client {
 	return oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{TokenType: "Api-Token", AccessToken: apiToken}))
 }
 
