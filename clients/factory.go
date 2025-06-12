@@ -160,7 +160,7 @@ func (f factory) AccountClient(ctx context.Context) (*accounts.Client, error) {
 		return nil, ErrAccountURLMissing
 	}
 
-	restClient, err := f.createRestClient(f.accountURL, auth.NewOAuthBasedClient(ctx, f.oauthConfig))
+	restClient, err := f.createRestClient(f.accountURL, auth.NewOAuthClient(ctx, f.oauthConfig))
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +246,7 @@ func (f factory) CreatePlatformClient(ctx context.Context) (*rest.Client, error)
 	if f.platformToken != "" {
 		client = auth.NewPlatformTokenClient(ctx, f.platformToken)
 	} else {
-		client = auth.NewOAuthBasedClient(ctx, f.oauthConfig)
+		client = auth.NewOAuthClient(ctx, f.oauthConfig)
 	}
 
 	return f.createRestClient(f.platformURL, client)
@@ -262,7 +262,7 @@ func (f factory) CreateClassicClient() (*rest.Client, error) {
 		return nil, ErrClassicURLMissing
 	}
 
-	return f.createRestClient(f.classicURL, auth.NewApiTokenBasedClient(context.TODO(), f.accessToken))
+	return f.createRestClient(f.classicURL, auth.NewAPITokenClient(context.TODO(), f.accessToken))
 }
 
 func (f factory) createRestClient(u string, httpClient *http.Client) (*rest.Client, error) {

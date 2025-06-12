@@ -39,7 +39,7 @@ func TestNewOAuthBasedClient_TokenSetCorrectly(t *testing.T) {
 		TokenURL:     tokenServer.URL,
 	}
 
-	client := NewOAuthBasedClient(t.Context(), config)
+	client := NewOAuthClient(t.Context(), config)
 
 	// Mock API server to verify Authorization header
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -79,7 +79,7 @@ func TestNewTokenBasedClient(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	client := NewApiTokenBasedClient(t.Context(), "api-token")
+	client := NewAPITokenClient(t.Context(), "api-token")
 
 	// Make a request to the mock API server
 	resp, err := client.Get(apiServer.URL)
