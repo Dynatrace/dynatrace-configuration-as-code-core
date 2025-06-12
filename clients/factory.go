@@ -262,7 +262,7 @@ func (f factory) CreateClassicClient() (*rest.Client, error) {
 		return nil, ErrClassicURLMissing
 	}
 
-	return f.createRestClient(f.classicURL, auth.NewTokenBasedClient(context.TODO(), f.accessToken))
+	return f.createRestClient(f.classicURL, auth.NewApiTokenBasedClient(context.TODO(), f.accessToken))
 }
 
 func (f factory) createRestClient(u string, httpClient *http.Client) (*rest.Client, error) {
