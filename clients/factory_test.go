@@ -24,6 +24,7 @@ import (
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/accounts"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/testutils"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
@@ -154,27 +155,27 @@ func TestClientMissingOAuthCredentials(t *testing.T) {
 	var clientInstance interface{}
 	clientInstance, err := f.BucketClient(t.Context())
 	assert.Nil(t, clientInstance)
-	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
+	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
 	clientInstance, err = f.SegmentsClient(t.Context())
 	assert.Nil(t, clientInstance)
-	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
+	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
 	clientInstance, err = f.SLOClient(t.Context())
 	assert.Nil(t, clientInstance)
-	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
+	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
 	clientInstance, err = f.AutomationClient(t.Context())
 	assert.Nil(t, clientInstance)
-	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
+	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
 	clientInstance, err = f.DocumentClient(t.Context())
 	assert.Nil(t, clientInstance)
-	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
+	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
 	clientInstance, err = f.OpenPipelineClient(t.Context())
 	assert.Nil(t, clientInstance)
-	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
+	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
 	clientInstance, err = f.AccountClient(t.Context())
 	assert.Nil(t, clientInstance)
@@ -182,7 +183,7 @@ func TestClientMissingOAuthCredentials(t *testing.T) {
 
 	restClient, err := f.CreatePlatformClient(t.Context())
 	assert.Nil(t, restClient)
-	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
+	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
 	restClient, err = f.CreateClassicClient()
 	assert.NoError(t, err)
@@ -547,4 +548,97 @@ func TestFactory_WithCustomHeaders(t *testing.T) {
 	resp, err := restClient.GET(t.Context(), "", rest.RequestOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestCreatePlatformClient_OAuthBased(t *testing.T) {
+	server := testutils.OAuthMockServer(t, "mocked-token")
+	defer server.Close()
+
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		assert.Equal(t, "Bearer mocked-token", auth)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
+
+	client, err := Factory().
+		WithPlatformURL(apiServer.URL).
+		WithOAuthCredentials(clientcredentials.Config{
+			ClientID:     "test-client-id",
+			ClientSecret: "test-client-secret",
+			TokenURL:     server.URL,
+		}).
+		CreatePlatformClient(t.Context())
+	assert.NoError(t, err)
+
+	resp, err := client.GET(t.Context(), "", rest.RequestOptions{})
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+}
+func TestCreateClassicClient(t *testing.T) {
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		assert.Equal(t, "Api-Token test-access-token", auth)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
+
+	client, err := Factory().
+		WithClassicURL(apiServer.URL).
+		WithAccessToken("test-access-token").
+		CreateClassicClient()
+	assert.NoError(t, err)
+
+	resp, err := client.GET(t.Context(), "", rest.RequestOptions{})
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+}
+
+func TestCreatePlatformClient_PlatformTokenBased(t *testing.T) {
+
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		assert.Equal(t, "Bearer mocked-token", auth)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
+
+	client, err := Factory().
+		WithPlatformURL(apiServer.URL).
+		WithPlatformToken("mocked-token").
+		CreatePlatformClient(t.Context())
+	assert.NoError(t, err)
+
+	resp, err := client.GET(t.Context(), "", rest.RequestOptions{})
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+}
+
+func TestCreatePlatformClient_BothPlatformAndOAuthTokenSet(t *testing.T) {
+
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		assert.Equal(t, "Bearer mocked-token", auth)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
+
+	client, err := Factory().
+		WithPlatformURL(apiServer.URL).
+		WithOAuthCredentials(clientcredentials.Config{}).
+		WithPlatformToken("mocked-token").
+		CreatePlatformClient(t.Context())
+	assert.NoError(t, err)
+
+	resp, err := client.GET(t.Context(), "", rest.RequestOptions{})
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+}
+
+func TestCreatePlatformClient_NoTokenSet(t *testing.T) {
+	_, err := Factory().
+		WithPlatformURL("does not matter").
+		CreatePlatformClient(t.Context())
+	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
+
 }
