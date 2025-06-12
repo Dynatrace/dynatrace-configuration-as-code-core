@@ -38,6 +38,9 @@ import (
 // ErrOAuthCredentialsMissing indicates that no OAuth2 client credentials were provided.
 var ErrOAuthCredentialsMissing = errors.New("no OAuth2 client credentials provided")
 
+// ErrNoPlatformCredentialsProvided indicates that neither OAuth2 client credentials nor a platform token was provided.
+var ErrNoPlatformCredentialsProvided = errors.New("no OAuth2 client credentials or platform token provided")
+
 // ErrPlatformURLMissing indicates that no platform API URL was provided.
 var ErrPlatformURLMissing = errors.New("no platform API URL provided")
 
@@ -68,6 +71,7 @@ type factory struct {
 	rateLimiterEnabled     bool                      // Enables rate limiter for clients
 	retryOptions           *rest.RetryOptions        // The retry strategy
 	customHeaders          map[string]string         // Custom HTTP headers
+	platformToken          string
 }
 
 // WithOAuthCredentials sets the OAuth2 client credentials configuration for the factory.
@@ -79,6 +83,12 @@ func (f factory) WithOAuthCredentials(config clientcredentials.Config) factory {
 // WithAccessToken sets the access token for the factory.
 func (f factory) WithAccessToken(accessToken string) factory {
 	f.accessToken = accessToken
+	return f
+}
+
+// WithPlatformToken sets the platform token for the factory
+func (f factory) WithPlatformToken(platformToken string) factory {
+	f.platformToken = platformToken
 	return f
 }
 
@@ -150,7 +160,7 @@ func (f factory) AccountClient(ctx context.Context) (*accounts.Client, error) {
 		return nil, ErrAccountURLMissing
 	}
 
-	restClient, err := f.createRestClient(f.accountURL, auth.NewOAuthBasedClient(ctx, *(f.oauthConfig)))
+	restClient, err := f.createRestClient(f.accountURL, auth.NewOAuthBasedClient(ctx, f.oauthConfig))
 	if err != nil {
 		return nil, err
 	}
@@ -222,16 +232,24 @@ func (f factory) OpenPipelineClient(ctx context.Context) (*openpipeline.Client, 
 }
 
 // CreatePlatformClient creates a REST client configured for accessing platform APIs.
+// If both oAuth and platform token are configured, the platform token takes precedence
 func (f factory) CreatePlatformClient(ctx context.Context) (*rest.Client, error) {
-	if f.oauthConfig == nil {
-		return nil, ErrOAuthCredentialsMissing
+	if f.oauthConfig == nil && f.platformToken == "" {
+		return nil, ErrNoPlatformCredentialsProvided
 	}
 
 	if f.platformURL == "" {
 		return nil, ErrPlatformURLMissing
 	}
 
-	return f.createRestClient(f.platformURL, auth.NewOAuthBasedClient(ctx, *f.oauthConfig))
+	var client *http.Client
+	if f.platformToken != "" {
+		client = auth.NewPlatformTokenClient(ctx, f.platformToken)
+	} else {
+		client = auth.NewOAuthBasedClient(ctx, f.oauthConfig)
+	}
+
+	return f.createRestClient(f.platformURL, client)
 }
 
 // CreateClassicClient creates a REST client configured for accessing classic APIs.
@@ -244,7 +262,7 @@ func (f factory) CreateClassicClient() (*rest.Client, error) {
 		return nil, ErrClassicURLMissing
 	}
 
-	return f.createRestClient(f.classicURL, auth.NewTokenBasedClient(f.accessToken))
+	return f.createRestClient(f.classicURL, auth.NewTokenBasedClient(context.TODO(), f.accessToken))
 }
 
 func (f factory) createRestClient(u string, httpClient *http.Client) (*rest.Client, error) {
