@@ -22,8 +22,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/go-logr/logr"
-
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/openpipeline"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
@@ -70,14 +68,12 @@ func (c Client) List(ctx context.Context) ([]ListResponse, error) {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
 		return nil, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 
 	var resources []ListResponse
 	err = json.Unmarshal(body, &resources)
 	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, "failed to unmarshal json response")
 		return nil, api.NewAPIErrorFromResponseAndBody(resp, body)
 	}
 	return resources, nil

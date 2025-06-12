@@ -25,7 +25,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
@@ -125,8 +124,6 @@ func NewClient(client *rest.Client, option ...Option) *Client {
 //
 // If the HTTP request to the server fails, the method returns an empty Response and an error explaining the issue.
 //
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
-//
 // Parameters:
 //   - ctx: Context for controlling the HTTP operation's lifecycle.
 //   - bucketName: The name of the bucket to be retrieved.
@@ -154,10 +151,8 @@ func (c Client) Get(ctx context.Context, bucketName string) (api.Response, error
 //
 // If the HTTP request to the server fails, the method returns an empty slice and an error explaining the issue.
 //
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
-//
 // Parameters:
-//   - ctx: Context for controlling the HTTP operation's lifecycle. Possibly containing a logger created with logr.NewContext.
+//   - ctx: Context for controlling the HTTP operation's lifecycle.
 //
 // Returns:
 //   - []Response: A slice of bucket Response containing the individual buckets resulting from the HTTP call, including status code and data.
@@ -175,7 +170,6 @@ func (c Client) List(ctx context.Context) (ListResponse, error) {
 	r := listResponse{}
 	err = json.Unmarshal(apiResp.Data, &r)
 	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, "Failed to unmarshal JSON response")
 		return ListResponse{}, fmt.Errorf(errMsg, listOperation, fmt.Errorf(errUnmarshalMsg, err))
 	}
 
@@ -199,10 +193,8 @@ func (c Client) List(ctx context.Context) (ListResponse, error) {
 // If setting the bucket name in the data encounters an error, or if the HTTP request to the server
 // fails, the function returns an empty Response and an error explaining the issue.
 //
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
-//
 // Parameters:
-//   - ctx: Context for controlling the HTTP operation's lifecycle. Possibly containing a logger created with logr.NewContext.
+//   - ctx: Context for controlling the HTTP operation's lifecycle.
 //   - bucketName: The name of the bucket to be created.
 //   - data: The data containing information about the new bucket.
 //
@@ -257,10 +249,8 @@ func (d DeletingBucketErr) Error() string {
 // Update will not make an HTTP call, as this would needlessly increase the buckets version.
 // This is transparent to callers and a normal StatusCode 200 Response is returned.
 //
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
-//
 // Parameters:
-//   - ctx: Context for controlling the HTTP operation's lifecycle. Possibly containing a logger created with logr.NewContext.
+//   - ctx: Context for controlling the HTTP operation's lifecycle
 //   - bucketName: The name of the bucket to be updated.
 //   - data: The new data to be assigned to the bucket.
 //
@@ -268,8 +258,6 @@ func (d DeletingBucketErr) Error() string {
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
 func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
-
-	logger := logr.FromContextOrDiscard(ctx)
 
 	ctx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
 	defer cancel()
@@ -282,7 +270,6 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api
 
 	current, err := unmarshalJSON(apiResp.Data)
 	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, "Failed to unmarshal JSON response")
 		return api.Response{}, fmt.Errorf(errMsgWithName, updateOperation, bucketName, err)
 	}
 
@@ -291,8 +278,6 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api
 	}
 
 	if bucketsEqual(apiResp.Data, data) {
-		logger.Info(fmt.Sprintf("Configuration unmodified, no need to update bucket '%s''", bucketName))
-
 		return api.Response{
 			StatusCode: 200,
 		}, nil
@@ -300,7 +285,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api
 
 	// attempt update
 	if current.Status != stateActive {
-		logger.V(1).Info(fmt.Sprintf("Bucket '%s' has status %s, waiting for it to become active...", bucketName, current.Status))
+
 		if _, err := c.awaitBucketActive(ctx, bucketName); err != nil {
 			return api.Response{}, fmt.Errorf(errMsgWithName, updateOperation, bucketName, err)
 		}
@@ -318,10 +303,8 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api
 //
 // If any HTTP request to the server fails, the method returns an empty Response and an error explaining the issue.
 //
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
-//
 // Parameters:
-//   - ctx: Context for controlling the upsert operation's lifecycle. Possibly containing a logger created with logr.NewContext.
+//   - ctx: Context for controlling the upsert operation's lifecycle.
 //   - bucketName: The name of the bucket to be upserted.
 //   - data: The data for creating or updating the bucket.
 //
@@ -332,7 +315,6 @@ func (c Client) Upsert(ctx context.Context, bucketName string, data []byte) (api
 	if bucketName == "" {
 		return api.Response{}, fmt.Errorf(errMsg, upsertOperation, ErrBucketEmpty)
 	}
-	logger := logr.FromContextOrDiscard(ctx)
 	ctx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
 	defer cancel()
 
@@ -340,7 +322,6 @@ func (c Client) Upsert(ctx context.Context, bucketName string, data []byte) (api
 	resp, err := c.Create(ctx, bucketName, data)
 	// If creating the bucket definition worked, return the result
 	if err == nil {
-		logger.Info(fmt.Sprintf("Created bucket '%s'", bucketName))
 		return resp, nil
 	}
 
@@ -355,12 +336,10 @@ func (c Client) Upsert(ctx context.Context, bucketName string, data []byte) (api
 	}
 
 	// Try to update an existing bucket definition
-	logger.V(1).Info(fmt.Sprintf("Failed to create bucket '%s'. Trying to update existing bucket definition. API Error (HTTP %d): %s", bucketName, apiErr.StatusCode, apiErr.Body))
 	apiResp, err := c.Update(ctx, bucketName, data)
 
 	deleteingBucketErr := DeletingBucketErr{}
 	if errors.As(err, &deleteingBucketErr) {
-		logger.V(1).Info(fmt.Sprintf("Failed to upsert bucket '%s' as it was being deleted. Re-creating...", bucketName))
 		if err := c.awaitBucketRemoved(ctx, bucketName); err != nil {
 			return api.Response{}, fmt.Errorf(errMsgWithName, upsertOperation, bucketName, err)
 		}
@@ -375,10 +354,8 @@ func (c Client) Upsert(ctx context.Context, bucketName string, data []byte) (api
 // If the provided bucketName is empty, the function returns an error indicating that the bucketName must be non-empty.
 // If the HTTP request to the server fails, the method returns an empty Response and an error explaining the issue.
 //
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
-//
 // Parameters:
-//   - ctx: Context for controlling the deletion operation's lifecycle. Possibly containing a logger created with logr.NewContext.
+//   - ctx: Context for controlling the deletion operation's lifecycle.
 //   - bucketName: The name of the bucket to be deleted.
 //
 // Returns:
@@ -416,7 +393,6 @@ func (c Client) Delete(ctx context.Context, bucketName string) (api.Response, er
 }
 
 func (c Client) awaitBucketActive(ctx context.Context, bucketName string) (api.Response, error) {
-	logger := logr.FromContextOrDiscard(ctx)
 
 	for {
 		select {
@@ -439,21 +415,17 @@ func (c Client) awaitBucketActive(ctx context.Context, bucketName string) (api.R
 				}
 
 				if res.Status == "active" {
-					logger.V(1).Info(fmt.Sprintf("Bucket '%s' became active and ready to use", bucketName))
 					apiResp.StatusCode = http.StatusCreated // return 'created' instead of the GET APIs 'ok'
 					return apiResp, nil
 				}
 			}
 
-			logger.V(1).Info(fmt.Sprintf("Waiting for bucket '%s' to become active...", bucketName))
 			time.Sleep(c.retrySettings.durationBetweenTries)
 		}
 	}
 }
 
 func (c Client) awaitBucketRemoved(ctx context.Context, bucketName string) error {
-	logger := logr.FromContextOrDiscard(ctx)
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -464,14 +436,12 @@ func (c Client) awaitBucketRemoved(ctx context.Context, bucketName string) error
 			if err != nil {
 				// if http.StatusNotFound is returned then the bucket has now been removed
 				if api.IsNotFoundError(err) {
-					logger.V(1).Info(fmt.Sprintf("Bucket '%s' was removed", bucketName))
 					return nil
 				}
 
 				return err
 			}
 
-			logger.V(1).Info(fmt.Sprintf("Waiting for bucket '%s' to be removed...", bucketName))
 			time.Sleep(c.retrySettings.durationBetweenTries)
 		}
 	}

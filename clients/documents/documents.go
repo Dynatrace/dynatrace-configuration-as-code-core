@@ -30,8 +30,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
-
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
@@ -82,7 +80,6 @@ func (c Client) Get(ctx context.Context, id string) (Response, error) {
 
 	body, err := io.ReadAll(httpResp.Body)
 	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
 		return Response{}, api.NewAPIErrorFromResponseAndBody(httpResp, body)
 	}
 
@@ -169,7 +166,6 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 		body, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
-			logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
 			return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
 		}
 		if !rest.IsSuccess(resp) {

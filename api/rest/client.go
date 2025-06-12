@@ -25,7 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 )
 
@@ -134,31 +133,26 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 }
 
 // GET sends a GET request to the specified endpoint.
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 func (c *Client) GET(ctx context.Context, endpoint string, options RequestOptions) (*http.Response, error) {
 	return c.sendRequestWithRetries(ctx, http.MethodGet, endpoint, nil, options)
 }
 
 // PUT sends a PUT request to the specified endpoint with the given body.
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 func (c *Client) PUT(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (*http.Response, error) {
 	return c.sendRequestWithRetries(ctx, http.MethodPut, endpoint, body, options)
 }
 
 // POST sends a POST request to the specified endpoint with the given body.
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 func (c *Client) POST(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (*http.Response, error) {
 	return c.sendRequestWithRetries(ctx, http.MethodPost, endpoint, body, options)
 }
 
 // PATCH sends a PATCH request to the specified endpoint with the given body.
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 func (c *Client) PATCH(ctx context.Context, endpoint string, body io.Reader, options RequestOptions) (*http.Response, error) {
 	return c.sendRequestWithRetries(ctx, http.MethodPatch, endpoint, body, options)
 }
 
 // DELETE sends a DELETE request to the specified endpoint.
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
 func (c *Client) DELETE(ctx context.Context, endpoint string, options RequestOptions) (*http.Response, error) {
 	return c.sendRequestWithRetries(ctx, http.MethodDelete, endpoint, nil, options)
 }
@@ -203,7 +197,6 @@ func (c *Client) setHeadersOnRequest(req *http.Request, options RequestOptions) 
 }
 
 func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
-	logger := logr.FromContextOrDiscard(ctx)
 	if c.rateLimiter != nil {
 		c.rateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
 	}
@@ -256,7 +249,6 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 	retryOptions := mergeRetryOptions(c.retryOptions, options.CustomShouldRetryFunc, options.DelayAfterRetry, options.MaxRetries)
 
 	if ShouldRetry(response.StatusCode) && retryOptions.ShouldRetryFunc != nil && retryCount < retryOptions.MaxRetries && retryOptions.ShouldRetryFunc(response) {
-		logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, retryOptions.DelayAfterRetry.Milliseconds(), retryCount+1, retryOptions.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", retryOptions.MaxRetries)
 		time.Sleep(retryOptions.DelayAfterRetry)
 		return c.sendWithRetries(ctx, req, retryCount+1, options)
 	}
