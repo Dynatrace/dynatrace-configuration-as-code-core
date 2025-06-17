@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"sync"
 	"time"
@@ -232,6 +233,10 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 		}
 
 		if isConnectionResetErr(err) {
+			logger.V(1).Info("connection reset, EOF")
+			dump, _ := httputil.DumpRequest(req, true)
+			logger.V(1).Info("REQUEST: %s", dump)
+
 			return nil, fmt.Errorf("unable to connect to host %q, connection closed unexpectedly: %w", req.Host, err)
 		}
 
@@ -254,7 +259,6 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 
 	// merge client retry options with request retry options
 	retryOptions := mergeRetryOptions(c.retryOptions, options.CustomShouldRetryFunc, options.DelayAfterRetry, options.MaxRetries)
-
 	if ShouldRetry(response.StatusCode) && retryOptions.ShouldRetryFunc != nil && retryCount < retryOptions.MaxRetries && retryOptions.ShouldRetryFunc(response) {
 		logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, retryOptions.DelayAfterRetry.Milliseconds(), retryCount+1, retryOptions.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", retryOptions.MaxRetries)
 		time.Sleep(retryOptions.DelayAfterRetry)
@@ -294,12 +298,13 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		return nil, err
 	}
 
+	req.Close = true
 	return c.acquireLockAndSendWithRetries(ctx, req, 0, options)
 }
 
 func isConnectionResetErr(err error) bool {
 	var urlErr *url.Error
-	if errors.As(err, &urlErr) && errors.Is(urlErr, io.EOF) {
+	if errors.As(err, &urlErr) && (errors.Is(urlErr, io.EOF) || errors.Is(urlErr, io.ErrUnexpectedEOF)) {
 		// there is no direct way to discern a connection reset error, but if it's an url.Error wrapping an io.EOF we can be relatively certain it is
 		// unless net/http stops reporting this as io.EOF
 		return true
