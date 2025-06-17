@@ -236,8 +236,9 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 		}
 
 		if isConnectionResetErr(err) {
-			logger.V(1).Info(fmt.Sprintf("unable to connect to host %q, connection closed unexpectedly: %w", req.Host, err))
-			logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, retryOptions.DelayAfterRetry.Milliseconds(), retryCount+1, retryOptions.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", retryOptions.MaxRetries)
+			logger.V(1).Info("connection reset, EOF")
+			//logger.V(1).Info(fmt.Sprintf("unable to connect to host %q, connection closed unexpectedly: %w", req.Host, err))
+			//logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, retryOptions.DelayAfterRetry.Milliseconds(), retryCount+1, retryOptions.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", retryOptions.MaxRetries)
 			time.Sleep(retryOptions.DelayAfterRetry)
 			dump, errr := httputil.DumpResponse(response, true)
 			if errr == nil {
