@@ -26,6 +26,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/segments"
+	intErr "github.com/dynatrace/dynatrace-configuration-as-code-core/internal/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -75,16 +76,17 @@ func TestList(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
+	t.Run("when called without id parameter, returns an validation error", func(t *testing.T) {
 		client := segments.NewClient(&rest.Client{})
 
 		actual, err := client.Get(t.Context(), "")
 
 		assert.Error(t, err)
+		assert.ErrorIs(t, err, intErr.ErrorValidation{Field: "id", Reason: "is empty"})
 		assert.Empty(t, actual)
 	})
 
-	t.Run("ID doesn't exists on server returns error", func(t *testing.T) {
+	t.Run("ID doesn't exists on server returns API error", func(t *testing.T) {
 		apiResponse := `{
   "error": {
     "code": 404,
@@ -94,7 +96,7 @@ func TestGet(t *testing.T) {
 }`
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			require.Equal(t, http.MethodGet, r.Method)
-			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/some-id", r.URL.Path)
 
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte(apiResponse))
@@ -104,10 +106,10 @@ func TestGet(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.Get(t.Context(), "uid")
+		id := "some-id"
+		resp, err := client.Get(t.Context(), id)
 
 		assert.Empty(t, resp)
-		assert.ErrorAs(t, err, &api.APIError{})
 
 		var apiErr api.APIError
 		assert.ErrorAs(t, err, &apiErr)
