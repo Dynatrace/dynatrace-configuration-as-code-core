@@ -34,7 +34,7 @@ func TestNewApiTokenBasedClient_ValidToken(t *testing.T) {
 	apiToken := os.Getenv("API_TOKEN")
 	classicUrl := os.Getenv("CLASSIC_URL")
 
-	client := NewApiTokenBasedClient(t.Context(), apiToken)
+	client := NewAPITokenClient(t.Context(), apiToken)
 
 	targetUrl, err := url.JoinPath(classicUrl, "/api/v1/config/clusterversion")
 	require.NoError(t, err)
@@ -52,7 +52,7 @@ func TestNewApiTokenBasedClient_InvalidToken(t *testing.T) {
 	apiToken := "some-invalid-token"
 	classicUrl := os.Getenv("CLASSIC_URL")
 
-	client := NewApiTokenBasedClient(t.Context(), apiToken)
+	client := NewAPITokenClient(t.Context(), apiToken)
 
 	targetUrl, err := url.JoinPath(classicUrl, "/api/v1/config/clusterversion")
 	require.NoError(t, err)
@@ -110,7 +110,7 @@ func TestNewOAuthClient_ValidToken(t *testing.T) {
 	}
 	platformUrl := os.Getenv("PLATFORM_URL")
 
-	client := NewOAuthBasedClient(t.Context(), &credentials)
+	client := NewOAuthClient(t.Context(), &credentials)
 
 	targetUrl, err := url.JoinPath(platformUrl, "/platform/management/v1/environment")
 	require.NoError(t, err)
@@ -132,7 +132,7 @@ func TestNewOAuthClient_InvalidToken(t *testing.T) {
 	}
 	platformUrl := os.Getenv("PLATFORM_URL")
 
-	client := NewOAuthBasedClient(t.Context(), &credentials)
+	client := NewOAuthClient(t.Context(), &credentials)
 
 	targetUrl, err := url.JoinPath(platformUrl, "/platform/management/v1/environment")
 	require.NoError(t, err)
