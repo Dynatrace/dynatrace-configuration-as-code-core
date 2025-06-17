@@ -235,7 +235,7 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 			return nil, fmt.Errorf("unable to connect to host %q, connection closed unexpectedly: %w", req.Host, err)
 		}
 
-		return nil, fmt.Errorf("error after httpClient.Do: %w", err)
+		return nil, fmt.Errorf("error after httpClient.Do with reponse %s: %w", response, err)
 	}
 
 	// wrap the body so that it could be read again
