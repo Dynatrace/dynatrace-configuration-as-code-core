@@ -294,6 +294,8 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		return nil, err
 	}
 
+	req.Close = true
+
 	return c.acquireLockAndSendWithRetries(ctx, req, 0, options)
 }
 
