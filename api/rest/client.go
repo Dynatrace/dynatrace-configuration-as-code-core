@@ -204,6 +204,9 @@ func (c *Client) setHeadersOnRequest(req *http.Request, options RequestOptions) 
 
 func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
 	logger := logr.FromContextOrDiscard(ctx)
+	// merge client retry options with request retry options
+	retryOptions := mergeRetryOptions(c.retryOptions, options.CustomShouldRetryFunc, options.DelayAfterRetry, options.MaxRetries)
+
 	if c.rateLimiter != nil {
 		c.rateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
 	}
@@ -232,7 +235,10 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 		}
 
 		if isConnectionResetErr(err) {
-			return nil, fmt.Errorf("unable to connect to host %q, connection closed unexpectedly: %w", req.Host, err)
+			logger.V(1).Info(fmt.Sprintf("unable to connect to host %q, connection closed unexpectedly: %w", req.Host, err))
+			logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, retryOptions.DelayAfterRetry.Milliseconds(), retryCount+1, retryOptions.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", retryOptions.MaxRetries)
+			time.Sleep(retryOptions.DelayAfterRetry)
+			return c.sendWithRetries(ctx, req, retryCount+1, options)
 		}
 
 		return nil, fmt.Errorf("error after httpClient.Do with reponse %s: %w", response, err)
@@ -251,9 +257,6 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 	if c.rateLimiter != nil {
 		c.rateLimiter.Update(ctx, response.StatusCode, response.Header)
 	}
-
-	// merge client retry options with request retry options
-	retryOptions := mergeRetryOptions(c.retryOptions, options.CustomShouldRetryFunc, options.DelayAfterRetry, options.MaxRetries)
 
 	if ShouldRetry(response.StatusCode) && retryOptions.ShouldRetryFunc != nil && retryCount < retryOptions.MaxRetries && retryOptions.ShouldRetryFunc(response) {
 		logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, retryOptions.DelayAfterRetry.Milliseconds(), retryCount+1, retryOptions.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", retryOptions.MaxRetries)
@@ -293,8 +296,6 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 	if err != nil {
 		return nil, err
 	}
-
-	req.Close = true
 
 	return c.acquireLockAndSendWithRetries(ctx, req, 0, options)
 }
