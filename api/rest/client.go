@@ -301,7 +301,7 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 
 func isConnectionResetErr(err error) bool {
 	var urlErr *url.Error
-	if errors.As(err, &urlErr) && errors.Is(urlErr, io.EOF) {
+	if errors.As(err, &urlErr) && (errors.Is(urlErr, io.EOF) || errors.Is(urlErr, io.ErrUnexpectedEOF)) {
 		// there is no direct way to discern a connection reset error, but if it's an url.Error wrapping an io.EOF we can be relatively certain it is
 		// unless net/http stops reporting this as io.EOF
 		return true
