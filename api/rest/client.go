@@ -235,12 +235,12 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 			return nil, fmt.Errorf("unable to connect to host %q, connection closed unexpectedly: %w", req.Host, err)
 		}
 
-		return nil, err
+		return nil, fmt.Errorf("error after httpClient.Do: %w", err)
 	}
 
 	// wrap the body so that it could be read again
 	if response.Body, err = ReusableReader(response.Body); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error after ReusableReader: %w", err)
 	}
 
 	if c.httpListener != nil {
