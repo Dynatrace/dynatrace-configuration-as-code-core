@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -222,8 +221,8 @@ func (a Client) List(ctx context.Context, resourceType ResourceType) (api.PagedL
 		if nextResult, err := a.listPage(ctx, resourceType, wfAdminAccess, retrieved); err != nil {
 			return api.PagedListResponse{}, err
 		} else {
-			if wfAdminAccess != nextResult.WfAdminAccess {
-				wfAdminAccess = nextResult.WfAdminAccess
+			if wfAdminAccess && !nextResult.WfAdminAccess {
+				wfAdminAccess = false
 				continue
 			}
 
@@ -236,10 +235,10 @@ func (a Client) List(ctx context.Context, resourceType ResourceType) (api.PagedL
 	return retVal, nil
 }
 
-func (a Client) listPage(ctx context.Context, resourceType ResourceType, wfAdminAccess bool, retrieved int) (listNextResult, error) {
+func (a Client) listPage(ctx context.Context, resourceType ResourceType, wfAdminAccess bool, offset int) (listNextResult, error) {
 	opts := rest.RequestOptions{
 		QueryParams: url.Values{
-			"offset": []string{strconv.Itoa(retrieved)},
+			"offset": []string{strconv.Itoa(offset)},
 		},
 	}
 	if wfAdminAccess {
@@ -250,26 +249,19 @@ func (a Client) listPage(ctx context.Context, resourceType ResourceType, wfAdmin
 	if err != nil {
 		return listNextResult{}, fmt.Errorf(errMsg, listOperation, resourceType, err)
 	}
-	defer resp.Body.Close()
-
-	// if Workflow API rejected the initial request with admin permissions -> retry without
-	if wfAdminAccess && resp.StatusCode == http.StatusForbidden {
-		return listNextResult{WfAdminAccess: false}, nil
-	}
-
-	body, err := io.ReadAll(resp.Body)
+	res, err := api.NewResponseFromHTTPResponse(resp)
 	if err != nil {
-		return listNextResult{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+		var apiErr api.APIError
+		// if Workflow API rejected the initial request with admin permissions -> retry without
+		if wfAdminAccess && errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusForbidden {
+			return listNextResult{WfAdminAccess: false}, nil
+		}
+		return listNextResult{}, err
 	}
 
-	// if one of the response has code != 2xx return empty list with response info
-	if !rest.IsSuccess(resp) {
-		return listNextResult{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-	}
-
-	result, err := unmarshalJSONList(resp)
+	result, err := unmarshalJSONList(res.Data)
 	if err != nil {
-		return listNextResult{}, api.NewAPIErrorFromResponseAndBody(resp, body)
+		return listNextResult{}, api.NewAPIErrorFromResponseAndBody(resp, res.Data)
 	}
 
 	b := make([][]byte, len(result.Objects))
@@ -281,7 +273,7 @@ func (a Client) listPage(ctx context.Context, resourceType ResourceType, wfAdmin
 		api.ListResponse{
 			Response: api.Response{
 				StatusCode: resp.StatusCode,
-				Data:       body,
+				Data:       res.Data,
 				Request: rest.RequestInfo{
 					Method: resp.Request.Method,
 					URL:    resp.Request.URL.String(),
@@ -391,14 +383,9 @@ func (a Client) Delete(ctx context.Context, resourceType ResourceType, id string
 	return api.NewResponseFromHTTPResponse(resp)
 }
 
-func unmarshalJSONList(raw *http.Response) (listResponse, error) {
+func unmarshalJSONList(body []byte) (listResponse, error) {
 	var r listResponse
-
-	body, err := io.ReadAll(raw.Body)
-	if err != nil {
-		return r, err
-	}
-	err = json.Unmarshal(body, &r)
+	err := json.Unmarshal(body, &r)
 	if err != nil {
 		return listResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
