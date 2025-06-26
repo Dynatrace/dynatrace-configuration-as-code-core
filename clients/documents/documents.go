@@ -108,7 +108,7 @@ func (c Client) Get(ctx context.Context, id string) (Response, error) {
 	}
 	boundary := contentType[boundaryIndex+len("boundary="):]
 
-	reader := multipart.NewReader(httpResp.Body, boundary)
+	reader := multipart.NewReader(bytes.NewReader(body), boundary)
 
 	form, err := reader.ReadForm(0)
 	if err != nil {
