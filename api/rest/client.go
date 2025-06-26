@@ -16,6 +16,7 @@
 package rest
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -26,7 +27,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/google/uuid"
 )
 
 // RequestOptions are additional options that should be applied
@@ -130,7 +130,15 @@ func NewClient(baseURL *url.URL, httpClient *http.Client, opts ...Option) *Clien
 
 // Do executes the given request and returns a raw *http.Response
 func (c *Client) Do(req *http.Request) (*http.Response, error) {
-	return c.acquireLockAndSendWithRetries(req.Context(), req, 0, RequestOptions{})
+	var bodyBytes []byte
+	if req.Body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return c.acquireLockAndSendWithRetries(req.Context(), 0, req.Method, req.URL.String(), bodyBytes, RequestOptions{})
 }
 
 // GET sends a GET request to the specified endpoint.
@@ -175,18 +183,20 @@ func (c *Client) BaseURL() *url.URL {
 	return c.baseURL
 }
 
-func (c *Client) acquireLockAndSendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
+func (c *Client) acquireLockAndSendWithRetries(ctx context.Context, retryCount int, method string, url string, body []byte, options RequestOptions) (*http.Response, error) {
 	// Apply concurrent request limiting if concurrentRequestLimiter is set
-	if c.concurrentRequestLimiter != nil {
-		c.concurrentRequestLimiter.Acquire()
-		defer c.concurrentRequestLimiter.Release()
-	}
+	//if c.concurrentRequestLimiter != nil {
+	//	c.concurrentRequestLimiter.Acquire()
+	//	defer c.concurrentRequestLimiter.Release()
+	//}
 
-	c.setHeadersOnRequest(req, options)
-	return c.sendWithRetries(ctx, req, retryCount, options)
+	return c.sendWithRetries(ctx, retryCount, method, url, body, options)
 }
 
 func (c *Client) setHeadersOnRequest(req *http.Request, options RequestOptions) {
+	c.headerMutex.RLock()
+	defer c.headerMutex.RUnlock()
+
 	// Set Content-Type header accordingly
 	if options.ContentType != "" {
 		req.Header.Set("Content-type", options.ContentType)
@@ -195,18 +205,21 @@ func (c *Client) setHeadersOnRequest(req *http.Request, options RequestOptions) 
 	}
 
 	// set fixed headers
-	c.headerMutex.RLock()
-	defer c.headerMutex.RUnlock()
 	for key, value := range c.headers {
 		req.Header.Set(key, value)
 	}
 }
 
-func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
+func (c *Client) sendWithRetries(ctx context.Context, retryCount int, method string, url string, body []byte, options RequestOptions) (*http.Response, error) {
 	logger := logr.FromContextOrDiscard(ctx)
-	if c.rateLimiter != nil {
-		c.rateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
+	//if c.rateLimiter != nil {
+	//	c.rateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
+	//}
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
 	}
+	c.setHeadersOnRequest(req, options)
 
 	if c.httpClient == nil {
 		c.httpClient = &http.Client{
@@ -214,51 +227,52 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 		}
 	}
 
-	var reqID string
-	var err error
+	//var reqID string
 	// wrap the body so that it could be read again
-	if req.Body, err = ReusableReader(req.Body); err != nil {
-		return nil, err
-	}
-	if c.httpListener != nil {
-		reqID = uuid.NewString()
-		c.httpListener.onRequest(reqID, req)
-	}
+	//if req.Body, err = ReusableReader(req.Body); err != nil {
+	//	return nil, err
+	//}
+	//if c.httpListener != nil {
+	//	reqID = uuid.NewString()
+	//	c.httpListener.onRequest(reqID, req)
+	//}
 
 	response, err := c.httpClient.Do(req)
 	if err != nil {
-		if c.httpListener != nil {
-			c.httpListener.onResponse(reqID, nil, err)
-		}
+		//if c.httpListener != nil {
+		//	c.httpListener.onResponse(reqID, nil, err)
+		//}
 
-		if isConnectionResetErr(err) {
-			return nil, fmt.Errorf("unable to connect to host %q, connection closed unexpectedly: %w", req.Host, err)
-		}
+		//if isConnectionResetErr(err) {
+		//	return nil, fmt.Errorf("unable to connect to host %q, connection closed unexpectedly: %w", req.Host, err)
+		//}
 
 		return nil, err
 	}
+	//defer response.Body.Close()
 
 	// wrap the body so that it could be read again
-	if response.Body, err = ReusableReader(response.Body); err != nil {
-		return nil, err
-	}
-
-	if c.httpListener != nil {
-		c.httpListener.onResponse(reqID, response, nil)
-	}
+	//if response.Body, err = ReusableReader(response.Body); err != nil {
+	//	return nil, err
+	//}
+	//
+	//if c.httpListener != nil {
+	//	c.httpListener.onResponse(reqID, response, nil)
+	//}
 
 	// Update the rate limiter with the response headers
-	if c.rateLimiter != nil {
-		c.rateLimiter.Update(ctx, response.StatusCode, response.Header)
-	}
+	//if c.rateLimiter != nil {
+	//	c.rateLimiter.Update(ctx, response.StatusCode, response.Header)
+	//}
 
 	// merge client retry options with request retry options
 	retryOptions := mergeRetryOptions(c.retryOptions, options.CustomShouldRetryFunc, options.DelayAfterRetry, options.MaxRetries)
 
 	if ShouldRetry(response.StatusCode) && retryOptions.ShouldRetryFunc != nil && retryCount < retryOptions.MaxRetries && retryOptions.ShouldRetryFunc(response) {
+		response.Body.Close()
 		logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, retryOptions.DelayAfterRetry.Milliseconds(), retryCount+1, retryOptions.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", retryOptions.MaxRetries)
 		time.Sleep(retryOptions.DelayAfterRetry)
-		return c.sendWithRetries(ctx, req, retryCount+1, options)
+		return c.sendWithRetries(ctx, retryCount+1, method, url, body, options)
 	}
 	return response, nil
 }
@@ -289,12 +303,15 @@ func (c *Client) sendRequestWithRetries(ctx context.Context, method string, endp
 		fullURL.RawQuery = options.QueryParams.Encode()
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, fullURL.String(), body)
-	if err != nil {
-		return nil, err
+	var bodyBytes []byte
+	if body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(body)
+		if err != nil {
+			return nil, err
+		}
 	}
-
-	return c.acquireLockAndSendWithRetries(ctx, req, 0, options)
+	return c.acquireLockAndSendWithRetries(ctx, 0, method, fullURL.String(), bodyBytes, options)
 }
 
 func isConnectionResetErr(err error) bool {
