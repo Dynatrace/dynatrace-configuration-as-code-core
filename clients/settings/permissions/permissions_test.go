@@ -15,6 +15,7 @@
 package permissions_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -40,7 +41,7 @@ func TestClient_GetAllAccessors(t *testing.T) {
 	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.GetAllAccessors(t.Context(), "")
+		actual, err := client.GetAllAccessors(context.TODO(), "")
 		assert.Error(t, err)
 
 		var errPermissions permissions.ErrorPermissions
@@ -96,7 +97,7 @@ func TestClient_GetAllAccessors(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.GetAllAccessors(t.Context(), "my-object-id")
+		resp, err := client.GetAllAccessors(context.TODO(), "my-object-id")
 
 		assert.NoError(t, err)
 		assert.NotEmpty(t, resp)
@@ -123,7 +124,7 @@ func TestClient_GetAllAccessors(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.GetAllAccessors(t.Context(), "some-object-id")
+		resp, err := client.GetAllAccessors(context.TODO(), "some-object-id")
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -140,7 +141,7 @@ func TestClient_GetAllAccessors(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		resp, err := client.GetAllAccessors(t.Context(), "some-object-id")
+		resp, err := client.GetAllAccessors(context.TODO(), "some-object-id")
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -154,7 +155,7 @@ func TestClient_GetAllUsersAccessor(t *testing.T) {
 	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.GetAllUsersAccessor(t.Context(), "")
+		actual, err := client.GetAllUsersAccessor(context.TODO(), "")
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -179,7 +180,7 @@ func TestClient_GetAllUsersAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.GetAllUsersAccessor(t.Context(), "my-object-id")
+		resp, err := client.GetAllUsersAccessor(context.TODO(), "my-object-id")
 
 		assert.NoError(t, err)
 		assert.NotEmpty(t, resp)
@@ -206,7 +207,7 @@ func TestClient_GetAllUsersAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.GetAllUsersAccessor(t.Context(), "some-object-id")
+		resp, err := client.GetAllUsersAccessor(context.TODO(), "some-object-id")
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -223,7 +224,7 @@ func TestClient_GetAllUsersAccessor(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		resp, err := client.GetAllUsersAccessor(t.Context(), "some-object-id")
+		resp, err := client.GetAllUsersAccessor(context.TODO(), "some-object-id")
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -237,7 +238,7 @@ func TestClient_GetAccessor(t *testing.T) {
 	t.Run("when called without object id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		resp, err := client.GetAccessor(t.Context(), "", "user", "user-id")
+		resp, err := client.GetAccessor(context.TODO(), "", "user", "user-id")
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -250,7 +251,7 @@ func TestClient_GetAccessor(t *testing.T) {
 	t.Run("when called without accessor type parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.GetAccessor(t.Context(), "my-object-id", "", "user-id")
+		actual, err := client.GetAccessor(context.TODO(), "my-object-id", "", "user-id")
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -263,7 +264,7 @@ func TestClient_GetAccessor(t *testing.T) {
 	t.Run("when called without accessor id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.GetAccessor(t.Context(), "my-object-id", "group", "")
+		actual, err := client.GetAccessor(context.TODO(), "my-object-id", "group", "")
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -288,7 +289,7 @@ func TestClient_GetAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.GetAccessor(t.Context(), "my-object-id", "group", "4c75c5cb-4f85-4a49-811a-cdf9ae55fd4e")
+		resp, err := client.GetAccessor(context.TODO(), "my-object-id", "group", "4c75c5cb-4f85-4a49-811a-cdf9ae55fd4e")
 
 		assert.NoError(t, err)
 		assert.NotEmpty(t, resp)
@@ -315,7 +316,7 @@ func TestClient_GetAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.GetAccessor(t.Context(), "some-object-id", "user", "uid")
+		resp, err := client.GetAccessor(context.TODO(), "some-object-id", "user", "uid")
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
 
@@ -331,7 +332,7 @@ func TestClient_GetAccessor(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		resp, err := client.GetAccessor(t.Context(), "some-object-id", "user", "uid")
+		resp, err := client.GetAccessor(context.TODO(), "some-object-id", "user", "uid")
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -345,7 +346,7 @@ func TestClient_Create(t *testing.T) {
 	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		resp, err := client.Create(t.Context(), "", nil)
+		resp, err := client.Create(context.TODO(), "", nil)
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -372,7 +373,7 @@ func TestClient_Create(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		actual, err := client.Create(t.Context(), "my-object-id", json.RawMessage(given))
+		actual, err := client.Create(context.TODO(), "my-object-id", json.RawMessage(given))
 
 		assert.NoError(t, err)
 		assert.NotEmpty(t, actual)
@@ -387,7 +388,7 @@ func TestClient_Create(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		resp, err := client.Create(t.Context(), "my-object-id", json.RawMessage(given))
+		resp, err := client.Create(context.TODO(), "my-object-id", json.RawMessage(given))
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -401,7 +402,7 @@ func TestClient_UpdateAllUsersAccessor(t *testing.T) {
 	t.Run("when called without object id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		resp, err := client.UpdateAllUsersAccessor(t.Context(), "", nil)
+		resp, err := client.UpdateAllUsersAccessor(context.TODO(), "", nil)
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -431,7 +432,7 @@ func TestClient_UpdateAllUsersAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.UpdateAllUsersAccessor(t.Context(), "my-object-id", json.RawMessage(given))
+		resp, err := client.UpdateAllUsersAccessor(context.TODO(), "my-object-id", json.RawMessage(given))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
@@ -456,7 +457,7 @@ func TestClient_UpdateAllUsersAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.UpdateAllUsersAccessor(t.Context(), "some-object-id", nil)
+		resp, err := client.UpdateAllUsersAccessor(context.TODO(), "some-object-id", nil)
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -475,7 +476,7 @@ func TestClient_UpdateAllUsersAccessor(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		resp, err := client.UpdateAllUsersAccessor(t.Context(), "my-object-id", json.RawMessage(given))
+		resp, err := client.UpdateAllUsersAccessor(context.TODO(), "my-object-id", json.RawMessage(given))
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -489,7 +490,7 @@ func TestClient_UpdateAccessor(t *testing.T) {
 	t.Run("when called without object id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		resp, err := client.UpdateAccessor(t.Context(), "", "user", "uid", nil)
+		resp, err := client.UpdateAccessor(context.TODO(), "", "user", "uid", nil)
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -502,7 +503,7 @@ func TestClient_UpdateAccessor(t *testing.T) {
 	t.Run("when called without accessor type parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		resp, err := client.UpdateAccessor(t.Context(), "object-id", "", "uid", nil)
+		resp, err := client.UpdateAccessor(context.TODO(), "object-id", "", "uid", nil)
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -515,7 +516,7 @@ func TestClient_UpdateAccessor(t *testing.T) {
 	t.Run("when called without accessor id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		resp, err := client.UpdateAccessor(t.Context(), "object-id", "user", "", nil)
+		resp, err := client.UpdateAccessor(context.TODO(), "object-id", "user", "", nil)
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -545,7 +546,7 @@ func TestClient_UpdateAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.UpdateAccessor(t.Context(), "my-object-id", "user", "03c7e839-ee7e-4023-b5db-6da0dc9697bc", json.RawMessage(given))
+		resp, err := client.UpdateAccessor(context.TODO(), "my-object-id", "user", "03c7e839-ee7e-4023-b5db-6da0dc9697bc", json.RawMessage(given))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
@@ -571,7 +572,7 @@ func TestClient_UpdateAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.UpdateAccessor(t.Context(), "some-object-id", "user", "uid", nil)
+		resp, err := client.UpdateAccessor(context.TODO(), "some-object-id", "user", "uid", nil)
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -590,7 +591,7 @@ func TestClient_UpdateAccessor(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		resp, err := client.UpdateAccessor(t.Context(), "some-object-id", "user", "uid", json.RawMessage(given))
+		resp, err := client.UpdateAccessor(context.TODO(), "some-object-id", "user", "uid", json.RawMessage(given))
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -604,7 +605,7 @@ func TestClient_DeleteAccessor(t *testing.T) {
 	t.Run("when called without object id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.DeleteAccessor(t.Context(), "", "user", "uid")
+		actual, err := client.DeleteAccessor(context.TODO(), "", "user", "uid")
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -617,7 +618,7 @@ func TestClient_DeleteAccessor(t *testing.T) {
 	t.Run("when called without accessor type parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.DeleteAccessor(t.Context(), "object-id", "", "uid")
+		actual, err := client.DeleteAccessor(context.TODO(), "object-id", "", "uid")
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -630,7 +631,7 @@ func TestClient_DeleteAccessor(t *testing.T) {
 	t.Run("when called without accessor id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.DeleteAccessor(t.Context(), "object-id", "user", "")
+		actual, err := client.DeleteAccessor(context.TODO(), "object-id", "user", "")
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -656,7 +657,7 @@ func TestClient_DeleteAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		actual, err := client.DeleteAccessor(t.Context(), "my-object-id", "user", "uid")
+		actual, err := client.DeleteAccessor(context.TODO(), "my-object-id", "user", "uid")
 
 		assert.NoError(t, err)
 		assert.Equal(t, actual.StatusCode, http.StatusOK)
@@ -681,7 +682,7 @@ func TestClient_DeleteAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		actual, err := client.DeleteAccessor(t.Context(), "some-unknown-id", "user", "uid")
+		actual, err := client.DeleteAccessor(context.TODO(), "some-unknown-id", "user", "uid")
 
 		assert.Empty(t, actual)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -698,7 +699,7 @@ func TestClient_DeleteAccessor(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		actual, err := client.DeleteAccessor(t.Context(), "some-unknown-id", "user", "uid")
+		actual, err := client.DeleteAccessor(context.TODO(), "some-unknown-id", "user", "uid")
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -712,7 +713,7 @@ func TestClient_DeleteAllUsersAccessor(t *testing.T) {
 	t.Run("when called without object id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.DeleteAllUsersAccessor(t.Context(), "")
+		actual, err := client.DeleteAllUsersAccessor(context.TODO(), "")
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -738,7 +739,7 @@ func TestClient_DeleteAllUsersAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		actual, err := client.DeleteAllUsersAccessor(t.Context(), "my-object-id")
+		actual, err := client.DeleteAllUsersAccessor(context.TODO(), "my-object-id")
 
 		assert.NoError(t, err)
 		assert.Equal(t, actual.StatusCode, http.StatusOK)
@@ -763,7 +764,7 @@ func TestClient_DeleteAllUsersAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		actual, err := client.DeleteAllUsersAccessor(t.Context(), "some-unknown-id")
+		actual, err := client.DeleteAllUsersAccessor(context.TODO(), "some-unknown-id")
 
 		assert.Empty(t, actual)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -780,7 +781,7 @@ func TestClient_DeleteAllUsersAccessor(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		actual, err := client.DeleteAllUsersAccessor(t.Context(), "some-unknown-id")
+		actual, err := client.DeleteAllUsersAccessor(context.TODO(), "some-unknown-id")
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 

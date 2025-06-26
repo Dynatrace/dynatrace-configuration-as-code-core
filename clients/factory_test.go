@@ -15,6 +15,7 @@
 package clients
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -49,42 +50,42 @@ func TestClientCreation(t *testing.T) {
 		WithUserAgent("MyUserAgent")
 
 	var clientInstance interface{}
-	clientInstance, err := f.BucketClient(t.Context())
+	clientInstance, err := f.BucketClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &buckets.Client{}, clientInstance)
 
-	clientInstance, err = f.SegmentsClient(t.Context())
+	clientInstance, err = f.SegmentsClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &segments.Client{}, clientInstance)
 
-	clientInstance, err = f.SLOClient(t.Context())
+	clientInstance, err = f.SLOClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &slo.Client{}, clientInstance)
 
-	clientInstance, err = f.AutomationClient(t.Context())
+	clientInstance, err = f.AutomationClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &automation.Client{}, clientInstance)
 
-	clientInstance, err = f.DocumentClient(t.Context())
+	clientInstance, err = f.DocumentClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &documents.Client{}, clientInstance)
 
-	clientInstance, err = f.OpenPipelineClient(t.Context())
+	clientInstance, err = f.OpenPipelineClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &openpipeline.Client{}, clientInstance)
 
-	clientInstance, err = f.AccountClient(t.Context())
+	clientInstance, err = f.AccountClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &accounts.Client{}, clientInstance)
 
-	restClient, err := f.CreatePlatformClient(t.Context())
+	restClient, err := f.CreatePlatformClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, restClient)
 
@@ -106,36 +107,36 @@ func TestClientMissingPlatformURL(t *testing.T) {
 		WithUserAgent("MyUserAgent")
 
 	var clientInstance interface{}
-	clientInstance, err := f.BucketClient(t.Context())
+	clientInstance, err := f.BucketClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrPlatformURLMissing)
 
-	clientInstance, err = f.SegmentsClient(t.Context())
+	clientInstance, err = f.SegmentsClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrPlatformURLMissing)
 
-	clientInstance, err = f.SLOClient(t.Context())
+	clientInstance, err = f.SLOClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrPlatformURLMissing)
 
-	clientInstance, err = f.AutomationClient(t.Context())
+	clientInstance, err = f.AutomationClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrPlatformURLMissing)
 
-	clientInstance, err = f.DocumentClient(t.Context())
+	clientInstance, err = f.DocumentClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrPlatformURLMissing)
 
-	clientInstance, err = f.OpenPipelineClient(t.Context())
+	clientInstance, err = f.OpenPipelineClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrPlatformURLMissing)
 
-	clientInstance, err = f.AccountClient(t.Context())
+	clientInstance, err = f.AccountClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &accounts.Client{}, clientInstance)
 
-	restClient, err := f.CreatePlatformClient(t.Context())
+	restClient, err := f.CreatePlatformClient(context.TODO())
 	assert.Nil(t, restClient)
 	assert.ErrorIs(t, err, ErrPlatformURLMissing)
 
@@ -153,35 +154,35 @@ func TestClientMissingOAuthCredentials(t *testing.T) {
 		WithUserAgent("MyUserAgent")
 
 	var clientInstance interface{}
-	clientInstance, err := f.BucketClient(t.Context())
+	clientInstance, err := f.BucketClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
-	clientInstance, err = f.SegmentsClient(t.Context())
+	clientInstance, err = f.SegmentsClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
-	clientInstance, err = f.SLOClient(t.Context())
+	clientInstance, err = f.SLOClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
-	clientInstance, err = f.AutomationClient(t.Context())
+	clientInstance, err = f.AutomationClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
-	clientInstance, err = f.DocumentClient(t.Context())
+	clientInstance, err = f.DocumentClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
-	clientInstance, err = f.OpenPipelineClient(t.Context())
+	clientInstance, err = f.OpenPipelineClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
-	clientInstance, err = f.AccountClient(t.Context())
+	clientInstance, err = f.AccountClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrOAuthCredentialsMissing)
 
-	restClient, err := f.CreatePlatformClient(t.Context())
+	restClient, err := f.CreatePlatformClient(context.TODO())
 	assert.Nil(t, restClient)
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
@@ -206,36 +207,36 @@ func TestClientPlatformURLParsingError(t *testing.T) {
 
 	var clientInstance interface{}
 
-	clientInstance, err := f.BucketClient(t.Context())
+	clientInstance, err := f.BucketClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
 
-	clientInstance, err = f.SegmentsClient(t.Context())
+	clientInstance, err = f.SegmentsClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
 
-	clientInstance, err = f.SLOClient(t.Context())
+	clientInstance, err = f.SLOClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
 
-	clientInstance, err = f.AutomationClient(t.Context())
+	clientInstance, err = f.AutomationClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
 
-	clientInstance, err = f.DocumentClient(t.Context())
+	clientInstance, err = f.DocumentClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
 
-	clientInstance, err = f.OpenPipelineClient(t.Context())
+	clientInstance, err = f.OpenPipelineClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
 
-	clientInstance, err = f.AccountClient(t.Context())
+	clientInstance, err = f.AccountClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &accounts.Client{}, clientInstance)
 
-	restClient, err := f.CreatePlatformClient(t.Context())
+	restClient, err := f.CreatePlatformClient(context.TODO())
 	assert.Nil(t, restClient)
 	assert.ErrorContains(t, err, failedToParseURL)
 
@@ -257,41 +258,41 @@ func TestClientMissingAccountURL(t *testing.T) {
 		WithUserAgent("MyUserAgent")
 
 	var clientInstance interface{}
-	clientInstance, err := f.BucketClient(t.Context())
+	clientInstance, err := f.BucketClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &buckets.Client{}, clientInstance)
 
-	clientInstance, err = f.SegmentsClient(t.Context())
+	clientInstance, err = f.SegmentsClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &segments.Client{}, clientInstance)
 
-	clientInstance, err = f.SLOClient(t.Context())
+	clientInstance, err = f.SLOClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &slo.Client{}, clientInstance)
 
-	clientInstance, err = f.AutomationClient(t.Context())
+	clientInstance, err = f.AutomationClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &automation.Client{}, clientInstance)
 
-	clientInstance, err = f.DocumentClient(t.Context())
+	clientInstance, err = f.DocumentClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &documents.Client{}, clientInstance)
 
-	clientInstance, err = f.OpenPipelineClient(t.Context())
+	clientInstance, err = f.OpenPipelineClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &openpipeline.Client{}, clientInstance)
 
-	clientInstance, err = f.AccountClient(t.Context())
+	clientInstance, err = f.AccountClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrAccountURLMissing)
 
-	restClient, err := f.CreatePlatformClient(t.Context())
+	restClient, err := f.CreatePlatformClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, restClient)
 
@@ -314,41 +315,41 @@ func TestClientAccountURLParsingError(t *testing.T) {
 		WithUserAgent("MyUserAgent")
 
 	var clientInstance interface{}
-	clientInstance, err := f.BucketClient(t.Context())
+	clientInstance, err := f.BucketClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &buckets.Client{}, clientInstance)
 
-	clientInstance, err = f.SegmentsClient(t.Context())
+	clientInstance, err = f.SegmentsClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &segments.Client{}, clientInstance)
 
-	clientInstance, err = f.SLOClient(t.Context())
+	clientInstance, err = f.SLOClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &slo.Client{}, clientInstance)
 
-	clientInstance, err = f.AutomationClient(t.Context())
+	clientInstance, err = f.AutomationClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &automation.Client{}, clientInstance)
 
-	clientInstance, err = f.DocumentClient(t.Context())
+	clientInstance, err = f.DocumentClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &documents.Client{}, clientInstance)
 
-	clientInstance, err = f.OpenPipelineClient(t.Context())
+	clientInstance, err = f.OpenPipelineClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &openpipeline.Client{}, clientInstance)
 
-	clientInstance, err = f.AccountClient(t.Context())
+	clientInstance, err = f.AccountClient(context.TODO())
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
 
-	restClient, err := f.CreatePlatformClient(t.Context())
+	restClient, err := f.CreatePlatformClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, restClient)
 
@@ -370,42 +371,42 @@ func TestClientMissingClassicURL(t *testing.T) {
 		WithUserAgent("MyUserAgent")
 
 	var clientInstance interface{}
-	clientInstance, err := f.BucketClient(t.Context())
+	clientInstance, err := f.BucketClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &buckets.Client{}, clientInstance)
 
-	clientInstance, err = f.SegmentsClient(t.Context())
+	clientInstance, err = f.SegmentsClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &segments.Client{}, clientInstance)
 
-	clientInstance, err = f.SLOClient(t.Context())
+	clientInstance, err = f.SLOClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &slo.Client{}, clientInstance)
 
-	clientInstance, err = f.AutomationClient(t.Context())
+	clientInstance, err = f.AutomationClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &automation.Client{}, clientInstance)
 
-	clientInstance, err = f.DocumentClient(t.Context())
+	clientInstance, err = f.DocumentClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &documents.Client{}, clientInstance)
 
-	clientInstance, err = f.OpenPipelineClient(t.Context())
+	clientInstance, err = f.OpenPipelineClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &openpipeline.Client{}, clientInstance)
 
-	clientInstance, err = f.AccountClient(t.Context())
+	clientInstance, err = f.AccountClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &accounts.Client{}, clientInstance)
 
-	restClient, err := f.CreatePlatformClient(t.Context())
+	restClient, err := f.CreatePlatformClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, restClient)
 
@@ -427,42 +428,42 @@ func TestClientMissingAccessToken(t *testing.T) {
 		WithUserAgent("MyUserAgent")
 
 	var clientInstance interface{}
-	clientInstance, err := f.BucketClient(t.Context())
+	clientInstance, err := f.BucketClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &buckets.Client{}, clientInstance)
 
-	clientInstance, err = f.SegmentsClient(t.Context())
+	clientInstance, err = f.SegmentsClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &segments.Client{}, clientInstance)
 
-	clientInstance, err = f.SLOClient(t.Context())
+	clientInstance, err = f.SLOClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &slo.Client{}, clientInstance)
 
-	clientInstance, err = f.AutomationClient(t.Context())
+	clientInstance, err = f.AutomationClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &automation.Client{}, clientInstance)
 
-	clientInstance, err = f.DocumentClient(t.Context())
+	clientInstance, err = f.DocumentClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &documents.Client{}, clientInstance)
 
-	clientInstance, err = f.OpenPipelineClient(t.Context())
+	clientInstance, err = f.OpenPipelineClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &openpipeline.Client{}, clientInstance)
 
-	clientInstance, err = f.AccountClient(t.Context())
+	clientInstance, err = f.AccountClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &accounts.Client{}, clientInstance)
 
-	restClient, err := f.CreatePlatformClient(t.Context())
+	restClient, err := f.CreatePlatformClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, restClient)
 
@@ -485,42 +486,42 @@ func TestClientClassicURLParsingError(t *testing.T) {
 		WithUserAgent("MyUserAgent")
 
 	var clientInstance interface{}
-	clientInstance, err := f.BucketClient(t.Context())
+	clientInstance, err := f.BucketClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &buckets.Client{}, clientInstance)
 
-	clientInstance, err = f.SegmentsClient(t.Context())
+	clientInstance, err = f.SegmentsClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &segments.Client{}, clientInstance)
 
-	clientInstance, err = f.SLOClient(t.Context())
+	clientInstance, err = f.SLOClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &slo.Client{}, clientInstance)
 
-	clientInstance, err = f.AutomationClient(t.Context())
+	clientInstance, err = f.AutomationClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &automation.Client{}, clientInstance)
 
-	clientInstance, err = f.DocumentClient(t.Context())
+	clientInstance, err = f.DocumentClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &documents.Client{}, clientInstance)
 
-	clientInstance, err = f.OpenPipelineClient(t.Context())
+	clientInstance, err = f.OpenPipelineClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &openpipeline.Client{}, clientInstance)
 
-	clientInstance, err = f.AccountClient(t.Context())
+	clientInstance, err = f.AccountClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &accounts.Client{}, clientInstance)
 
-	restClient, err := f.CreatePlatformClient(t.Context())
+	restClient, err := f.CreatePlatformClient(context.TODO())
 	assert.NoError(t, err)
 	assert.NotNil(t, restClient)
 
@@ -545,7 +546,7 @@ func TestFactory_WithCustomHeaders(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, restClient)
 
-	resp, err := restClient.GET(t.Context(), "", rest.RequestOptions{})
+	resp, err := restClient.GET(context.TODO(), "", rest.RequestOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
@@ -568,10 +569,10 @@ func TestCreatePlatformClient_OAuthBased(t *testing.T) {
 			ClientSecret: "test-client-secret",
 			TokenURL:     server.URL,
 		}).
-		CreatePlatformClient(t.Context())
+		CreatePlatformClient(context.TODO())
 	assert.NoError(t, err)
 
-	resp, err := client.GET(t.Context(), "", rest.RequestOptions{})
+	resp, err := client.GET(context.TODO(), "", rest.RequestOptions{})
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 }
@@ -589,7 +590,7 @@ func TestCreateClassicClient(t *testing.T) {
 		CreateClassicClient()
 	assert.NoError(t, err)
 
-	resp, err := client.GET(t.Context(), "", rest.RequestOptions{})
+	resp, err := client.GET(context.TODO(), "", rest.RequestOptions{})
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 }
@@ -606,10 +607,10 @@ func TestCreatePlatformClient_PlatformTokenBased(t *testing.T) {
 	client, err := Factory().
 		WithPlatformURL(apiServer.URL).
 		WithPlatformToken("mocked-token").
-		CreatePlatformClient(t.Context())
+		CreatePlatformClient(context.TODO())
 	assert.NoError(t, err)
 
-	resp, err := client.GET(t.Context(), "", rest.RequestOptions{})
+	resp, err := client.GET(context.TODO(), "", rest.RequestOptions{})
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 }
@@ -627,10 +628,10 @@ func TestCreatePlatformClient_BothPlatformAndOAuthTokenSet(t *testing.T) {
 		WithPlatformURL(apiServer.URL).
 		WithOAuthCredentials(clientcredentials.Config{}).
 		WithPlatformToken("mocked-token").
-		CreatePlatformClient(t.Context())
+		CreatePlatformClient(context.TODO())
 	assert.NoError(t, err)
 
-	resp, err := client.GET(t.Context(), "", rest.RequestOptions{})
+	resp, err := client.GET(context.TODO(), "", rest.RequestOptions{})
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 }
@@ -638,7 +639,7 @@ func TestCreatePlatformClient_BothPlatformAndOAuthTokenSet(t *testing.T) {
 func TestCreatePlatformClient_NoTokenSet(t *testing.T) {
 	_, err := Factory().
 		WithPlatformURL("does not matter").
-		CreatePlatformClient(t.Context())
+		CreatePlatformClient(context.TODO())
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
 }

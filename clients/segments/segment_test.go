@@ -15,6 +15,7 @@
 package segments_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -69,7 +70,7 @@ func TestList(t *testing.T) {
 	url, _ := url.Parse(server.URL)
 	client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-	resp, err := client.List(t.Context())
+	resp, err := client.List(context.TODO())
 	require.NoError(t, err)
 	require.JSONEq(t, expected, string(resp.Data))
 }
@@ -78,7 +79,7 @@ func TestGet(t *testing.T) {
 	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
 		client := segments.NewClient(&rest.Client{})
 
-		actual, err := client.Get(t.Context(), "")
+		actual, err := client.Get(context.TODO(), "")
 
 		assert.Error(t, err)
 		assert.Empty(t, actual)
@@ -104,7 +105,7 @@ func TestGet(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.Get(t.Context(), "uid")
+		resp, err := client.Get(context.TODO(), "uid")
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -150,7 +151,7 @@ func TestGet(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.Get(t.Context(), "uid")
+		resp, err := client.Get(context.TODO(), "uid")
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
@@ -174,7 +175,7 @@ func TestGetAll(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.GetAll(t.Context())
+		resp, err := client.GetAll(context.TODO())
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -205,7 +206,7 @@ func TestGetAll(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.GetAll(t.Context())
+		resp, err := client.GetAll(context.TODO())
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -265,7 +266,7 @@ func TestGetAll(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.GetAll(t.Context())
+		resp, err := client.GetAll(context.TODO())
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
@@ -301,7 +302,7 @@ func TestCreate(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		_, err := client.Create(t.Context(), []byte(payload))
+		_, err := client.Create(context.TODO(), []byte(payload))
 		assert.Error(t, err)
 	})
 	t.Run("error returned from client, expected error", func(t *testing.T) {
@@ -309,7 +310,7 @@ func TestCreate(t *testing.T) {
 		path := &url.URL{}
 		client := segments.NewClient(rest.NewClient(path, httpClient))
 
-		_, err := client.Create(t.Context(), []byte(payload))
+		_, err := client.Create(context.TODO(), []byte(payload))
 		assert.Error(t, err)
 	})
 	t.Run("successfully created new entity on server", func(t *testing.T) {
@@ -338,7 +339,7 @@ func TestCreate(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.Create(t.Context(), []byte(payload))
+		resp, err := client.Create(context.TODO(), []byte(payload))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
@@ -353,7 +354,7 @@ func TestUpdate(t *testing.T) {
 		path := &url.URL{}
 		client := segments.NewClient(rest.NewClient(path, httpClient))
 
-		_, err := client.Update(t.Context(), "id", []byte(``))
+		_, err := client.Update(context.TODO(), "id", []byte(``))
 		assert.Error(t, err)
 	})
 	t.Run("id not provided, expecting validation error", func(t *testing.T) {
@@ -365,7 +366,7 @@ func TestUpdate(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		_, err := client.Update(t.Context(), "", []byte(``))
+		_, err := client.Update(context.TODO(), "", []byte(``))
 		assert.Error(t, err)
 	})
 	t.Run("unexpected error while checking for status on server", func(t *testing.T) {
@@ -399,7 +400,7 @@ func TestUpdate(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.Update(t.Context(), "uid", []byte(payload))
+		resp, err := client.Update(context.TODO(), "uid", []byte(payload))
 
 		require.Error(t, err)
 		require.Empty(t, resp)
@@ -460,7 +461,7 @@ func TestUpdate(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.Update(t.Context(), uid, []byte(payload))
+		resp, err := client.Update(context.TODO(), uid, []byte(payload))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
@@ -522,7 +523,7 @@ func TestUpdate(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.Update(t.Context(), uid, []byte(payload))
+		resp, err := client.Update(context.TODO(), uid, []byte(payload))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
@@ -582,7 +583,7 @@ func TestUpdate(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.Update(t.Context(), uid, []byte(payload))
+		resp, err := client.Update(context.TODO(), uid, []byte(payload))
 
 		assert.Empty(t, resp)
 		assert.Error(t, err)
@@ -631,7 +632,7 @@ func TestUpdate(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.Update(t.Context(), uid, []byte(payload))
+		resp, err := client.Update(context.TODO(), uid, []byte(payload))
 
 		assert.Empty(t, resp)
 		assert.Error(t, err)
@@ -644,7 +645,7 @@ func TestDelete(t *testing.T) {
 		path := &url.URL{}
 		client := segments.NewClient(rest.NewClient(path, httpClient))
 
-		_, err := client.Delete(t.Context(), "id")
+		_, err := client.Delete(context.TODO(), "id")
 		assert.Error(t, err)
 	})
 	t.Run("error empty id provided, expected error", func(t *testing.T) {
@@ -652,7 +653,7 @@ func TestDelete(t *testing.T) {
 		path := &url.URL{}
 		client := segments.NewClient(rest.NewClient(path, httpClient))
 
-		_, err := client.Delete(t.Context(), "")
+		_, err := client.Delete(context.TODO(), "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "id")
 	})
@@ -676,7 +677,7 @@ func TestDelete(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.Delete(t.Context(), "uid")
+		resp, err := client.Delete(context.TODO(), "uid")
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -700,7 +701,7 @@ func TestDelete(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.Delete(t.Context(), "uid")
+		resp, err := client.Delete(context.TODO(), "uid")
 
 		assert.NoError(t, err)
 		assert.Equal(t, resp.StatusCode, http.StatusNoContent)

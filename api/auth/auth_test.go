@@ -17,6 +17,7 @@
 package auth
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -39,7 +40,7 @@ func TestNewOAuthBasedClient_TokenSetCorrectly(t *testing.T) {
 		TokenURL:     tokenServer.URL,
 	}
 
-	client := NewOAuthClient(t.Context(), config)
+	client := NewOAuthClient(context.TODO(), config)
 
 	// Mock API server to verify Authorization header
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +64,7 @@ func TestNewPlatformTokenClient(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	client := NewPlatformTokenClient(t.Context(), "platform-token")
+	client := NewPlatformTokenClient(context.TODO(), "platform-token")
 
 	// Make a request to the mock API server
 	resp, err := client.Get(apiServer.URL)
@@ -79,7 +80,7 @@ func TestNewTokenBasedClient(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	client := NewAPITokenClient(t.Context(), "api-token")
+	client := NewAPITokenClient(context.TODO(), "api-token")
 
 	// Make a request to the mock API server
 	resp, err := client.Get(apiServer.URL)

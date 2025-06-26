@@ -15,6 +15,7 @@
 package slo_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -101,7 +102,7 @@ func TestList(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := slo.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.List(t.Context())
+		resp, err := client.List(context.TODO())
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
@@ -151,7 +152,7 @@ func TestList(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := slo.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.List(t.Context())
+		resp, err := client.List(context.TODO())
 
 		assert.Error(t, err)
 		assert.ErrorAs(t, err, new(api.APIError))
@@ -163,7 +164,7 @@ func TestGet(t *testing.T) {
 	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
 		client := slo.NewClient(&rest.Client{})
 
-		actual, err := client.Get(t.Context(), "")
+		actual, err := client.Get(context.TODO(), "")
 
 		assert.Error(t, err)
 		assert.Empty(t, actual)
@@ -203,7 +204,7 @@ func TestGet(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := slo.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.Get(t.Context(), "uid")
+		resp, err := client.Get(context.TODO(), "uid")
 
 		assert.NoError(t, err)
 		assert.NotEmpty(t, resp)
@@ -228,7 +229,7 @@ func TestGet(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := slo.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.Get(t.Context(), "uid")
+		resp, err := client.Get(context.TODO(), "uid")
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -271,7 +272,7 @@ func TestCreate(t *testing.T) {
 	url, _ := url.Parse(server.URL)
 	client := slo.NewClient(rest.NewClient(url, server.Client()))
 
-	actual, err := client.Create(t.Context(), json.RawMessage(given))
+	actual, err := client.Create(context.TODO(), json.RawMessage(given))
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, actual)
@@ -282,7 +283,7 @@ func TestUpdate(t *testing.T) {
 	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
 		client := slo.NewClient(&rest.Client{})
 
-		actual, err := client.Update(t.Context(), "", nil)
+		actual, err := client.Update(context.TODO(), "", nil)
 
 		assert.Error(t, err)
 		assert.Empty(t, actual)
@@ -344,7 +345,7 @@ func TestUpdate(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := slo.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.Update(t.Context(), "slo-id-1", json.RawMessage(payload))
+		resp, err := client.Update(context.TODO(), "slo-id-1", json.RawMessage(payload))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
@@ -367,7 +368,7 @@ func TestUpdate(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := slo.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.Update(t.Context(), "uid", nil)
+		resp, err := client.Update(context.TODO(), "uid", nil)
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -383,7 +384,7 @@ func TestDelete(t *testing.T) {
 	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
 		client := slo.NewClient(&rest.Client{})
 
-		actual, err := client.Delete(t.Context(), "")
+		actual, err := client.Delete(context.TODO(), "")
 
 		assert.Error(t, err)
 		assert.Empty(t, actual)
@@ -428,7 +429,7 @@ func TestDelete(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := slo.NewClient(rest.NewClient(url, server.Client()))
 
-		actual, err := client.Delete(t.Context(), "slo-id-1")
+		actual, err := client.Delete(context.TODO(), "slo-id-1")
 
 		assert.NoError(t, err)
 		assert.Equal(t, actual.StatusCode, http.StatusNoContent)
@@ -451,7 +452,7 @@ func TestDelete(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := slo.NewClient(rest.NewClient(url, server.Client()))
 
-		actual, err := client.Delete(t.Context(), "uid")
+		actual, err := client.Delete(context.TODO(), "uid")
 
 		assert.Empty(t, actual)
 		assert.ErrorAs(t, err, &api.APIError{})

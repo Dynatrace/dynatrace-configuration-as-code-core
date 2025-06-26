@@ -19,6 +19,7 @@
 package auth
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"os"
@@ -34,7 +35,7 @@ func TestNewApiTokenBasedClient_ValidToken(t *testing.T) {
 	apiToken := os.Getenv("API_TOKEN")
 	classicUrl := os.Getenv("CLASSIC_URL")
 
-	client := NewAPITokenClient(t.Context(), apiToken)
+	client := NewAPITokenClient(context.TODO(), apiToken)
 
 	targetUrl, err := url.JoinPath(classicUrl, "/api/v1/config/clusterversion")
 	require.NoError(t, err)
@@ -52,7 +53,7 @@ func TestNewApiTokenBasedClient_InvalidToken(t *testing.T) {
 	apiToken := "some-invalid-token"
 	classicUrl := os.Getenv("CLASSIC_URL")
 
-	client := NewAPITokenClient(t.Context(), apiToken)
+	client := NewAPITokenClient(context.TODO(), apiToken)
 
 	targetUrl, err := url.JoinPath(classicUrl, "/api/v1/config/clusterversion")
 	require.NoError(t, err)
@@ -70,7 +71,7 @@ func TestNewPlatformTokenClient_ValidToken(t *testing.T) {
 	platformToken := os.Getenv("PLATFORM_TOKEN")
 	platformUrl := os.Getenv("PLATFORM_URL")
 
-	client := NewPlatformTokenClient(t.Context(), platformToken)
+	client := NewPlatformTokenClient(context.TODO(), platformToken)
 
 	targetUrl, err := url.JoinPath(platformUrl, "/platform/management/v1/environment")
 	require.NoError(t, err)
@@ -88,7 +89,7 @@ func TestNewPlatformTokenClient_InvalidToken(t *testing.T) {
 	platformToken := "some-invalid-token"
 	platformUrl := os.Getenv("PLATFORM_URL")
 
-	client := NewPlatformTokenClient(t.Context(), platformToken)
+	client := NewPlatformTokenClient(context.TODO(), platformToken)
 
 	targetUrl, err := url.JoinPath(platformUrl, "/platform/management/v1/environment")
 	require.NoError(t, err)
@@ -110,7 +111,7 @@ func TestNewOAuthClient_ValidToken(t *testing.T) {
 	}
 	platformUrl := os.Getenv("PLATFORM_URL")
 
-	client := NewOAuthClient(t.Context(), &credentials)
+	client := NewOAuthClient(context.TODO(), &credentials)
 
 	targetUrl, err := url.JoinPath(platformUrl, "/platform/management/v1/environment")
 	require.NoError(t, err)
@@ -132,7 +133,7 @@ func TestNewOAuthClient_InvalidToken(t *testing.T) {
 	}
 	platformUrl := os.Getenv("PLATFORM_URL")
 
-	client := NewOAuthClient(t.Context(), &credentials)
+	client := NewOAuthClient(context.TODO(), &credentials)
 
 	targetUrl, err := url.JoinPath(platformUrl, "/platform/management/v1/environment")
 	require.NoError(t, err)

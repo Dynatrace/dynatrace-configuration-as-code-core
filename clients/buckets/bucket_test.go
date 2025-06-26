@@ -15,6 +15,7 @@
 package buckets_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -265,7 +266,7 @@ func TestUpsert(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(url, server.Client()),
 			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
-		_, err := client.Upsert(t.Context(), "", []byte{})
+		_, err := client.Upsert(context.TODO(), "", []byte{})
 		assert.ErrorIs(t, err, buckets.ErrBucketEmpty)
 	})
 
@@ -834,7 +835,7 @@ func TestDelete(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(url, server.Client()),
 			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
-		_, err := client.Delete(t.Context(), "")
+		_, err := client.Delete(context.TODO(), "")
 		assert.ErrorIs(t, err, buckets.ErrBucketEmpty)
 	})
 
@@ -1415,7 +1416,7 @@ func TestUpdate(t *testing.T) {
 		u, _ := url.Parse(server.URL)
 		client := buckets.NewClient(rest.NewClient(u, &http.Client{}),
 			buckets.WithRetrySettings(time.Millisecond*100, time.Millisecond*50)) // sleep for 100ms after getting the bucket response for awaitBucketActive and timeout occurs after 50ms
-		_, err := client.Update(t.Context(), "bucket-name", []byte("{}"))
+		_, err := client.Update(context.TODO(), "bucket-name", []byte("{}"))
 		assert.ErrorContains(t, err, "context canceled")
 	})
 }

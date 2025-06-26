@@ -15,6 +15,7 @@
 package rest
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -72,7 +73,7 @@ func TestClient_CRUD(t *testing.T) {
 	client := NewClient(baseURL, nil)
 
 	t.Run("GET", func(t *testing.T) {
-		resp, err := client.GET(t.Context(), "/test", RequestOptions{})
+		resp, err := client.GET(context.TODO(), "/test", RequestOptions{})
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Expected status code 200")
@@ -81,7 +82,7 @@ func TestClient_CRUD(t *testing.T) {
 	})
 
 	t.Run("POST", func(t *testing.T) {
-		resp, err := client.POST(t.Context(), "/test", nil, RequestOptions{})
+		resp, err := client.POST(context.TODO(), "/test", nil, RequestOptions{})
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusCreated, resp.StatusCode, "Expected status code 201")
@@ -90,7 +91,7 @@ func TestClient_CRUD(t *testing.T) {
 	})
 
 	t.Run("PUT", func(t *testing.T) {
-		resp, err := client.PUT(t.Context(), "/test", nil, RequestOptions{})
+		resp, err := client.PUT(context.TODO(), "/test", nil, RequestOptions{})
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusNoContent, resp.StatusCode, "Expected status code 204")
@@ -99,7 +100,7 @@ func TestClient_CRUD(t *testing.T) {
 	})
 
 	t.Run("DELETE", func(t *testing.T) {
-		resp, err := client.DELETE(t.Context(), "/test", RequestOptions{})
+		resp, err := client.DELETE(context.TODO(), "/test", RequestOptions{})
 
 		assert.NoError(t, err, "Unexpected error")
 		assert.Equal(t, http.StatusNoContent, resp.StatusCode, "Expected status code 204")
@@ -156,7 +157,7 @@ func TestClient_CRUD_HTTPErrors(t *testing.T) {
 			name:   "DELETE",
 			method: http.MethodDelete,
 			requestFn: func() (*http.Response, error) {
-				return client.DELETE(t.Context(), "/test", RequestOptions{})
+				return client.DELETE(context.TODO(), "/test", RequestOptions{})
 			},
 		},
 	}
@@ -404,7 +405,7 @@ func TestClient_WithHTTPListener(t *testing.T) {
 				rw.Write([]byte("{}"))
 			},
 			restClientCalls: func(client *Client) error {
-				_, err := client.GET(t.Context(), "", RequestOptions{})
+				_, err := client.GET(context.TODO(), "", RequestOptions{})
 				return err
 			},
 			expectedRecordsRecorded: 2,

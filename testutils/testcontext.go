@@ -23,9 +23,9 @@ import (
 )
 
 func ContextWithLogger(t *testing.T) context.Context {
-	return logr.NewContext(t.Context(), testr.New(t))
+	return logr.NewContext(context.TODO(), testr.New(t))
 }
 
 func ContextWithVerboseLogger(t *testing.T) context.Context {
-	return logr.NewContext(t.Context(), testr.NewWithOptions(t, testr.Options{Verbosity: 1}))
+	return logr.NewContext(context.TODO(), testr.NewWithOptions(t, testr.Options{Verbosity: 1}))
 }
