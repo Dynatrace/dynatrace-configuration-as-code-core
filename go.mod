@@ -1,4 +1,6 @@
-go 1.23.10
+go 1.23.0
+
+toolchain go1.23.2
 
 module github.com/dynatrace/dynatrace-configuration-as-code-core
 
