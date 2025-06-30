@@ -286,38 +286,6 @@ func (a Client) listPage(ctx context.Context, resourceType ResourceType, wfAdmin
 	}, nil
 }
 
-// Upsert creates or updates an object of a specified resource type with the given ID and data.
-//
-// Parameters:
-//   - ctx: The context for the HTTP request.
-//   - resourceType: The type of the resource to upsert.
-//   - id: The unique identifier for the object.
-//   - data: The data payload representing the object.
-//
-// Returns:
-//
-//   - Response: A Response containing the result of the HTTP operation, including status code and data.
-//   - error: An error if the HTTP call fails or another error happened.
-func (a Client) Upsert(ctx context.Context, resourceType ResourceType, id string, data []byte) (api.Response, error) {
-	resp, err := a.Update(ctx, resourceType, id, data)
-	if err != nil {
-		if api.IsNotFoundError(err) {
-			return a.createWithID(ctx, resourceType, id, data)
-		}
-		return api.Response{}, err
-	}
-	return resp, nil
-}
-
-func (a Client) createWithID(ctx context.Context, resourceType ResourceType, id string, data []byte) (api.Response, error) {
-	// make sure actual "id" field is set in payload
-	if err := setIDField(id, &data); err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithId, createOperation, resourceType, id, fmt.Errorf("unable to set the id field in order to create object: %w", err))
-	}
-
-	return a.Create(ctx, resourceType, data)
-}
-
 func (a Client) makeRequestWithAdminAccess(resourceType ResourceType, request func(options rest.RequestOptions) (*http.Response, error)) (*http.Response, error) {
 	if resourceType == Workflows {
 		opts := rest.RequestOptions{
@@ -390,20 +358,6 @@ func unmarshalJSONList(body []byte) (listResponse, error) {
 		return listResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 	return r, nil
-}
-
-func setIDField(id string, data *[]byte) error {
-	var m map[string]interface{}
-	err := json.Unmarshal(*data, &m)
-	if err != nil {
-		return err
-	}
-	m["id"] = id
-	*data, err = json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func rmIDField(data *[]byte) error {
