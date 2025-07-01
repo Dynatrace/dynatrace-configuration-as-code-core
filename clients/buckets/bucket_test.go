@@ -22,7 +22,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -73,10 +72,6 @@ const (
 }`
 )
 
-// retries without delay for tests
-const noDelayBetweenTries = 0 * time.Second
-const bucketMaxWaitDuration = 30 * time.Second
-
 func TestGet(t *testing.T) {
 	t.Run("successfully fetch a bucket", func(t *testing.T) {
 
@@ -94,8 +89,7 @@ func TestGet(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -119,8 +113,7 @@ func TestGet(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -174,8 +167,7 @@ func TestList(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -200,8 +192,7 @@ func TestList(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -226,8 +217,7 @@ func TestList(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -263,8 +253,7 @@ func TestUpsert(t *testing.T) {
 		defer server.Close()
 		url, _ := url.Parse(server.URL)
 
-		client := buckets.NewClient(rest.NewClient(url, server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(url, server.Client()))
 		_, err := client.Upsert(t.Context(), "", []byte{})
 		assert.ErrorIs(t, err, buckets.ErrBucketEmpty)
 	})
@@ -302,8 +291,7 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -316,43 +304,6 @@ func TestUpsert(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, "bucket name", m["bucketName"])
-	})
-
-	t.Run("create bucket - awaits bucket becoming ready", func(t *testing.T) {
-		getRequests := 0
-		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			switch req.Method {
-			case http.MethodPost:
-				rw.WriteHeader(http.StatusCreated)
-				rw.Write([]byte(creatingBucketResponse))
-			case http.MethodGet:
-				rw.WriteHeader(http.StatusOK)
-				if getRequests < 5 {
-					rw.Write([]byte(creatingBucketResponse))
-					getRequests++
-				} else {
-					rw.Write([]byte(activeBucketResponse))
-				}
-			default:
-				t.Fatalf("unexpected %s request", req.Method)
-
-			}
-		}))
-
-		defer server.Close()
-
-		url, _ := url.Parse(server.URL) //nolint:errcheck
-
-		client := buckets.NewClient(rest.NewClient(url, server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
-
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.Create(ctx, "bucket name", []byte("{}"))
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusCreated, resp.StatusCode)
-		assert.Equal(t, activeBucketResponse, string(resp.Data))
-		assert.Equal(t, 5, getRequests)
 	})
 
 	t.Run("create fails", func(t *testing.T) {
@@ -387,8 +338,7 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -409,14 +359,6 @@ func TestUpsert(t *testing.T) {
 					return testutils.Response{
 						ResponseCode: http.StatusConflict,
 						ResponseBody: "Bucket exists",
-					}
-				},
-			},
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: activeBucketResponse,
 					}
 				},
 			},
@@ -467,8 +409,7 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -503,14 +444,6 @@ func TestUpsert(t *testing.T) {
 				},
 			},
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: activeBucketResponse,
-					}
-				},
-			},
-			{
 				PUT: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusForbidden,
@@ -523,8 +456,7 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -545,14 +477,6 @@ func TestUpsert(t *testing.T) {
 					return testutils.Response{
 						ResponseCode: http.StatusConflict,
 						ResponseBody: "Bucket exists",
-					}
-				},
-			},
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: activeBucketResponse,
 					}
 				},
 			},
@@ -582,8 +506,7 @@ func TestUpsert(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(
-			rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+			rest.NewClient(server.URL(), server.Client()))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -634,8 +557,7 @@ func TestUpsert(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(
-			rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+			rest.NewClient(server.URL(), server.Client()))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -649,19 +571,13 @@ func TestUpsert(t *testing.T) {
 	})
 
 	t.Run("bucket exists, update succeeds after initial conflict", func(t *testing.T) {
-		var firstTry = true
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			switch req.Method {
 			case http.MethodPost:
 				rw.WriteHeader(http.StatusConflict)
 				rw.Write([]byte("no, this is an error"))
 			case http.MethodGet:
-				if firstTry {
-					rw.Write([]byte(creatingBucketResponse))
-					firstTry = false
-				} else {
-					rw.Write([]byte(activeBucketResponse))
-				}
+				rw.Write([]byte(activeBucketResponse))
 			case http.MethodPut:
 				rw.WriteHeader(http.StatusOK)
 				rw.Write([]byte(activeBucketResponse))
@@ -713,8 +629,7 @@ func TestUpsert(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 		data := []byte(activeBucketResponse)
 
 		ctx := testutils.ContextWithLogger(t)
@@ -723,107 +638,6 @@ func TestUpsert(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
-
-	t.Run("bucket exists, but is being deleted - upsert re-creates after it's gone", func(t *testing.T) {
-
-		const deletingBucketResponse = `{
- "bucketName": "bucket name",
- "table": "metrics",
- "displayName": "Default metrics (15 months)",
- "status": "deleting",
- "retentionDays": 462,
- "metricInterval": "PT1M",
- "version": 1
-}`
-
-		responses := []testutils.ResponseDef{
-			{
-				POST: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusConflict,
-						ResponseBody: "Bucket exists",
-					}
-				},
-			},
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: deletingBucketResponse,
-					}
-				},
-			},
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: deletingBucketResponse,
-					}
-				},
-			},
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: deletingBucketResponse,
-					}
-				},
-			},
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusNotFound,
-						ResponseBody: "{}",
-					}
-				},
-			},
-			{
-				POST: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: creatingBucketResponse,
-					}
-				},
-				ValidateRequest: func(t *testing.T, req *http.Request) {
-					data, err := io.ReadAll(req.Body)
-					assert.NoError(t, err)
-
-					m := map[string]any{}
-					err = json.Unmarshal(data, &m)
-					assert.NoError(t, err)
-
-					assert.Equal(t, "bucket name", m["bucketName"])
-				},
-			},
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: activeBucketResponse,
-					}
-				},
-			},
-		}
-
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
-		data := []byte("{}")
-
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.Upsert(ctx, "bucket name", data)
-		assert.NoError(t, err)
-
-		m := map[string]any{}
-		err = json.Unmarshal(resp.Data, &m)
-		assert.NoError(t, err)
-
-		assert.Equal(t, "bucket name", m["bucketName"])
-	})
-
 }
 
 func TestDelete(t *testing.T) {
@@ -832,8 +646,7 @@ func TestDelete(t *testing.T) {
 		defer server.Close()
 		url, _ := url.Parse(server.URL)
 
-		client := buckets.NewClient(rest.NewClient(url, server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(url, server.Client()))
 		_, err := client.Delete(t.Context(), "")
 		assert.ErrorIs(t, err, buckets.ErrBucketEmpty)
 	})
@@ -868,8 +681,7 @@ func TestDelete(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -894,8 +706,7 @@ func TestDelete(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -952,65 +763,19 @@ func TestCreate(t *testing.T) {
 					}
 				},
 			},
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: activeBucketResponse,
-					}
-				},
-			},
 		}
 
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
 
 		resp, err := client.Create(ctx, "bucket name", []byte(someBucketData))
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusCreated, resp.StatusCode)
-		assert.Equal(t, activeBucketResponse, string(resp.Data))
-	})
-
-	t.Run("create bucket - awaits bucket becoming ready", func(t *testing.T) {
-		getRequests := 0
-		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			switch req.Method {
-			case http.MethodPost:
-				rw.WriteHeader(http.StatusCreated)
-				rw.Write([]byte(creatingBucketResponse))
-			case http.MethodGet:
-				rw.WriteHeader(http.StatusOK)
-				if getRequests < 5 {
-					rw.Write([]byte(creatingBucketResponse))
-					getRequests++
-				} else {
-					rw.Write([]byte(activeBucketResponse))
-				}
-			default:
-				t.Fatalf("unexpected %s request", req.Method)
-
-			}
-		}))
-
-		defer server.Close()
-
-		url, _ := url.Parse(server.URL) //nolint:errcheck
-
-		client := buckets.NewClient(rest.NewClient(url, server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
-
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.Create(ctx, "bucket name", []byte(someBucketData))
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusCreated, resp.StatusCode)
-		assert.Equal(t, activeBucketResponse, string(resp.Data))
-		assert.Equal(t, 5, getRequests)
+		assert.Equal(t, creatingBucketResponse, string(resp.Data))
 	})
 
 	t.Run("create bucket - network error", func(t *testing.T) {
@@ -1039,8 +804,7 @@ func TestCreate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -1064,14 +828,6 @@ func TestUpdate(t *testing.T) {
 				},
 			},
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: activeBucketResponse,
-					}
-				},
-			},
-			{
 				PUT: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusForbidden,
@@ -1084,8 +840,7 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1099,17 +854,6 @@ func TestUpdate(t *testing.T) {
 
 	t.Run("update bucket - OK", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: activeBucketResponse,
-					}
-				},
-				ValidateRequest: func(t *testing.T, req *http.Request) {
-					assert.Contains(t, req.URL.String(), url.PathEscape("bucket name"))
-				},
-			},
 			{
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{
@@ -1152,8 +896,7 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1186,8 +929,7 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 		data := []byte(`{
 	 "bucketName": "bucket name",
 	 "table": "metrics",
@@ -1205,19 +947,7 @@ func TestUpdate(t *testing.T) {
 
 	t.Run("returns an error when update fails with conflict", func(t *testing.T) {
 
-		responses := []testutils.ResponseDef{
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: activeBucketResponse,
-					}
-				},
-				ValidateRequest: func(t *testing.T, req *http.Request) {
-					assert.Contains(t, req.URL.String(), url.PathEscape("bucket name"))
-				},
-			},
-		}
+		responses := []testutils.ResponseDef{}
 
 		for i := 0; i < 5; i++ {
 			get := testutils.ResponseDef{
@@ -1245,8 +975,7 @@ func TestUpdate(t *testing.T) {
 		defer server.Close()
 
 		client := buckets.NewClient(
-			rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+			rest.NewClient(server.URL(), server.Client()))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1273,8 +1002,7 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
 		data := []byte("{}")
 
 		ctx := testutils.ContextWithLogger(t)
@@ -1285,138 +1013,6 @@ func TestUpdate(t *testing.T) {
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
 		assert.Equal(t, http.StatusForbidden, apiError.StatusCode)
-	})
-
-	t.Run("Update fails because bucket is being deleted already", func(t *testing.T) {
-
-		responses := []testutils.ResponseDef{
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: `{
- "bucketName": "bucket name",
- "table": "metrics",
- "displayName": "Default metrics (15 months)",
- "status": "deleting",
- "retentionDays": 462,
- "metricInterval": "PT1M",
- "version": 1
-}`,
-					}
-				},
-			},
-		}
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
-		data := []byte("{}")
-
-		ctx := testutils.ContextWithLogger(t)
-
-		_, err := client.Update(ctx, "bucket name", data)
-		deletingBucketErr := buckets.DeletingBucketErr{}
-		assert.ErrorAs(t, err, &deletingBucketErr)
-	})
-
-	t.Run("Update fails at first, but succeeds after retry", func(t *testing.T) {
-		tries := 0
-		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			switch req.Method {
-			case http.MethodPost:
-				rw.WriteHeader(http.StatusForbidden)
-				rw.Write([]byte("no, this is an error"))
-			case http.MethodGet:
-				if tries < 5 {
-					creatingResponse := `{
- "bucketName": "bucket name",
- "table": "metrics",
- "displayName": "Default metrics (15 months)",
- "status": "creating",
- "retentionDays": 462,
- "metricInterval": "PT1M",
- "version": 1
-}`
-					rw.Write([]byte(creatingResponse))
-					tries++
-				} else {
-					rw.Write([]byte(activeBucketResponse))
-				}
-			case http.MethodPut:
-				rw.WriteHeader(http.StatusOK)
-				rw.Write([]byte(updatingBucketResponse))
-			default:
-				assert.Failf(t, "unexpected method %q", req.Method)
-			}
-		}))
-		defer server.Close()
-
-		u, _ := url.Parse(server.URL)
-		client := buckets.NewClient(rest.NewClient(u, &http.Client{}),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
-		data := []byte("{}")
-
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.Update(ctx, "bucket name", data)
-		assert.NoError(t, err)
-
-		m := map[string]any{}
-		err = json.Unmarshal(resp.Data, &m)
-		assert.NoError(t, err)
-
-		assert.Equal(t, "bucket name", m["bucketName"])
-	})
-
-	t.Run("Update honors retrySettings maxWaitDuration", func(t *testing.T) {
-		var firstTry = true
-		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			switch req.Method {
-			case http.MethodPost:
-				rw.WriteHeader(http.StatusForbidden)
-				rw.Write([]byte("no, this is an error"))
-			case http.MethodGet:
-				rw.Write([]byte(activeBucketResponse))
-			case http.MethodPut:
-				if firstTry {
-					rw.WriteHeader(http.StatusConflict)
-					rw.Write([]byte("conflict"))
-					firstTry = false
-				} else {
-					rw.WriteHeader(http.StatusOK)
-					rw.Write([]byte(updatingBucketResponse))
-				}
-			default:
-				assert.Failf(t, "unexpected method %q", req.Method)
-			}
-		}))
-		defer server.Close()
-
-		u, _ := url.Parse(server.URL)
-		client := buckets.NewClient(rest.NewClient(u, &http.Client{}),
-			buckets.WithRetrySettings(noDelayBetweenTries, 0)) // maxWaitDuration should time out immediately
-		data := []byte("{}")
-
-		ctx := testutils.ContextWithLogger(t)
-		_, err := client.Update(ctx, "bucket name", data)
-		assert.ErrorContains(t, err, "deadline")
-	})
-
-	t.Run("Update fails if waiting for buckets takes too long", func(t *testing.T) {
-		mux := http.NewServeMux()
-		mux.HandleFunc("GET /platform/storage/management/v1/bucket-definitions/bucket-name", func(rw http.ResponseWriter, req *http.Request) {
-			rw.Write([]byte(creatingBucketResponse))
-		})
-		server := httptest.NewServer(mux)
-		defer server.Close()
-
-		u, _ := url.Parse(server.URL)
-		client := buckets.NewClient(rest.NewClient(u, &http.Client{}),
-			buckets.WithRetrySettings(time.Millisecond*100, time.Millisecond*50)) // sleep for 100ms after getting the bucket response for awaitBucketActive and timeout occurs after 50ms
-		_, err := client.Update(t.Context(), "bucket-name", []byte("{}"))
-		assert.ErrorContains(t, err, "context canceled")
 	})
 }
 
@@ -1462,8 +1058,7 @@ func TestDecodingBucketResponses(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
 
@@ -1499,8 +1094,7 @@ func TestDecodingBucketResponses(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()),
-			buckets.WithRetrySettings(noDelayBetweenTries, bucketMaxWaitDuration))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		ctx := testutils.ContextWithLogger(t)
 

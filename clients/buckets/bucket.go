@@ -23,7 +23,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
@@ -33,8 +32,6 @@ import (
 )
 
 const (
-	stateActive     = "active"
-	stateDeleting   = "deleting"
 	endpointPath    = "platform/storage/management/v1/bucket-definitions"
 	errUnmarshalMsg = "failed to unmarshal JSON response: %w"
 	errMsg          = "failed to %s bucket: %w"
@@ -63,34 +60,12 @@ type listResponse struct {
 	Buckets []json.RawMessage `json:"buckets"`
 }
 
-type retrySettings struct {
-	durationBetweenTries time.Duration
-	maxWaitDuration      time.Duration
-}
-
 type Client struct {
-	restClient    *rest.Client
-	retrySettings retrySettings
+	restClient *rest.Client
 }
 
 // Option represents a functional Option for the Client.
 type Option func(*Client)
-
-// WithRetrySettings sets the maximum retry time as well as duration between retries.
-// These settings are honored wherever retries are used in the Client - most notably in Client.Update and Client.Upsert,
-// as well as Client.Create when waiting for a bucket to become available after creation.
-//
-// Parameters:
-//   - durationBetweenTries: time.Duration to wait between tries.
-//   - maxWaitDuration: maximum time.Duration to wait before retrying is canceled. If you supply a context.Context with a timeout, the shorter of the two will be honored.
-func WithRetrySettings(durationBetweenTries time.Duration, maxWaitDuration time.Duration) Option {
-	return func(c *Client) {
-		c.retrySettings = retrySettings{
-			durationBetweenTries: durationBetweenTries,
-			maxWaitDuration:      maxWaitDuration,
-		}
-	}
-}
 
 // NewClient creates a new instance of a Client, which provides methods for interacting with the Grail bucket management API.
 // This function initializes and returns a new Client instance that can be used to perform various operations
@@ -106,10 +81,6 @@ func NewClient(client *rest.Client, option ...Option) *Client {
 	client.SetHeader("Cache-Control", "no-cache")
 	c := &Client{
 		restClient: client,
-		retrySettings: retrySettings{
-			durationBetweenTries: time.Second,
-			maxWaitDuration:      2 * time.Minute,
-		},
 	}
 
 	for _, o := range option {
@@ -218,29 +189,7 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (api
 		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, bucketName, err)
 	}
 
-	_, err = api.NewResponseFromHTTPResponse(r)
-	if err != nil {
-		return api.Response{}, err
-	}
-
-	timeoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
-	defer cancel() // cancel deadline if awaitBucketState returns before deadline
-
-	resp, err := c.awaitBucketActive(timeoutCtx, bucketName)
-	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, bucketName, err)
-	}
-	return resp, nil
-}
-
-// DeletingBucketErr is an error indicating a bucket ist currently being deleted.
-type DeletingBucketErr struct {
-	BucketName string
-}
-
-// Error returns a string representation of the DeletingBucketErr.
-func (d DeletingBucketErr) Error() string {
-	return fmt.Sprintf("cannot update bucket '%s' as it is currently being deleted", d.BucketName)
+	return api.NewResponseFromHTTPResponse(r)
 }
 
 // Update attempts to update a bucket's data using the provided apiClient. It employs a retry mechanism
@@ -268,44 +217,6 @@ func (d DeletingBucketErr) Error() string {
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
 func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
-
-	logger := logr.FromContextOrDiscard(ctx)
-
-	ctx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
-	defer cancel()
-
-	// get current state of the bucket
-	apiResp, err := c.Get(ctx, bucketName)
-	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, updateOperation, bucketName, err)
-	}
-
-	current, err := unmarshalJSON(apiResp.Data)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, "Failed to unmarshal JSON response")
-		return api.Response{}, fmt.Errorf(errMsgWithName, updateOperation, bucketName, err)
-	}
-
-	if current.Status == stateDeleting {
-		return api.Response{}, DeletingBucketErr{BucketName: bucketName}
-	}
-
-	if bucketsEqual(apiResp.Data, data) {
-		logger.Info(fmt.Sprintf("Configuration unmodified, no need to update bucket '%s''", bucketName))
-
-		return api.Response{
-			StatusCode: 200,
-		}, nil
-	}
-
-	// attempt update
-	if current.Status != stateActive {
-		logger.V(1).Info(fmt.Sprintf("Bucket '%s' has status %s, waiting for it to become active...", bucketName, current.Status))
-		if _, err := c.awaitBucketActive(ctx, bucketName); err != nil {
-			return api.Response{}, fmt.Errorf(errMsgWithName, updateOperation, bucketName, err)
-		}
-	}
-
 	return c.getAndUpdate(ctx, bucketName, data)
 }
 
@@ -333,8 +244,6 @@ func (c Client) Upsert(ctx context.Context, bucketName string, data []byte) (api
 		return api.Response{}, fmt.Errorf(errMsg, upsertOperation, ErrBucketEmpty)
 	}
 	logger := logr.FromContextOrDiscard(ctx)
-	ctx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
-	defer cancel()
 
 	// First, try to create a new bucket definition
 	resp, err := c.Create(ctx, bucketName, data)
@@ -356,17 +265,7 @@ func (c Client) Upsert(ctx context.Context, bucketName string, data []byte) (api
 
 	// Try to update an existing bucket definition
 	logger.V(1).Info(fmt.Sprintf("Failed to create bucket '%s'. Trying to update existing bucket definition. API Error (HTTP %d): %s", bucketName, apiErr.StatusCode, apiErr.Body))
-	apiResp, err := c.Update(ctx, bucketName, data)
-
-	deleteingBucketErr := DeletingBucketErr{}
-	if errors.As(err, &deleteingBucketErr) {
-		logger.V(1).Info(fmt.Sprintf("Failed to upsert bucket '%s' as it was being deleted. Re-creating...", bucketName))
-		if err := c.awaitBucketRemoved(ctx, bucketName); err != nil {
-			return api.Response{}, fmt.Errorf(errMsgWithName, upsertOperation, bucketName, err)
-		}
-		return c.Create(ctx, bucketName, data)
-	}
-	return apiResp, err
+	return c.Update(ctx, bucketName, data)
 }
 
 // Delete sends a request to the server to delete a bucket definition identified by the provided bucketName.
@@ -399,85 +298,11 @@ func (c Client) Delete(ctx context.Context, bucketName string) (api.Response, er
 		return api.Response{}, fmt.Errorf(errMsgWithName, deleteOperation, bucketName, err)
 	}
 
-	apiiResp, apiErr := api.NewResponseFromHTTPResponse(resp)
-	if apiErr != nil {
-		return apiiResp, apiErr
-	}
-
-	// await bucket being successfully deleted
-	timeoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
-	defer cancel() // cancel deadline if awaitBucketState returns before deadline
-	err = c.awaitBucketRemoved(timeoutCtx, bucketName)
-	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, deleteOperation, bucketName, err)
-	}
-
-	return apiiResp, apiErr
-}
-
-func (c Client) awaitBucketActive(ctx context.Context, bucketName string) (api.Response, error) {
-	logger := logr.FromContextOrDiscard(ctx)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return api.Response{}, fmt.Errorf("context canceled before bucket '%s' became available", bucketName)
-		default:
-			// query bucket
-			apiResp, err := c.Get(ctx, bucketName)
-
-			if err != nil {
-				apiErr := api.APIError{}
-				if !errors.Is(err, &apiErr) || !api.IsNotFoundError(err) {
-					return api.Response{}, err
-				}
-			} else {
-				// try to unmarshal into internal struct
-				res, err := unmarshalJSON(apiResp.Data)
-				if err != nil {
-					return api.Response{}, err
-				}
-
-				if res.Status == "active" {
-					logger.V(1).Info(fmt.Sprintf("Bucket '%s' became active and ready to use", bucketName))
-					apiResp.StatusCode = http.StatusCreated // return 'created' instead of the GET APIs 'ok'
-					return apiResp, nil
-				}
-			}
-
-			logger.V(1).Info(fmt.Sprintf("Waiting for bucket '%s' to become active...", bucketName))
-			time.Sleep(c.retrySettings.durationBetweenTries)
-		}
-	}
-}
-
-func (c Client) awaitBucketRemoved(ctx context.Context, bucketName string) error {
-	logger := logr.FromContextOrDiscard(ctx)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("context canceled before bucket '%s' was removed", bucketName)
-		default:
-			// query bucket
-			_, err := c.Get(ctx, bucketName)
-			if err != nil {
-				// if http.StatusNotFound is returned then the bucket has now been removed
-				if api.IsNotFoundError(err) {
-					logger.V(1).Info(fmt.Sprintf("Bucket '%s' was removed", bucketName))
-					return nil
-				}
-
-				return err
-			}
-
-			logger.V(1).Info(fmt.Sprintf("Waiting for bucket '%s' to be removed...", bucketName))
-			time.Sleep(c.retrySettings.durationBetweenTries)
-		}
-	}
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
+	logger := logr.FromContextOrDiscard(ctx)
 	// try to get existing bucket definition
 	apiResp, err := c.Get(ctx, bucketName)
 	if err != nil {
@@ -488,6 +313,14 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 	res, err := unmarshalJSON(apiResp.Data)
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithName, updateOperation, bucketName, err)
+	}
+
+	if bucketsEqual(apiResp.Data, data) {
+		logger.Info(fmt.Sprintf("Configuration unmodified, no need to update bucket '%s''", bucketName))
+
+		return api.Response{
+			StatusCode: 200,
+		}, nil
 	}
 
 	// convert data to be sent to JSON
@@ -519,18 +352,7 @@ func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte
 		return api.Response{}, fmt.Errorf(errMsgWithName, updateOperation, bucketName, err)
 	}
 
-	_, err = api.NewResponseFromHTTPResponse(resp)
-	if err != nil {
-		return api.Response{}, err
-	}
-
-	timeoutCtx, cancel := context.WithTimeout(ctx, c.retrySettings.maxWaitDuration)
-	defer cancel() // cancel deadline if awaitBucketState returns before deadline
-	activeResp, err := c.awaitBucketActive(timeoutCtx, bucketName)
-	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, updateOperation, bucketName, err)
-	}
-	return activeResp, nil
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 // bucketsEqual checks whether two bucket JSONs are equal in terms of update API calls
