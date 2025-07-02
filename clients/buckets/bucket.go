@@ -18,9 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strconv"
 
@@ -38,7 +36,6 @@ const (
 	errMsgWithName  = "failed to %s bucket with name %s: %w"
 	getOperation    = "get"
 	updateOperation = "update"
-	upsertOperation = "upsert"
 	deleteOperation = "delete"
 	createOperation = "create"
 	listOperation   = "list"
@@ -218,54 +215,6 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (api
 //   - error: An error if the HTTP call fails or another error happened.
 func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
 	return c.getAndUpdate(ctx, bucketName, data)
-}
-
-// Upsert creates or updates a bucket definition using the provided apiClient. The function first attempts
-// to create the bucket. If the creation is successful, it returns the created bucket. If the creation
-// fails with a 409 conflict, the function fetches the existing bucket and performs an Update.
-//
-// If the creation fails with any other HTTP status (e.g. missing authorization or invalid payload) the
-// HTTP Response is returned immediately, as attempting an Update would likely just fail as well.
-//
-// If any HTTP request to the server fails, the method returns an empty Response and an error explaining the issue.
-//
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
-//
-// Parameters:
-//   - ctx: Context for controlling the upsert operation's lifecycle. Possibly containing a logger created with logr.NewContext.
-//   - bucketName: The name of the bucket to be upserted.
-//   - data: The data for creating or updating the bucket.
-//
-// Returns:
-//   - Response: A Response containing the result of the HTTP call, including status code and data.
-//   - error: An error if the HTTP call fails or another error happened.
-func (c Client) Upsert(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
-	if bucketName == "" {
-		return api.Response{}, fmt.Errorf(errMsg, upsertOperation, ErrBucketEmpty)
-	}
-	logger := logr.FromContextOrDiscard(ctx)
-
-	// First, try to create a new bucket definition
-	resp, err := c.Create(ctx, bucketName, data)
-	// If creating the bucket definition worked, return the result
-	if err == nil {
-		logger.Info(fmt.Sprintf("Created bucket '%s'", bucketName))
-		return resp, nil
-	}
-
-	apiErr := api.APIError{}
-	if !errors.As(err, &apiErr) {
-		return api.Response{}, fmt.Errorf(errMsgWithName, upsertOperation, bucketName, err)
-	}
-
-	// Return if creation failed, but the errors was not 409 Conflict - Bucket already exists
-	if apiErr.StatusCode != http.StatusConflict {
-		return api.Response{}, apiErr
-	}
-
-	// Try to update an existing bucket definition
-	logger.V(1).Info(fmt.Sprintf("Failed to create bucket '%s'. Trying to update existing bucket definition. API Error (HTTP %d): %s", bucketName, apiErr.StatusCode, apiErr.Body))
-	return c.Update(ctx, bucketName, data)
 }
 
 // Delete sends a request to the server to delete a bucket definition identified by the provided bucketName.
