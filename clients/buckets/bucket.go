@@ -189,34 +189,6 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (api
 	return api.NewResponseFromHTTPResponse(r)
 }
 
-// Update attempts to update a bucket's data using the provided apiClient. It employs a retry mechanism
-// in case of transient errors. The function returns a Response along with an error indicating the
-// success or failure of its execution.
-//
-// The update process is retried up to a fixed maximum number of times. If the update fails
-// with certain HTTP status codes (401 Unauthorized, 403 Forbidden, 400 Bad Request), the function
-// returns an appropriate Response immediately. If the update is successful, the function returns
-// a Response indicating success, or if all retries fail, it returns a Response and the last
-// encountered error, if any.
-//
-// If the data to update the bucket fully matches what is already configured on the target environment,
-// Update will not make an HTTP call, as this would needlessly increase the buckets version.
-// This is transparent to callers and a normal StatusCode 200 Response is returned.
-//
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
-//
-// Parameters:
-//   - ctx: Context for controlling the HTTP operation's lifecycle. Possibly containing a logger created with logr.NewContext.
-//   - bucketName: The name of the bucket to be updated.
-//   - data: The new data to be assigned to the bucket.
-//
-// Returns:
-//   - Response: A Response containing the result of the HTTP operation, including status code and data.
-//   - error: An error if the HTTP call fails or another error happened.
-func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
-	return c.getAndUpdate(ctx, bucketName, data)
-}
-
 // Delete sends a request to the server to delete a bucket definition identified by the provided bucketName.
 // It returns a Response and an error indicating the success or failure of the deletion operation.
 //
@@ -250,7 +222,31 @@ func (c Client) Delete(ctx context.Context, bucketName string) (api.Response, er
 	return api.NewResponseFromHTTPResponse(resp)
 }
 
-func (c Client) getAndUpdate(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
+// Update attempts to update a bucket's data using the provided apiClient. It employs a retry mechanism
+// in case of transient errors. The function returns a Response along with an error indicating the
+// success or failure of its execution.
+//
+// The update process is retried up to a fixed maximum number of times. If the update fails
+// with certain HTTP status codes (401 Unauthorized, 403 Forbidden, 400 Bad Request), the function
+// returns an appropriate Response immediately. If the update is successful, the function returns
+// a Response indicating success, or if all retries fail, it returns a Response and the last
+// encountered error, if any.
+//
+// If the data to update the bucket fully matches what is already configured on the target environment,
+// Update will not make an HTTP call, as this would needlessly increase the buckets version.
+// This is transparent to callers and a normal StatusCode 200 Response is returned.
+//
+// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
+//
+// Parameters:
+//   - ctx: Context for controlling the HTTP operation's lifecycle. Possibly containing a logger created with logr.NewContext.
+//   - bucketName: The name of the bucket to be updated.
+//   - data: The new data to be assigned to the bucket.
+//
+// Returns:
+//   - Response: A Response containing the result of the HTTP operation, including status code and data.
+//   - error: An error if the HTTP call fails or another error happened.
+func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 	// try to get existing bucket definition
 	apiResp, err := c.Get(ctx, bucketName)
