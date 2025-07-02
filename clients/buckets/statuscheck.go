@@ -63,20 +63,24 @@ func AwaitBucketStable(ctx context.Context, client StatusClient, bucketName stri
 				if !errors.Is(err, &apiErr) {
 					return false, err
 				}
-			} else {
-				// try to unmarshal into internal struct
-				res, err := unmarshalJSON(apiResp.Data)
-				if err != nil {
-					return false, err
-				}
-
-				if res.Status == stateActive {
-					return true, nil
-				}
+				sleep(logger, bucketName, durationBetweenTries)
+				continue
+			}
+			// try to unmarshal into internal struct
+			res, err := unmarshalJSON(apiResp.Data)
+			if err != nil {
+				return false, err
 			}
 
-			logger.V(1).Info(fmt.Sprintf("Waiting for bucket '%s' to become stable...", bucketName))
-			time.Sleep(durationBetweenTries)
+			if res.Status == stateActive {
+				return true, nil
+			}
+			sleep(logger, bucketName, durationBetweenTries)
 		}
 	}
+}
+
+func sleep(logger logr.Logger, bucketName string, durationBetweenTries time.Duration) {
+	logger.V(1).Info(fmt.Sprintf("Waiting for bucket '%s' to become stable...", bucketName))
+	time.Sleep(durationBetweenTries)
 }
