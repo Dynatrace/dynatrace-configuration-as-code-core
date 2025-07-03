@@ -160,7 +160,7 @@ func (f factory) AccountClient(ctx context.Context) (*accounts.Client, error) {
 		return nil, ErrAccountURLMissing
 	}
 
-	restClient, err := f.createRestClient(f.accountURL, auth.NewOAuthClient(ctx, f.oauthConfig))
+	restClient, err := f.createRestClient(f.accountURL, auth.NewOAuthClient(context.TODO(), f.oauthConfig))
 	if err != nil {
 		return nil, err
 	}
@@ -244,9 +244,9 @@ func (f factory) CreatePlatformClient(ctx context.Context) (*rest.Client, error)
 
 	var client *http.Client
 	if f.platformToken != "" {
-		client = auth.NewPlatformTokenClient(ctx, f.platformToken)
+		client = auth.NewPlatformTokenClient(context.TODO(), f.platformToken)
 	} else {
-		client = auth.NewOAuthClient(ctx, f.oauthConfig)
+		client = auth.NewOAuthClient(context.TODO(), f.oauthConfig)
 	}
 
 	return f.createRestClient(f.platformURL, client)
