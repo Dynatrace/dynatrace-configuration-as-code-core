@@ -27,17 +27,22 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
-const bodyReadErrMsg = "unable to read API response body"
+const (
+	bodyReadErrMsg          = "unable to read API response body"
+	documentResourcePath    = "/platform/document/v1/documents"
+	optimisticLockingHeader = "optimistic-locking-version"
+	trashResourcePath       = "/platform/document/v1/trash/documents"
+)
 
 // DocumentType defines the *known* types of documents. It is possible to pass an arbitrary string in consumers
 // to download any kind of document.
@@ -51,12 +56,12 @@ const (
 
 // Client is the HTTP client to be used for interacting with the Document API
 type Client struct {
-	client client
+	restClient *rest.Client
 }
 
 // NewClient creates a new document client
 func NewClient(client *rest.Client) *Client {
-	c := &Client{client: documents.NewClient(client)}
+	c := &Client{restClient: client}
 	return c
 }
 
@@ -75,9 +80,9 @@ type ListResponse struct {
 func (c Client) Get(ctx context.Context, id string) (Response, error) {
 	var r Response
 
-	httpResp, err := c.client.Get(ctx, id)
+	httpResp, err := c.get(ctx, id)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to get document resource with id %s: %w", id, err)
+		return Response{}, fmt.Errorf("failed to getAsMultipart document resource with id %s: %w", id, err)
 	}
 
 	body, err := io.ReadAll(httpResp.Body)
@@ -161,9 +166,9 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 
 		ro := rest.RequestOptions{QueryParams: queryParams}
 
-		resp, err := c.client.List(ctx, ro)
+		resp, err := c.restClient.GET(ctx, documentResourcePath, ro)
 		if err != nil {
-			return ListResponse{}, err
+			return ListResponse{}, fmt.Errorf("unable to get objects: %w", err)
 		}
 
 		body, err := io.ReadAll(resp.Body)
@@ -200,7 +205,7 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 }
 
 func (c Client) Create(ctx context.Context, name string, isPrivate bool, externalId string, data []byte, documentType DocumentType) (api.Response, error) {
-	d := documents.Document{
+	d := Document{
 		Kind:       documentType,
 		Name:       name,
 		Public:     !isPrivate,
@@ -208,9 +213,18 @@ func (c Client) Create(ctx context.Context, name string, isPrivate bool, externa
 		Content:    data,
 	}
 
-	resp, err := c.create(ctx, d)
+	body := &bytes.Buffer{}
+	writer, err := d.write(body)
 	if err != nil {
 		return api.Response{}, err
+	}
+
+	httpResp, err := c.restClient.POST(ctx, documentResourcePath, body, rest.RequestOptions{
+		ContentType: writer.FormDataContentType(),
+	})
+	resp, err := processHttpResponse(httpResp, err)
+	if err != nil {
+		return api.Response{}, fmt.Errorf("unable to create object: %w", err)
 	}
 
 	var md Metadata
@@ -235,7 +249,7 @@ func (c Client) Update(ctx context.Context, id string, name string, isPrivate bo
 		return api.Response{}, fmt.Errorf("id must be non-empty")
 	}
 
-	resp, err := c.get(ctx, id)
+	resp, err := c.getAsMultipart(ctx, id)
 	if !resp.IsSuccess() {
 		return api.Response{}, err
 	}
@@ -246,7 +260,7 @@ func (c Client) Update(ctx context.Context, id string, name string, isPrivate bo
 		return api.Response{}, err
 	}
 
-	d := documents.Document{
+	d := Document{
 		Kind:    documentType,
 		Name:    name,
 		Public:  !isPrivate,
@@ -261,7 +275,7 @@ func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 		return api.Response{}, fmt.Errorf("id must be non-empty")
 	}
 
-	resp, err := c.get(ctx, id)
+	resp, err := c.getAsMultipart(ctx, id)
 	if !resp.IsSuccess() {
 		return api.Response{}, err
 	}
@@ -275,11 +289,7 @@ func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 	return c.delete(ctx, id, md.Version)
 }
 
-func (c Client) create(ctx context.Context, d documents.Document) (api.Response, error) {
-	return processHttpResponse(c.client.Create(ctx, d))
-}
-
-func (c Client) patchWithRetry(ctx context.Context, id string, version int, d documents.Document) (resp api.Response, err error) {
+func (c Client) patchWithRetry(ctx context.Context, id string, version int, d Document) (resp api.Response, err error) {
 	const maxRetries = 5
 	const retryDelay = 200 * time.Millisecond
 	for r := 0; r < maxRetries; r++ {
@@ -292,10 +302,28 @@ func (c Client) patchWithRetry(ctx context.Context, id string, version int, d do
 	return
 }
 
-func (c Client) patch(ctx context.Context, id string, version int, d documents.Document) (api.Response, error) {
-	resp, err := processHttpResponse(c.client.Patch(ctx, id, version, d))
+func (c Client) patch(ctx context.Context, id string, version int, d Document) (api.Response, error) {
+	if id == "" {
+		return api.Response{}, fmt.Errorf("id is missing")
+	}
+	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
-		return resp, err
+		return api.Response{}, fmt.Errorf("failed to create URL: %w", err)
+	}
+
+	body := &bytes.Buffer{}
+	writer, err := d.write(body)
+	if err != nil {
+		return api.Response{}, err
+	}
+
+	httpResp, err := c.restClient.PATCH(ctx, path, body, rest.RequestOptions{
+		ContentType: writer.FormDataContentType(),
+		QueryParams: url.Values{optimisticLockingHeader: []string{strconv.Itoa(version)}},
+	})
+	resp, err := processHttpResponse(httpResp, err)
+	if err != nil {
+		return api.Response{}, fmt.Errorf("unable to update object: %w", err)
 	}
 
 	tmp, err := extractMetadata(resp.Data)
@@ -307,13 +335,31 @@ func (c Client) patch(ctx context.Context, id string, version int, d documents.D
 	return resp, nil
 }
 
-func (c Client) get(ctx context.Context, id string) (api.MultipartResponse, error) {
-	resp, err := c.client.Get(ctx, id)
+func (c Client) get(ctx context.Context, id string) (*http.Response, error) {
+	if id == "" {
+		return nil, fmt.Errorf("id must be non-empty")
+	}
+
+	path, err := url.JoinPath(documentResourcePath, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create URL: %w", err)
+	}
+
+	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("unable to get object with ID %s: %w", id, err)
+	}
+
+	return resp, err
+}
+
+func (c Client) getAsMultipart(ctx context.Context, id string) (api.MultipartResponse, error) {
+	resp, err := c.get(ctx, id)
 	if resp != nil {
 		defer resp.Body.Close()
 	}
 	if err != nil {
-		return api.MultipartResponse{}, fmt.Errorf("failed to get document resource with id %s: %w", id, err)
+		return api.MultipartResponse{}, fmt.Errorf("failed to getAsMultipart document resource with id %s: %w", id, err)
 	}
 
 	if !rest.IsSuccess(resp) {
@@ -367,12 +413,34 @@ func extractBoundary(resp *http.Response) (string, error) {
 }
 
 func (c Client) delete(ctx context.Context, id string, version int) (api.Response, error) {
-	r, err := processHttpResponse(c.client.Delete(ctx, id, version))
+	path, err := url.JoinPath(documentResourcePath, id)
+	if err != nil {
+		return api.Response{}, fmt.Errorf("failed to create URL: %w", err)
+	}
+
+	resp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{
+		QueryParams:           map[string][]string{optimisticLockingHeader: {strconv.Itoa(version)}},
+		CustomShouldRetryFunc: rest.RetryOnFailureExcept404,
+	})
+	r, err := processHttpResponse(resp, err)
 	if err != nil {
 		return r, err
 	}
 
-	return processHttpResponse(c.client.Trash(ctx, id))
+	return processHttpResponse(c.trash(ctx, id))
+}
+
+func (c Client) trash(ctx context.Context, id string) (*http.Response, error) {
+	path, err := url.JoinPath(trashResourcePath, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create URL: %w", err)
+	}
+
+	resp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("unable to trash object: %w", err)
+	}
+	return resp, err
 }
 
 func extractMetadata(in []byte) (out []byte, err error) {
