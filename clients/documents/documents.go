@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -31,17 +30,31 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
-
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
 const (
-	bodyReadErrMsg          = "unable to read API response body"
 	documentResourcePath    = "/platform/document/v1/documents"
-	optimisticLockingHeader = "optimistic-locking-version"
 	trashResourcePath       = "/platform/document/v1/trash/documents"
+	optimisticLockingHeader = "optimistic-locking-version"
+
+	errMsg         = "failed to %s document: %w"
+	errMsgWithName = "failed to %s document with name %s: %w"
+	errMsgWithID   = "failed to %s document with ID %s: %w"
+
+	getOperation    = "get"
+	listOperation   = "list"
+	createOperation = "create"
+	deleteOperation = "delete"
+	trashOperation  = "trash"
+	updateOperation = "update"
+)
+
+var (
+	ErrIDEmpty    = fmt.Errorf("id must be non-empty")
+	ErrNoMetadata = fmt.Errorf("metadata field not found in response")
+	ErrNoContent  = fmt.Errorf("content field not found in response")
 )
 
 // DocumentType defines the *known* types of documents. It is possible to pass an arbitrary string in consumers
@@ -78,77 +91,43 @@ type ListResponse struct {
 }
 
 func (c Client) Get(ctx context.Context, id string) (Response, error) {
-	var r Response
-
-	httpResp, err := c.get(ctx, id)
-	if err != nil {
-		return Response{}, fmt.Errorf("failed to getAsMultipart document resource with id %s: %w", id, err)
+	if id == "" {
+		return Response{}, fmt.Errorf(errMsg, getOperation, ErrIDEmpty)
 	}
 
-	body, err := io.ReadAll(httpResp.Body)
-	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-		return Response{}, api.NewAPIErrorFromResponseAndBody(httpResp, body)
-	}
+	return c.get(ctx, id, true)
+}
 
-	if err = httpResp.Body.Close(); err != nil {
-		return Response{}, err
-	}
-
-	r.Request = rest.RequestInfo{Method: httpResp.Request.Method, URL: httpResp.Request.URL.String()}
-	r.StatusCode = httpResp.StatusCode
-	r.Data = body
-
-	if !rest.IsSuccess(httpResp) {
-		return Response{}, api.APIError{
-			StatusCode: httpResp.StatusCode,
-			Body:       body,
-			Request:    rest.RequestInfo{Method: httpResp.Request.Method, URL: httpResp.Request.URL.String()},
-		}
-	}
-	contentType := httpResp.Header["Content-Type"][0]
-	boundaryIndex := strings.Index(contentType, "boundary=")
-	if boundaryIndex == -1 {
-		return r, fmt.Errorf("no boundary parameter found in Content-Type header")
-	}
-	boundary := contentType[boundaryIndex+len("boundary="):]
-
-	reader := multipart.NewReader(httpResp.Body, boundary)
-
-	form, err := reader.ReadForm(0)
-	if err != nil {
-		return r, fmt.Errorf("unable to read multipart form: %w", err)
-	}
-
+func readMetadata(form *multipart.Form) (Metadata, error) {
 	if len(form.Value["metadata"]) == 0 {
-		return r, fmt.Errorf("metadata field not found in response")
+		return Metadata{}, ErrNoMetadata
 	}
 
-	err = json.Unmarshal([]byte(form.Value["metadata"][0]), &r)
-	if err != nil {
-		return r, fmt.Errorf("unable to unmarshal metadata: %w", err)
-	}
+	return UnmarshallMetadata([]byte(form.Value["metadata"][0]))
+}
 
+func readFileContent(form *multipart.Form) ([]byte, error) {
+	if len(form.File["content"]) == 0 {
+		return nil, ErrNoContent
+	}
 	file, err := form.File["content"][0].Open()
 	if err != nil {
-		return r, fmt.Errorf("unable to open file: %w", err)
+		return nil, fmt.Errorf("unable to open file: %w", err)
 	}
 	defer file.Close()
 
 	fileContent := new(bytes.Buffer)
 	_, err = fileContent.ReadFrom(file)
 	if err != nil {
-		return r, fmt.Errorf("unable to read file: %w", err)
+		return nil, fmt.Errorf("unable to read file: %w", err)
 	}
-	r.Data = fileContent.Bytes()
-
-	return r, nil
+	return fileContent.Bytes(), nil
 }
 
 func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 	type listResponse struct {
 		TotalCount  int        `json:"totalCount"`
-		Documents   []Response `json:"documents"`
+		Documents   []Metadata `json:"documents"`
 		NextPageKey *string    `json:"nextPageKey"`
 	}
 
@@ -168,36 +147,29 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 
 		resp, err := c.restClient.GET(ctx, documentResourcePath, ro)
 		if err != nil {
-			return ListResponse{}, fmt.Errorf("unable to get objects: %w", err)
+			return ListResponse{}, fmt.Errorf(errMsg, listOperation, err)
 		}
+		res, err := api.NewResponseFromHTTPResponse(resp)
 
-		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
 		if err != nil {
-			logr.FromContextOrDiscard(ctx).Error(err, bodyReadErrMsg)
-			return ListResponse{}, api.NewAPIErrorFromResponseAndBody(resp, body)
-		}
-		if !rest.IsSuccess(resp) {
-			return ListResponse{},
-				api.APIError{
-					StatusCode: resp.StatusCode,
-					Body:       body,
-					Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
-				}
-
+			return ListResponse{}, fmt.Errorf(errMsg, listOperation, err)
 		}
 
-		err = json.Unmarshal(body, &result)
+		err = json.Unmarshal(res.Data, &result)
 		if err != nil {
 			return ListResponse{}, err
 		}
 
-		for i := range result.Documents {
-			result.Documents[i].Request = rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()}
-			result.Documents[i].StatusCode = resp.StatusCode
+		for _, metadata := range result.Documents {
+			retVal.Responses = append(retVal.Responses, Response{
+				Response: api.Response{
+					Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
+					StatusCode: resp.StatusCode,
+				},
+				Metadata: metadata,
+			})
 		}
 
-		retVal.Responses = append(retVal.Responses, result.Documents...)
 		retVal.StatusCode = resp.StatusCode
 	}
 
@@ -216,48 +188,46 @@ func (c Client) Create(ctx context.Context, name string, isPrivate bool, externa
 	body := &bytes.Buffer{}
 	writer, err := d.write(body)
 	if err != nil {
-		return api.Response{}, err
+		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, name, err)
 	}
 
 	httpResp, err := c.restClient.POST(ctx, documentResourcePath, body, rest.RequestOptions{
 		ContentType: writer.FormDataContentType(),
 	})
-	resp, err := processHttpResponse(httpResp, err)
 	if err != nil {
-		return api.Response{}, fmt.Errorf("unable to create object: %w", err)
+		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, name, err)
+	}
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, name, err)
 	}
 
 	var md Metadata
 	if md, err = UnmarshallMetadata(resp.Data); err != nil {
-		return api.Response{}, err
+		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, name, err)
 	}
 
 	r, err := c.patchWithRetry(ctx, md.ID, md.Version, d)
 	if err != nil {
 		if !api.IsNotFoundError(err) {
 			if _, err1 := c.delete(ctx, md.ID, md.Version); err1 != nil {
-				return api.Response{}, errors.Join(err, err1)
+				return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, name, errors.Join(err, err1))
 			}
 		}
-		return api.Response{}, err
+		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, name, err)
 	}
 	return r, nil
 }
 
 func (c Client) Update(ctx context.Context, id string, name string, isPrivate bool, data []byte, documentType DocumentType) (api.Response, error) {
 	if id == "" {
-		return api.Response{}, fmt.Errorf("id must be non-empty")
+		return api.Response{}, fmt.Errorf(errMsg, updateOperation, ErrIDEmpty)
 	}
 
-	resp, err := c.getAsMultipart(ctx, id)
-	if !resp.IsSuccess() {
-		return api.Response{}, err
-	}
-
-	part, _ := resp.GetPartWithName("metadata")
-	md, err := UnmarshallMetadata(part.Content)
+	resp, err := c.get(ctx, id, false)
 	if err != nil {
-		return api.Response{}, err
+		return api.Response{}, fmt.Errorf(errMsg, updateOperation, err)
 	}
 
 	d := Document{
@@ -267,26 +237,21 @@ func (c Client) Update(ctx context.Context, id string, name string, isPrivate bo
 		Content: data,
 	}
 
-	return c.patch(ctx, id, md.Version, d)
+	return c.patch(ctx, id, resp.Version, d)
 }
 
 func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 	if id == "" {
-		return api.Response{}, fmt.Errorf("id must be non-empty")
+		return api.Response{}, fmt.Errorf(errMsg, deleteOperation, ErrIDEmpty)
 	}
 
-	resp, err := c.getAsMultipart(ctx, id)
-	if !resp.IsSuccess() {
-		return api.Response{}, err
-	}
+	resp, err := c.get(ctx, id, false)
 
-	part, _ := resp.GetPartWithName("metadata")
-	md, err := UnmarshallMetadata(part.Content)
 	if err != nil {
 		return api.Response{}, err
 	}
 
-	return c.delete(ctx, id, md.Version)
+	return c.delete(ctx, id, resp.Version)
 }
 
 func (c Client) patchWithRetry(ctx context.Context, id string, version int, d Document) (resp api.Response, err error) {
@@ -303,108 +268,89 @@ func (c Client) patchWithRetry(ctx context.Context, id string, version int, d Do
 }
 
 func (c Client) patch(ctx context.Context, id string, version int, d Document) (api.Response, error) {
-	if id == "" {
-		return api.Response{}, fmt.Errorf("id is missing")
-	}
 	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
-		return api.Response{}, fmt.Errorf("failed to create URL: %w", err)
+		return api.Response{}, fmt.Errorf(errMsgWithID, updateOperation, id, err)
 	}
 
 	body := &bytes.Buffer{}
 	writer, err := d.write(body)
 	if err != nil {
-		return api.Response{}, err
+		return api.Response{}, fmt.Errorf(errMsgWithID, updateOperation, id, err)
 	}
 
 	httpResp, err := c.restClient.PATCH(ctx, path, body, rest.RequestOptions{
 		ContentType: writer.FormDataContentType(),
 		QueryParams: url.Values{optimisticLockingHeader: []string{strconv.Itoa(version)}},
 	})
-	resp, err := processHttpResponse(httpResp, err)
 	if err != nil {
-		return api.Response{}, fmt.Errorf("unable to update object: %w", err)
+		return api.Response{}, fmt.Errorf(errMsgWithID, updateOperation, id, err)
+	}
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsgWithID, updateOperation, id, err)
 	}
 
 	tmp, err := extractMetadata(resp.Data)
 	if err != nil {
-		return resp, fmt.Errorf("extracting metadata failed: %w", err)
+		return resp, fmt.Errorf(errMsgWithID, updateOperation, id, fmt.Errorf("extracting metadata failed: %w", err))
 	}
 	resp.Data = tmp
 
 	return resp, nil
 }
 
-func (c Client) get(ctx context.Context, id string) (*http.Response, error) {
-	if id == "" {
-		return nil, fmt.Errorf("id must be non-empty")
-	}
-
+func (c Client) get(ctx context.Context, id string, readContent bool) (Response, error) {
 	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create URL: %w", err)
+		return Response{}, fmt.Errorf(errMsg, getOperation, err)
 	}
 
-	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{})
+	httpResp, err := c.restClient.GET(ctx, path, rest.RequestOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("unable to get object with ID %s: %w", id, err)
+		return Response{}, fmt.Errorf(errMsgWithID, getOperation, id, err)
 	}
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
 
-	return resp, err
-}
-
-func (c Client) getAsMultipart(ctx context.Context, id string) (api.MultipartResponse, error) {
-	resp, err := c.get(ctx, id)
-	if resp != nil {
-		defer resp.Body.Close()
-	}
 	if err != nil {
-		return api.MultipartResponse{}, fmt.Errorf("failed to getAsMultipart document resource with id %s: %w", id, err)
-	}
-
-	if !rest.IsSuccess(resp) {
-		return api.MultipartResponse{}, api.NewAPIErrorFromResponse(resp)
+		return Response{}, fmt.Errorf(errMsgWithID, getOperation, id, err)
 	}
 
 	boundary, err := extractBoundary(resp)
 	if err != nil {
-		return api.MultipartResponse{}, fmt.Errorf("failed to read the content of the document resource with id %s: %w", id, err)
+		return Response{}, fmt.Errorf(errMsgWithID, getOperation, id, err)
 	}
 
-	var parts []api.Part
+	reader := multipart.NewReader(bytes.NewReader(resp.Data), boundary)
 
-	r := multipart.NewReader(resp.Body, boundary)
-	for p, err := r.NextPart(); err != io.EOF; p, err = r.NextPart() {
+	form, err := reader.ReadForm(0)
+	if err != nil {
+		return Response{}, fmt.Errorf(errMsgWithID, getOperation, id, fmt.Errorf("unable to read multipart form: %w", err))
+	}
+
+	metadata, err := readMetadata(form)
+	if err != nil {
+		return Response{}, fmt.Errorf(errMsgWithID, getOperation, id, err)
+	}
+
+	if readContent {
+		fileContent, err := readFileContent(form)
 		if err != nil {
-			return api.MultipartResponse{}, fmt.Errorf("failed to read the content of the document resource with id %s: %w", id, err)
+			return Response{}, fmt.Errorf(errMsgWithID, getOperation, id, err)
 		}
-		buf, err := io.ReadAll(p)
-		if err != nil {
-			return api.MultipartResponse{}, fmt.Errorf("failed to read the content of the document resource with id %s: %w", id, err)
-		}
-
-		parts = append(parts, api.Part{
-			FormName: p.FormName(),
-			FileName: p.FileName(),
-			Content:  buf,
-		})
+		resp.Data = fileContent
 	}
 
-	out := *api.NewMultipartResponse(resp, parts...)
-
-	if _, ok := out.GetPartWithName("metadata"); !ok {
-		return out, fmt.Errorf("metadata not present for object with id %s", id)
-	}
-	if _, ok := out.GetPartWithName("content"); !ok {
-		return out, fmt.Errorf("content not present for object with id %s", id)
-	}
-
-	return *api.NewMultipartResponse(resp, parts...), nil
+	return Response{
+		Response: resp,
+		Metadata: metadata,
+	}, nil
 }
-func extractBoundary(resp *http.Response) (string, error) {
+
+func extractBoundary(resp api.Response) (string, error) {
 	t, ps, err := mime.ParseMediaType(resp.Header.Get("content-type"))
 	if !strings.HasPrefix(t, "multipart") {
-		return "", errors.New("http response is not multipart")
+		return "", http.ErrNotMultipart
 	}
 	if err != nil {
 		return "", err
@@ -415,32 +361,35 @@ func extractBoundary(resp *http.Response) (string, error) {
 func (c Client) delete(ctx context.Context, id string, version int) (api.Response, error) {
 	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
-		return api.Response{}, fmt.Errorf("failed to create URL: %w", err)
+		return api.Response{}, fmt.Errorf(errMsgWithID, deleteOperation, id, err)
 	}
 
-	resp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{
+	r, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{
 		QueryParams:           map[string][]string{optimisticLockingHeader: {strconv.Itoa(version)}},
 		CustomShouldRetryFunc: rest.RetryOnFailureExcept404,
 	})
-	r, err := processHttpResponse(resp, err)
 	if err != nil {
-		return r, err
+		return api.Response{}, fmt.Errorf(errMsgWithID, deleteOperation, id, err)
+	}
+	_, err = api.NewResponseFromHTTPResponse(r)
+	if err != nil {
+		return api.Response{}, fmt.Errorf(errMsgWithID, deleteOperation, id, err)
 	}
 
-	return processHttpResponse(c.trash(ctx, id))
+	return c.trash(ctx, id)
 }
 
-func (c Client) trash(ctx context.Context, id string) (*http.Response, error) {
+func (c Client) trash(ctx context.Context, id string) (api.Response, error) {
 	path, err := url.JoinPath(trashResourcePath, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create URL: %w", err)
+		return api.Response{}, fmt.Errorf(errMsgWithID, trashOperation, id, err)
 	}
 
 	resp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("unable to trash object: %w", err)
+		return api.Response{}, fmt.Errorf(errMsgWithID, trashOperation, id, err)
 	}
-	return resp, err
+	return api.NewResponseFromHTTPResponse(resp)
 }
 
 func extractMetadata(in []byte) (out []byte, err error) {
@@ -449,12 +398,4 @@ func extractMetadata(in []byte) (out []byte, err error) {
 		return
 	}
 	return json.Marshal(metadata["documentMetadata"])
-}
-
-func processHttpResponse(resp *http.Response, err error) (api.Response, error) {
-	if err != nil {
-		return api.Response{}, err
-	}
-
-	return api.NewResponseFromHTTPResponse(resp)
 }
