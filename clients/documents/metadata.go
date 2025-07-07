@@ -16,7 +16,10 @@
 
 package documents
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type Metadata struct {
 	ID          string  `json:"id"`
@@ -33,7 +36,7 @@ type Metadata struct {
 func UnmarshallMetadata(b []byte) (Metadata, error) {
 	var m Metadata
 	if err := json.Unmarshal(b, &m); err != nil {
-		return Metadata{}, err
+		return Metadata{}, fmt.Errorf("unable to unmarshal metadata: %w", err)
 	}
 
 	return m, nil
