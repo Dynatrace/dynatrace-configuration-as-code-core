@@ -42,7 +42,7 @@ func TestAwaitBucketStable_Exists(t *testing.T) {
 			Data: []byte(activeBucketResponse),
 		}, nil
 	}}
-	exists, err := buckets.AwaitBucketStable(t.Context(), client, "my-bucket", time.Minute, time.Duration(0))
+	exists, err := buckets.AwaitActiveOrNotFound(t.Context(), client, "my-bucket", time.Minute, time.Duration(0))
 	assert.NoError(t, err)
 	assert.True(t, exists)
 }
@@ -62,7 +62,7 @@ func TestAwaitBucketStable_ExistsAfterRetry(t *testing.T) {
 			Data: data,
 		}, nil
 	}}
-	exists, err := buckets.AwaitBucketStable(t.Context(), client, "my-bucket", time.Minute, time.Duration(0))
+	exists, err := buckets.AwaitActiveOrNotFound(t.Context(), client, "my-bucket", time.Minute, time.Duration(0))
 	assert.NoError(t, err)
 	assert.True(t, exists)
 	assert.Equal(t, apiCalls, 4)
@@ -76,7 +76,7 @@ func TestAwaitBucketStable_ReturnsOnDeadlineOfParent(t *testing.T) {
 	}}
 	ctx, cancel := context.WithTimeout(t.Context(), time.Duration(0))
 	cancel()
-	exists, err := buckets.AwaitBucketStable(ctx, client, "my-bucket", time.Minute, time.Duration(0))
+	exists, err := buckets.AwaitActiveOrNotFound(ctx, client, "my-bucket", time.Minute, time.Duration(0))
 	assert.ErrorContains(t, err, "context canceled")
 	assert.False(t, exists)
 }
@@ -87,7 +87,7 @@ func TestAwaitBucketStable_ReturnsOnDeadline(t *testing.T) {
 			Data: []byte(activeBucketResponse),
 		}, nil
 	}}
-	exists, err := buckets.AwaitBucketStable(t.Context(), client, "my-bucket", time.Duration(0), time.Duration(0))
+	exists, err := buckets.AwaitActiveOrNotFound(t.Context(), client, "my-bucket", time.Duration(0), time.Duration(0))
 	assert.ErrorContains(t, err, "context canceled")
 	assert.False(t, exists)
 }
@@ -96,7 +96,7 @@ func TestAwaitBucketStable_ReturnsOnNotFound(t *testing.T) {
 	client := Client{get: func(context.Context, string) (api.Response, error) {
 		return api.Response{}, api.APIError{StatusCode: http.StatusNotFound}
 	}}
-	exists, err := buckets.AwaitBucketStable(t.Context(), client, "my-bucket", time.Minute, time.Duration(0))
+	exists, err := buckets.AwaitActiveOrNotFound(t.Context(), client, "my-bucket", time.Minute, time.Duration(0))
 	assert.NoError(t, err)
 	assert.False(t, exists)
 }
@@ -106,7 +106,7 @@ func TestAwaitBucketStable_ErrorsOnCustomError(t *testing.T) {
 	client := Client{get: func(context.Context, string) (api.Response, error) {
 		return api.Response{}, customErr
 	}}
-	exists, err := buckets.AwaitBucketStable(t.Context(), client, "my-bucket", time.Minute, time.Duration(0))
+	exists, err := buckets.AwaitActiveOrNotFound(t.Context(), client, "my-bucket", time.Minute, time.Duration(0))
 	assert.ErrorIs(t, err, customErr)
 	assert.False(t, exists)
 }
@@ -117,7 +117,7 @@ func TestAwaitBucketStable_ErrorsInvalidResponseData(t *testing.T) {
 			Data: []byte("invalid response"),
 		}, nil
 	}}
-	exists, err := buckets.AwaitBucketStable(t.Context(), client, "my-bucket", time.Minute, time.Duration(0))
+	exists, err := buckets.AwaitActiveOrNotFound(t.Context(), client, "my-bucket", time.Minute, time.Duration(0))
 	wantErr := &json.SyntaxError{}
 	assert.ErrorAs(t, err, &wantErr)
 	assert.False(t, exists)
