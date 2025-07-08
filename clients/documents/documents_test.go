@@ -15,6 +15,8 @@
 package documents_test
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -28,9 +30,12 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
 )
 
+const boundary = "Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy"
+
+var contentType = fmt.Sprintf("multipart/form-data;boundary=%s", boundary)
+
 func TestDocumentClient_Get(t *testing.T) {
-	const payload = `--Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy
-Content-Disposition: form-data; name="metadata"
+	const metadataContent = `Content-Disposition: form-data; name="metadata"
 Content-Type: application/json
 
 {
@@ -53,14 +58,15 @@ Content-Type: application/json
     "version": 1,
     "owner": "12341234-1234-1234-1234-12341234",
 	"originAppId": "mytest.app"
-}
---Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy
-Content-Disposition: form-data; name="content"; filename="my-test-db"
+}`
+	const payloadContent = `Content-Disposition: form-data; name="content"; filename="my-test-db"
 Content-Type: application/json
 
-This is the document content
---Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy--
-`
+This is the document content`
+
+	payload := fmt.Sprintf("--%s\n%s\n--%s\n%s\n--%s--", boundary, metadataContent, boundary, payloadContent, boundary)
+	payloadWithoutMetadata := fmt.Sprintf("--%s\n%s\n--%s--", boundary, payloadContent, boundary)
+	payloadWithoutContent := fmt.Sprintf("--%s\n%s\n--%s--", boundary, metadataContent, boundary)
 
 	t.Run("Get - no ID given", func(t *testing.T) {
 		responses := []testutils.ResponseDef{}
@@ -73,6 +79,7 @@ This is the document content
 		assert.Zero(t, resp)
 		assert.NotNil(t, err)
 	})
+
 	t.Run("GET - OK", func(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
@@ -81,7 +88,7 @@ This is the document content
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payload,
-						ContentType:  "multipart/form-data;boundary=Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy",
+						ContentType:  contentType,
 					}
 				},
 			},
@@ -107,6 +114,94 @@ This is the document content
 		assert.NotZero(t, resp.Request)
 		assert.Nil(t, err)
 
+	})
+
+	t.Run("GET - no multipart given", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payload,
+						ContentType:  "application/json",
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+		ctx := testutils.ContextWithLogger(t)
+		_, err := client.Get(ctx, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+		assert.ErrorIs(t, err, http.ErrNotMultipart)
+	})
+
+	t.Run("GET - no boundary given", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payload,
+						ContentType:  "multipart/form-data",
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+		ctx := testutils.ContextWithLogger(t)
+		_, err := client.Get(ctx, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+		assert.ErrorContains(t, err, "unable to read multipart")
+	})
+
+	t.Run("GET - no metadata given", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payloadWithoutMetadata,
+						ContentType:  contentType,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+		ctx := testutils.ContextWithLogger(t)
+		_, err := client.Get(ctx, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+		assert.ErrorIs(t, err, documents.ErrNoMetadata)
+	})
+
+	t.Run("GET - no content given", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payloadWithoutContent,
+						ContentType:  contentType,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+		ctx := testutils.ContextWithLogger(t)
+		_, err := client.Get(ctx, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+		assert.ErrorIs(t, err, documents.ErrNoContent)
 	})
 
 	t.Run("GET - Unable to make HTTP call", func(t *testing.T) {
@@ -200,6 +295,30 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.JSONEq(t, expected, string(res.Data))
+	})
+
+	t.Run("create call returns invalid response body", func(t *testing.T) {
+		ctx := testutils.ContextWithLogger(t)
+
+		responses := []testutils.ResponseDef{
+			{
+				POST: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		_, err := client.Create(ctx, "name", false, "extID", []byte("this is the content"), documents.Notebook)
+
+		jsonErr := &json.SyntaxError{}
+		assert.ErrorAs(t, err, &jsonErr)
 	})
 
 	t.Run("create call returns non successful response", func(t *testing.T) {
@@ -517,7 +636,7 @@ This is the document content
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: getPayload,
-						ContentType:  "multipart/form-data;boundary=Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy",
+						ContentType:  contentType,
 					}
 				},
 			},
@@ -555,7 +674,7 @@ This is the document content
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payload,
-						ContentType:  "multipart/form-data;boundary=Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy",
+						ContentType:  contentType,
 					}
 				},
 			},
@@ -601,7 +720,7 @@ This is the document content
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: getPayload,
-						ContentType:  "multipart/form-data;boundary=Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy",
+						ContentType:  contentType,
 					}
 				},
 			},
@@ -626,6 +745,38 @@ This is the document content
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
 		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
+	})
+
+	t.Run("Update - Existing document found - Update fails due to invalid response body", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: getPayload,
+						ContentType:  contentType,
+					}
+				},
+			},
+			{
+				PATCH: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		ctx := testutils.ContextWithLogger(t)
+		_, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+
+		jsonErr := &json.SyntaxError{}
+		assert.ErrorAs(t, err, &jsonErr)
 	})
 }
 
@@ -786,6 +937,28 @@ func TestDocumentClient_List(t *testing.T) {
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
+
+	t.Run("List - Requested data is invalid", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: "",
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+		ctx := testutils.ContextWithLogger(t)
+		_, err := client.List(ctx, "type == 'dashboard'")
+		jsonErr := &json.SyntaxError{}
+		assert.ErrorAs(t, err, &jsonErr)
+	})
 }
 
 func TestDocumentClient_Delete(t *testing.T) {
@@ -844,7 +1017,7 @@ This is the document content
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: getPayload,
-						ContentType:  "multipart/form-data;boundary=Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy",
+						ContentType:  contentType,
 					}
 				},
 			},
