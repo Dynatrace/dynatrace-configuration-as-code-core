@@ -31,17 +31,17 @@ type StatusClient interface {
 
 const stateActive = "active"
 
-// AwaitBucketStable waits until the bucket is stable, meaning it's not creating, updating or deleting, but active.
+// AwaitActiveOrNotFound waits until the bucket is active or deleted, meaning it's not creating, updating or deleting.
 //
 // aborts/returns when
 //   - the maxDuration is reached.
 //   - a client error occurred.
-//   - the bucket is stable.
+//   - the bucket is active or removed.
 //
 // returns
-//   - bucketExists: if the bucket exists after the stable check.
+//   - bucketExists: if the bucket exists after the check.
 //   - err: any possible occurring error.
-func AwaitBucketStable(ctx context.Context, client StatusClient, bucketName string, maxDuration time.Duration, durationBetweenTries time.Duration) (bucketExists bool, err error) {
+func AwaitActiveOrNotFound(ctx context.Context, client StatusClient, bucketName string, maxDuration time.Duration, durationBetweenTries time.Duration) (bucketExists bool, err error) {
 	logger := logr.FromContextOrDiscard(ctx)
 	ctx, cancel := context.WithTimeout(ctx, maxDuration)
 	defer cancel()
