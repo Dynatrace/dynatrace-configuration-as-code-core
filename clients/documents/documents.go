@@ -91,6 +91,10 @@ type ListResponse struct {
 }
 
 func (c Client) Get(ctx context.Context, id string) (Response, error) {
+	if id == "" {
+		return Response{}, fmt.Errorf(errMsg, getOperation, ErrIDEmpty)
+	}
+
 	return c.get(ctx, id, true)
 }
 
@@ -264,9 +268,6 @@ func (c Client) patchWithRetry(ctx context.Context, id string, version int, d Do
 }
 
 func (c Client) patch(ctx context.Context, id string, version int, d Document) (api.Response, error) {
-	if id == "" {
-		return api.Response{}, ErrIDEmpty
-	}
 	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithID, updateOperation, id, err)
@@ -300,10 +301,6 @@ func (c Client) patch(ctx context.Context, id string, version int, d Document) (
 }
 
 func (c Client) get(ctx context.Context, id string, readContent bool) (Response, error) {
-	if id == "" {
-		return Response{}, fmt.Errorf(errMsg, getOperation, ErrIDEmpty)
-	}
-
 	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsg, getOperation, err)
