@@ -194,6 +194,27 @@ func TestOpenPipelineClient_List(t *testing.T) {
 		assert.ErrorAs(t, err, &apiError)
 		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
 	})
+
+	t.Run("List - API Call returned invalid data", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
+		ctx := testutils.ContextWithLogger(t)
+		_, err := client.List(ctx)
+		wantErr := &json.SyntaxError{}
+		assert.ErrorAs(t, err, &wantErr)
+	})
 }
 
 func TestOpenPipelineClient_GetAll(t *testing.T) {
@@ -302,6 +323,38 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 
 	t.Run("GET - API Call returned with != 2xx", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusBadRequest,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
+		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.GetAll(ctx)
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+	})
+
+	t.Run("GET - individual GET via ID fails", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payloadList,
+						ContentType:  "application/json",
+					}
+				},
+			},
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
 					return testutils.Response{
@@ -511,5 +564,86 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 		resp, err := client.Update(ctx, "bizevents", []byte(putPayload))
 		assert.Nil(t, err)
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
+	})
+
+	t.Run("All update requests fail with conflict", func(t *testing.T) {
+		updateResponses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusAccepted,
+						ResponseBody: getPayload,
+						ContentType:  "application/json",
+					}
+				},
+			},
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusConflict,
+					}
+				},
+			},
+		}
+		responses := make([]testutils.ResponseDef, 0)
+
+		for range 10 /*max retries*/ {
+			responses = append(responses, updateResponses...)
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
+		ctx := testutils.ContextWithLogger(t)
+		_, err := client.Update(ctx, "bizevents", []byte(putPayload))
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusConflict, apiError.StatusCode)
+	})
+
+	t.Run("Update fails if the GET response data is invalid", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusAccepted,
+						ContentType:  "application/json",
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
+		ctx := testutils.ContextWithLogger(t)
+		_, err := client.Update(ctx, "bizevents", []byte(putPayload))
+		wantErr := &json.SyntaxError{}
+		assert.ErrorAs(t, err, &wantErr)
+	})
+
+	t.Run("Update fails if the request data is invalid", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusAccepted,
+						ResponseBody: getPayload,
+						ContentType:  "application/json",
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
+		ctx := testutils.ContextWithLogger(t)
+		_, err := client.Update(ctx, "bizevents", []byte(""))
+		wantErr := &json.SyntaxError{}
+		assert.ErrorAs(t, err, &wantErr)
 	})
 }
