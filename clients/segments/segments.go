@@ -25,7 +25,6 @@ import (
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
-	intErr "github.com/dynatrace/dynatrace-configuration-as-code-core/internal/errors"
 )
 
 const endpointPath = "platform/storage/filter-segments/v1/filter-segments"
@@ -49,7 +48,7 @@ func (c Client) List(ctx context.Context) (api.Response, error) {
 	})
 
 	if err != nil {
-		return api.Response{}, intErr.ErrorClient{Resource: resource, Operation: http.MethodGet, Wrapped: err}
+		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodGet, Wrapped: err}
 	}
 
 	apiResp, err := api.NewResponseFromHTTPResponse(resp)
@@ -58,7 +57,7 @@ func (c Client) List(ctx context.Context) (api.Response, error) {
 	}
 
 	if apiResp.Data, err = modifyBody(apiResp.Data); err != nil {
-		return apiResp, intErr.ErrorRuntime{Resource: resource, Reason: "body transformation failed", Wrapped: err}
+		return apiResp, api.RuntimeError{Resource: resource, Reason: "body transformation failed", Wrapped: err}
 	}
 
 	return apiResp, nil
@@ -79,7 +78,7 @@ func modifyBody(source []byte) ([]byte, error) {
 
 func (c Client) Get(ctx context.Context, id string) (api.Response, error) {
 	if id == "" {
-		return api.Response{}, intErr.ErrorValidation{Field: "id", Reason: "is empty"}
+		return api.Response{}, api.ValidationError{Field: "id", Reason: "is empty"}
 	}
 
 	path := basePath.JoinPath(id).String()
@@ -88,7 +87,7 @@ func (c Client) Get(ctx context.Context, id string) (api.Response, error) {
 		QueryParams:           url.Values{"add-fields": []string{"INCLUDES", "VARIABLES", "EXTERNALID", "RESOURCECONTEXT"}},
 	})
 	if err != nil {
-		return api.Response{}, intErr.ErrorClient{Resource: resource, Identifier: id, Operation: http.MethodGet, Wrapped: err}
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodGet, Wrapped: err}
 	}
 
 	return api.NewResponseFromHTTPResponse(resp)
@@ -97,7 +96,7 @@ func (c Client) Get(ctx context.Context, id string) (api.Response, error) {
 func (c Client) Create(ctx context.Context, body []byte) (api.Response, error) {
 	resp, err := c.restClient.POST(ctx, endpointPath, bytes.NewReader(body), rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	if err != nil {
-		return api.Response{}, intErr.ErrorClient{Resource: resource, Operation: http.MethodPost, Wrapped: err}
+		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodPost, Wrapped: err}
 	}
 
 	return api.NewResponseFromHTTPResponse(resp)
@@ -105,7 +104,7 @@ func (c Client) Create(ctx context.Context, body []byte) (api.Response, error) {
 
 func (c Client) Update(ctx context.Context, id string, body []byte) (api.Response, error) {
 	if id == "" {
-		return api.Response{}, intErr.ErrorValidation{Field: "id", Reason: "is empty"}
+		return api.Response{}, api.ValidationError{Field: "id", Reason: "is empty"}
 	}
 
 	existing, err := c.Get(ctx, id)
@@ -119,14 +118,14 @@ func (c Client) Update(ctx context.Context, id string, body []byte) (api.Respons
 	}
 	err = json.Unmarshal(existing.Data, &getResponse)
 	if err != nil || getResponse.Version == 0 || getResponse.Owner == "" {
-		return api.Response{}, intErr.ErrorValidation{Field: "version, owner", Reason: "invalid"}
+		return api.Response{}, api.ValidationError{Field: "version, owner", Reason: "at least one is invalid"}
 	}
 
 	// Adds owner if not set(they are mandatory from the API),
 	// and always override uid with the uid that is getting updated
 	body, err = addOwnerAndUIDIfNotSet(body, getResponse.Owner, id)
 	if err != nil {
-		return api.Response{}, intErr.ErrorRuntime{Resource: resource, Identifier: id, Reason: "failed to add owner and UID", Wrapped: err}
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to add owner and UID", Wrapped: err}
 	}
 
 	path := basePath.JoinPath(id).String()
@@ -134,7 +133,7 @@ func (c Client) Update(ctx context.Context, id string, body []byte) (api.Respons
 		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
 		QueryParams:           map[string][]string{"optimistic-locking-version": {strconv.Itoa(getResponse.Version)}}})
 	if err != nil {
-		return api.Response{}, intErr.ErrorClient{Resource: resource, Operation: http.MethodPut, Identifier: id, Wrapped: err}
+		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodPut, Identifier: id, Wrapped: err}
 	}
 
 	return api.NewResponseFromHTTPResponse(resp)
@@ -142,13 +141,13 @@ func (c Client) Update(ctx context.Context, id string, body []byte) (api.Respons
 
 func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 	if id == "" {
-		return api.Response{}, intErr.ErrorValidation{Field: "id", Reason: "is empty"}
+		return api.Response{}, api.ValidationError{Field: "id", Reason: "is empty"}
 	}
 
 	path := basePath.JoinPath(id).String()
 	resp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	if err != nil {
-		return api.Response{}, intErr.ErrorClient{Resource: resource, Operation: http.MethodDelete, Identifier: id, Wrapped: err}
+		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodDelete, Identifier: id, Wrapped: err}
 	}
 
 	return api.NewResponseFromHTTPResponse(resp)
@@ -164,14 +163,14 @@ func (c Client) GetAll(ctx context.Context) ([]api.Response, error) {
 		Uid string `json:"uid"`
 	}
 	if err = json.Unmarshal(listResp.Data, &segments); err != nil {
-		return nil, intErr.ErrorRuntime{Resource: resource, Reason: "unmarshalling failed", Wrapped: err}
+		return nil, api.RuntimeError{Resource: resource, Reason: "unmarshalling failed", Wrapped: err}
 	}
 
 	var result []api.Response
 	for _, s := range segments {
 		resp, err := c.Get(ctx, s.Uid)
 		if err != nil {
-			return nil, intErr.ErrorClient{Resource: resource, Identifier: s.Uid, Operation: http.MethodGet, Wrapped: err}
+			return nil, api.ClientError{Resource: resource, Identifier: s.Uid, Operation: http.MethodGet, Wrapped: err}
 		}
 		result = append(result, resp)
 	}
