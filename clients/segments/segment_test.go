@@ -26,7 +26,6 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/segments"
-	intErr "github.com/dynatrace/dynatrace-configuration-as-code-core/internal/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -76,13 +75,13 @@ func TestList(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	t.Run("when called without id parameter, returns an validation error", func(t *testing.T) {
+	t.Run("when called without id parameter, returns a validation error", func(t *testing.T) {
 		client := segments.NewClient(&rest.Client{})
 
 		actual, err := client.Get(t.Context(), "")
 
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, intErr.ErrorValidation{Field: "id", Reason: "is empty"})
+		assert.ErrorIs(t, err, api.ValidationError{Field: "id", Reason: "is empty"})
 		assert.Empty(t, actual)
 	})
 
