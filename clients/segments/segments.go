@@ -32,6 +32,7 @@ const endpointPath = "platform/storage/filter-segments/v1/filter-segments"
 const resource = "segments"
 
 var basePath = url.URL{Path: endpointPath}
+var idValidationErr = api.ValidationError{Field: "id", Reason: "is empty"}
 
 func NewClient(client *rest.Client) *Client {
 	return &Client{restClient: client}
@@ -79,7 +80,7 @@ func modifyBody(source []byte) ([]byte, error) {
 
 func (c Client) Get(ctx context.Context, id string) (api.Response, error) {
 	if id == "" {
-		return api.Response{}, api.ValidationError{Field: "id", Reason: "is empty"}
+		return api.Response{}, idValidationErr
 	}
 
 	path := basePath.JoinPath(id).String()
@@ -105,7 +106,7 @@ func (c Client) Create(ctx context.Context, body []byte) (api.Response, error) {
 
 func (c Client) Update(ctx context.Context, id string, body []byte) (api.Response, error) {
 	if id == "" {
-		return api.Response{}, api.ValidationError{Field: "id", Reason: "is empty"}
+		return api.Response{}, idValidationErr
 	}
 
 	existing, err := c.Get(ctx, id)
@@ -146,7 +147,7 @@ func (c Client) Update(ctx context.Context, id string, body []byte) (api.Respons
 
 func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 	if id == "" {
-		return api.Response{}, api.ValidationError{Field: "id", Reason: "is empty"}
+		return api.Response{}, idValidationErr
 	}
 
 	path := basePath.JoinPath(id).String()
