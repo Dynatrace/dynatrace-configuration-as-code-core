@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -118,7 +119,11 @@ func (c Client) Update(ctx context.Context, id string, body []byte) (api.Respons
 	}
 	err = json.Unmarshal(existing.Data, &getResponse)
 	if err != nil || getResponse.Version == 0 || getResponse.Owner == "" {
-		return api.Response{}, api.ValidationError{Field: "version, owner", Reason: "at least one is invalid"}
+		return api.Response{}, errors.Join(
+			api.ValidationError{Field: "version", Reason: "could be invalid"},
+			api.ValidationError{Field: "owner", Reason: "could be empty"},
+			err,
+		)
 	}
 
 	// Adds owner if not set(they are mandatory from the API),
@@ -170,7 +175,7 @@ func (c Client) GetAll(ctx context.Context) ([]api.Response, error) {
 	for _, s := range segments {
 		resp, err := c.Get(ctx, s.Uid)
 		if err != nil {
-			return nil, api.ClientError{Resource: resource, Identifier: s.Uid, Operation: http.MethodGet, Wrapped: err}
+			return nil, err
 		}
 		result = append(result, resp)
 	}
