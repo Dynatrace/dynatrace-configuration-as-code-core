@@ -67,7 +67,7 @@ func (e ValidationError) Error() string {
 		return fmt.Sprintf("validation failed for field %s: %s.", e.Field, e.Reason)
 	}
 
-	return fmt.Sprintf("validation failed for field %s. ", e.Field)
+	return fmt.Sprintf("validation failed for field %s.", e.Field)
 }
 
 // RuntimeError represents an error that occurs when the program makes assumptions
