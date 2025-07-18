@@ -8,52 +8,51 @@ tailored to simplify the development of Configuration as Code tools like Monaco,
 
 ## API Clients
 
-The library provides different kinds of clients to interact with Dynatrace in two different packages:
-
-* **api/clients**: "Basic" clients that offers a one-to-one mapping to the Dynatrace API and do not contain any other special logic.
-* **clients**: "Smarter" clients that build upon the basic clients to offer additional logic and operations tailored to simplify configuration as code use cases.
-  * Each client provides a method set, usually supporting CRUD operations and an Upsert - which will create or update a configuration as needed.
-  However, the specific interface might differ between clients.
-  * Payloads to and from the APIs aren't interpreted in any particular way.
-  Thus, it's the user's responsibility to marshal/unmarshal payloads into/from Go structs.
+* **Client operations**: Each client provides a set of methods, typically supporting CRUD operations. However, the exact interface may vary between clients.
+* **Payload handling**: The library interprets API payloads only in specific clients, such as buckets or documents. It is the user's responsibility to marshal and unmarshal payloads into or from Go structs as needed.
 
 
-  | API Client          | Implemented |
-  |---------------------|-------------|
-  | Classic config APIs | ❌           |
-  | Settings 2.0        | ❌           |
-  | Automation          | ✅           |
-  | Grail buckets       | ✅           |
-  | Documents           | ✅           |
-  | OpenPipeline        | ✅           |
-  | Segments            | ✅           |
-  | SLO's               | ✅           |
+  | API Client               | Implemented |
+  |--------------------------|-------------|
+  | Classic config APIs      | ❌           |
+  | Settings 2.0             | ❌           |
+  | Settings 2.0 permissions | ✅           |
+  | Automation               | ✅           |
+  | Grail buckets            | ✅           |
+  | Documents                | ✅           |
+  | OpenPipeline             | ✅           |
+  | Segments                 | ✅           |
+  | SLO's                    | ✅           |
+  | Account management       | ✅           |
 
 ### Usage
+To instantiate a client, it's recommended to create an instance via the provided `clients.Factory()` function.
 
-To instantiate an API client, it's recommended to create an instance via the provided `clients.Factory()` function:
+#### Platform clients
+Platform clients are designed to interact with Dynatrace platform APIs.
 
+Ensure that you are using the correct environment URL, which must include `.apps.dynatrace.com`.
+Authentication can be handled using either OAuth or a platform token`.
 ```go
 // create the factory
+ctx := context.TODO()
 factory := clients.Factory().
-	WithEnvironmentURL("https://dt-environment.com").
+    WithEnvironmentURL("https://<dt-environment>.apps.dynatrace.com").
 	WithOAuthCredentials(credentials)
+    // or if you want to use a platform token
+    WithPlatformToken("<YOUR_PLATFORM_TOKEN>")
 
-// request any client from the factory, e.g. bucket api client
-bucketClient, err := factory.BucketClient()
+// request any client from the factory, e.g. bucket client
+bucketClient, err := factory.BucketClient(ctx)
 if err != nil {
 	// handle error
 }
 
 // perform operation
-resp, err := bucketClient.Get(context.TODO(), "my bucket")
-if err != nil {
-	// handle error
-}
+resp, err := bucketClient.Get(ctx, "my bucket")
 
-// inspect response
-if !resp.IsSuccess() {
-	// handle api error
+if err != nil {
+    // handle error. See Error handling section.
 }
 
 // unmarshal payload
@@ -62,6 +61,77 @@ if err != nil {
 	// handle error
 }
 ```
+
+#### Classic rest client
+Unlike [Platform clients](#platform-clients), classic clients do not include dedicated resource clients.
+Instead, only a general-purpose REST client is available for interacting with the API.
+
+```go
+// create the factory
+ctx := context.TODO()
+factory := clients.Factory().
+    WithClassicURL("https://<dt-environment>.live.dynatrace.com").
+    WithAccessToken("<YOUR_ACCESS_TOKEN>")
+
+// create a classic client from the factory
+client, err := cFactory.CreateClassicClient()
+if err != nil {
+	// handle error
+}
+
+// perform operation
+httpResp, err := client.GET(ctx, "/your-endpoint", rest.RequestOptions{})
+
+if err != nil {
+    // handle client error
+}
+
+resp, err := api.NewResponseFromHTTPResponse(resp)
+
+if err != nil {
+    // handle error. See Error handling section.
+}
+
+// unmarshal payload
+data, err := api.DecodeJSON[YourExpectedStruct](resp.Response)
+if err != nil {
+    // handle error
+}
+```
+
+#### Error handling
+The library provides custom error structs tailored to specific error scenarios.
+
+Below is an example of the potential custom errors that may occur during usage.
+````go
+resp, err := segmentClient.Get(ctx, "my-segment-id")
+// handle error
+if err != nil {
+    // response status code validation failed
+    var apiErr api.ApiError
+    if errors.As(err, &apiErr) {
+        // e.g., handle differently if apiErr.StatusCode is 404
+    }
+    
+    // request failed (no response received)
+    var clientErr api.ClientError
+    if errors.As(err, &clientErr) {
+        
+    }
+
+    // validation failed (e.g., provided segment ID is empty or missing properties in response data)
+    var validationErr api.ValidationError
+    if errors.As(err, &validationErr) {
+
+    }
+    
+    // pre- or post-processing of data failed
+    var runtimeErr api.RuntimeError
+    if errors.As(err, &runtimeErr) {
+
+    }
+}
+````
 
 ### Logging
 
