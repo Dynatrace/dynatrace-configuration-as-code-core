@@ -13,25 +13,18 @@
 // limitations under the License.
 
 /*
-Package clients contains 'smart' clients for the Dynatrace API.
+Package clients contains clients for the Dynatrace API.
 
-These clients are generally based on those found in package api/clients, but implement logic to ensure the Dynatrace API
-can be used for configuration-as-code use-cases reliably.
+The clients in this package are specifically designed to enable reliable configuration-as-code use cases with the Dynatrace API.
 
-For the underlying clients see package [github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients].
-
-In general, whereas the CRUD api/clients make a single API call per operation, the ones in this package make several and
-react to API responses as needed.
-
-For example, the clients in this package will resolve and follow pagination in their List methods, whereas an api/clients
-implementation requires/allows the user to handle pagination and make several requests on their own.
+Unlike standard CRUD clients that perform a single API call per operation, these clients execute multiple calls and dynamically adapt to API responses.
+For example, they include logic to handle tasks like resolving and following pagination in their `List` methods.
 
 Clients implement the following methods:
   - Get
   - List
   - Create
   - Update
-  - Upsert (Create or Update as needed)
   - Delete
 
 A clients.Factory simplifies creation of clients.
