@@ -18,6 +18,5 @@ Package api groups packages simplifying Dynatrace API access.
 Notably it contains the following packages
   - [github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest] containing an extended rest client with optional features like rate-limiting, request logging, etc.
   - [github.com/dynatrace/dynatrace-configuration-as-code-core/api/auth] containing methods for creating authenticated rest clients
-  - [github.com/dynatrace/dynatrace-configuration-as-code-core/api/clients] containing client implementations for specific Dynatrace APIs
 */
 package api
