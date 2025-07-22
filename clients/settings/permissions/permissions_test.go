@@ -40,7 +40,7 @@ func TestClient_GetAllAccessors(t *testing.T) {
 	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.GetAllAccessors(t.Context(), "")
+		actual, err := client.GetAllAccessors(t.Context(), "", true)
 		assert.Error(t, err)
 
 		var errPermissions permissions.ErrorPermissions
@@ -84,6 +84,7 @@ func TestClient_GetAllAccessors(t *testing.T) {
 					  ]
 					}`
 		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "true")
 			t.Log(request.URL.String())
 			require.Equal(t, http.MethodGet, request.Method)
 			require.Equal(t, "/platform/classic/environment-api/v2/settings/objects/my-object-id/permissions", request.URL.Path)
@@ -96,12 +97,27 @@ func TestClient_GetAllAccessors(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.GetAllAccessors(t.Context(), "my-object-id")
+		resp, err := client.GetAllAccessors(t.Context(), "my-object-id", true)
 
 		assert.NoError(t, err)
 		assert.NotEmpty(t, resp)
 		assert.Equal(t, getResponse, string(resp.Data))
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("tries to request all permissions without adminAccess", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "false")
+			writer.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := permissions.NewClient(rest.NewClient(url, server.Client()))
+
+		_, err := client.GetAllAccessors(t.Context(), "my-object-id", false)
+
+		assert.Error(t, err)
 	})
 
 	t.Run("If settings object with ID doesn't exists on server returns error", func(t *testing.T) {
@@ -123,7 +139,7 @@ func TestClient_GetAllAccessors(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.GetAllAccessors(t.Context(), "some-object-id")
+		resp, err := client.GetAllAccessors(t.Context(), "some-object-id", true)
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -140,7 +156,7 @@ func TestClient_GetAllAccessors(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		resp, err := client.GetAllAccessors(t.Context(), "some-object-id")
+		resp, err := client.GetAllAccessors(t.Context(), "some-object-id", true)
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -154,7 +170,7 @@ func TestClient_GetAllUsersAccessor(t *testing.T) {
 	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.GetAllUsersAccessor(t.Context(), "")
+		actual, err := client.GetAllUsersAccessor(t.Context(), "", true)
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -167,6 +183,7 @@ func TestClient_GetAllUsersAccessor(t *testing.T) {
 	t.Run("successfully requesting all-user permissions for requested objectID", func(t *testing.T) {
 		getResponse := `{"permissions": ["r","w"],"accessor": {"type": "all-users"}}`
 		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "true")
 			t.Log(request.URL.String())
 			require.Equal(t, http.MethodGet, request.Method)
 			require.Equal(t, "/platform/classic/environment-api/v2/settings/objects/my-object-id/permissions/all-users", request.URL.Path)
@@ -179,12 +196,27 @@ func TestClient_GetAllUsersAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.GetAllUsersAccessor(t.Context(), "my-object-id")
+		resp, err := client.GetAllUsersAccessor(t.Context(), "my-object-id", true)
 
 		assert.NoError(t, err)
 		assert.NotEmpty(t, resp)
 		assert.Equal(t, getResponse, string(resp.Data))
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("tries to request all-user permissions without adminAccess", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "false")
+			writer.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := permissions.NewClient(rest.NewClient(url, server.Client()))
+
+		_, err := client.GetAllUsersAccessor(t.Context(), "my-object-id", false)
+
+		assert.Error(t, err)
 	})
 
 	t.Run("If settings object with ID doesn't exists on server returns error", func(t *testing.T) {
@@ -206,7 +238,7 @@ func TestClient_GetAllUsersAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.GetAllUsersAccessor(t.Context(), "some-object-id")
+		resp, err := client.GetAllUsersAccessor(t.Context(), "some-object-id", true)
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -223,7 +255,7 @@ func TestClient_GetAllUsersAccessor(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		resp, err := client.GetAllUsersAccessor(t.Context(), "some-object-id")
+		resp, err := client.GetAllUsersAccessor(t.Context(), "some-object-id", true)
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -237,7 +269,7 @@ func TestClient_GetAccessor(t *testing.T) {
 	t.Run("when called without object id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		resp, err := client.GetAccessor(t.Context(), "", "user", "user-id")
+		resp, err := client.GetAccessor(t.Context(), "", "user", "user-id", true)
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -250,7 +282,7 @@ func TestClient_GetAccessor(t *testing.T) {
 	t.Run("when called without accessor type parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.GetAccessor(t.Context(), "my-object-id", "", "user-id")
+		actual, err := client.GetAccessor(t.Context(), "my-object-id", "", "user-id", true)
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -263,7 +295,7 @@ func TestClient_GetAccessor(t *testing.T) {
 	t.Run("when called without accessor id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.GetAccessor(t.Context(), "my-object-id", "group", "")
+		actual, err := client.GetAccessor(t.Context(), "my-object-id", "group", "", true)
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -276,6 +308,7 @@ func TestClient_GetAccessor(t *testing.T) {
 	t.Run("successfully requesting group permissions for requested objectID and groupID", func(t *testing.T) {
 		getResponse := `{"permissions": ["r"],"accessor": {"type": "group","id": "4c75c5cb-4f85-4a49-811a-cdf9ae55fd4e"}},`
 		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "true")
 			t.Log(request.URL.String())
 			require.Equal(t, http.MethodGet, request.Method)
 			require.Equal(t, "/platform/classic/environment-api/v2/settings/objects/my-object-id/permissions/group/4c75c5cb-4f85-4a49-811a-cdf9ae55fd4e", request.URL.Path)
@@ -288,12 +321,28 @@ func TestClient_GetAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.GetAccessor(t.Context(), "my-object-id", "group", "4c75c5cb-4f85-4a49-811a-cdf9ae55fd4e")
+		resp, err := client.GetAccessor(t.Context(), "my-object-id", "group", "4c75c5cb-4f85-4a49-811a-cdf9ae55fd4e", true)
 
 		assert.NoError(t, err)
 		assert.NotEmpty(t, resp)
 		assert.Equal(t, getResponse, string(resp.Data))
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("tries to request group permissions without adminAccess", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "false")
+
+			writer.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := permissions.NewClient(rest.NewClient(url, server.Client()))
+
+		_, err := client.GetAccessor(t.Context(), "my-object-id", "group", "4c75c5cb-4f85-4a49-811a-cdf9ae55fd4e", false)
+
+		assert.Error(t, err)
 	})
 
 	t.Run("If settings object with ID doesn't exists on server returns error", func(t *testing.T) {
@@ -315,7 +364,7 @@ func TestClient_GetAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.GetAccessor(t.Context(), "some-object-id", "user", "uid")
+		resp, err := client.GetAccessor(t.Context(), "some-object-id", "user", "uid", true)
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
 
@@ -331,7 +380,7 @@ func TestClient_GetAccessor(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		resp, err := client.GetAccessor(t.Context(), "some-object-id", "user", "uid")
+		resp, err := client.GetAccessor(t.Context(), "some-object-id", "user", "uid", true)
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -345,7 +394,7 @@ func TestClient_Create(t *testing.T) {
 	t.Run("when called without id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		resp, err := client.Create(t.Context(), "", nil)
+		resp, err := client.Create(t.Context(), "", true, nil)
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -359,6 +408,7 @@ func TestClient_Create(t *testing.T) {
 		given := `{"accessor": {"id": "03c7e839-ee7e-4023-b5db-6da0dc9697bc","type": "user"},"permissions": ["r"]}`
 
 		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "true")
 			t.Log(request.URL.String())
 			require.Equal(t, http.MethodPost, request.Method)
 			require.Equal(t, "/platform/classic/environment-api/v2/settings/objects/my-object-id/permissions", request.URL.Path)
@@ -372,11 +422,28 @@ func TestClient_Create(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		actual, err := client.Create(t.Context(), "my-object-id", json.RawMessage(given))
+		actual, err := client.Create(t.Context(), "my-object-id", true, json.RawMessage(given))
 
 		assert.NoError(t, err)
 		assert.NotEmpty(t, actual)
 		assert.Equal(t, http.StatusCreated, actual.StatusCode)
+	})
+
+	t.Run("tries to create settings object permission without adminAccess", func(t *testing.T) {
+		given := `{"accessor": {"id": "03c7e839-ee7e-4023-b5db-6da0dc9697bc","type": "user"},"permissions": ["r"]}`
+
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "false")
+			writer.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := permissions.NewClient(rest.NewClient(url, server.Client()))
+
+		_, err := client.Create(t.Context(), "my-object-id", false, json.RawMessage(given))
+
+		assert.Error(t, err)
 	})
 
 	t.Run("when connection to server fails, error is returned", func(t *testing.T) {
@@ -387,7 +454,7 @@ func TestClient_Create(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		resp, err := client.Create(t.Context(), "my-object-id", json.RawMessage(given))
+		resp, err := client.Create(t.Context(), "my-object-id", true, json.RawMessage(given))
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -401,7 +468,7 @@ func TestClient_UpdateAllUsersAccessor(t *testing.T) {
 	t.Run("when called without object id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		resp, err := client.UpdateAllUsersAccessor(t.Context(), "", nil)
+		resp, err := client.UpdateAllUsersAccessor(t.Context(), "", true, nil)
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -415,6 +482,7 @@ func TestClient_UpdateAllUsersAccessor(t *testing.T) {
 		given := `{"permissions": ["r"]}`
 
 		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "true")
 			switch request.Method {
 			case http.MethodPut:
 				require.Equal(t, "/platform/classic/environment-api/v2/settings/objects/my-object-id/permissions/all-users", request.URL.Path)
@@ -431,10 +499,28 @@ func TestClient_UpdateAllUsersAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.UpdateAllUsersAccessor(t.Context(), "my-object-id", json.RawMessage(given))
+		resp, err := client.UpdateAllUsersAccessor(t.Context(), "my-object-id", true, json.RawMessage(given))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
+	})
+
+	t.Run("tries to update permission for settings object without adminAccess", func(t *testing.T) {
+		given := `{"permissions": ["r"]}`
+		mux := http.NewServeMux()
+		mux.HandleFunc("PUT /platform/classic/environment-api/v2/settings/objects/my-object-id/permissions/all-users", func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "false")
+			writer.WriteHeader(http.StatusNotFound)
+		})
+		server := httptest.NewServer(mux)
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := permissions.NewClient(rest.NewClient(url, server.Client()))
+
+		_, err := client.UpdateAllUsersAccessor(t.Context(), "my-object-id", false, json.RawMessage(given))
+
+		assert.Error(t, err)
 	})
 
 	t.Run("permission update for non existing settings object fails with error", func(t *testing.T) {
@@ -456,7 +542,7 @@ func TestClient_UpdateAllUsersAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.UpdateAllUsersAccessor(t.Context(), "some-object-id", nil)
+		resp, err := client.UpdateAllUsersAccessor(t.Context(), "some-object-id", true, nil)
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -475,7 +561,7 @@ func TestClient_UpdateAllUsersAccessor(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		resp, err := client.UpdateAllUsersAccessor(t.Context(), "my-object-id", json.RawMessage(given))
+		resp, err := client.UpdateAllUsersAccessor(t.Context(), "my-object-id", true, json.RawMessage(given))
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -489,7 +575,7 @@ func TestClient_UpdateAccessor(t *testing.T) {
 	t.Run("when called without object id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		resp, err := client.UpdateAccessor(t.Context(), "", "user", "uid", nil)
+		resp, err := client.UpdateAccessor(t.Context(), "", "user", "uid", true, nil)
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -502,7 +588,7 @@ func TestClient_UpdateAccessor(t *testing.T) {
 	t.Run("when called without accessor type parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		resp, err := client.UpdateAccessor(t.Context(), "object-id", "", "uid", nil)
+		resp, err := client.UpdateAccessor(t.Context(), "object-id", "", "uid", true, nil)
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -515,7 +601,7 @@ func TestClient_UpdateAccessor(t *testing.T) {
 	t.Run("when called without accessor id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		resp, err := client.UpdateAccessor(t.Context(), "object-id", "user", "", nil)
+		resp, err := client.UpdateAccessor(t.Context(), "object-id", "user", "", true, nil)
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -529,6 +615,7 @@ func TestClient_UpdateAccessor(t *testing.T) {
 		given := `{"permissions": ["r"]}`
 
 		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "true")
 			switch request.Method {
 			case http.MethodPut:
 				require.Equal(t, "/platform/classic/environment-api/v2/settings/objects/my-object-id/permissions/user/03c7e839-ee7e-4023-b5db-6da0dc9697bc", request.URL.Path)
@@ -545,10 +632,31 @@ func TestClient_UpdateAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.UpdateAccessor(t.Context(), "my-object-id", "user", "03c7e839-ee7e-4023-b5db-6da0dc9697bc", json.RawMessage(given))
+		resp, err := client.UpdateAccessor(t.Context(), "my-object-id", "user", "03c7e839-ee7e-4023-b5db-6da0dc9697bc", true, json.RawMessage(given))
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
+
+	})
+
+	t.Run("tries to update permission for settings object without adminAccess", func(t *testing.T) {
+		given := `{"permissions": ["r"]}`
+
+		mux := http.NewServeMux()
+		mux.HandleFunc("PUT /platform/classic/environment-api/v2/settings/objects/my-object-id/permissions/user/03c7e839-ee7e-4023-b5db-6da0dc9697bc", func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "false")
+			writer.WriteHeader(http.StatusNotFound)
+		})
+
+		server := httptest.NewServer(mux)
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := permissions.NewClient(rest.NewClient(url, server.Client()))
+
+		_, err := client.UpdateAccessor(t.Context(), "my-object-id", "user", "03c7e839-ee7e-4023-b5db-6da0dc9697bc", false, json.RawMessage(given))
+
+		assert.Error(t, err)
 
 	})
 
@@ -571,7 +679,7 @@ func TestClient_UpdateAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		resp, err := client.UpdateAccessor(t.Context(), "some-object-id", "user", "uid", nil)
+		resp, err := client.UpdateAccessor(t.Context(), "some-object-id", "user", "uid", true, nil)
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -590,7 +698,7 @@ func TestClient_UpdateAccessor(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		resp, err := client.UpdateAccessor(t.Context(), "some-object-id", "user", "uid", json.RawMessage(given))
+		resp, err := client.UpdateAccessor(t.Context(), "some-object-id", "user", "uid", true, json.RawMessage(given))
 		assert.Empty(t, resp)
 		assert.Error(t, err)
 
@@ -604,7 +712,7 @@ func TestClient_DeleteAccessor(t *testing.T) {
 	t.Run("when called without object id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.DeleteAccessor(t.Context(), "", "user", "uid")
+		actual, err := client.DeleteAccessor(t.Context(), "", "user", "uid", true)
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -617,7 +725,7 @@ func TestClient_DeleteAccessor(t *testing.T) {
 	t.Run("when called without accessor type parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.DeleteAccessor(t.Context(), "object-id", "", "uid")
+		actual, err := client.DeleteAccessor(t.Context(), "object-id", "", "uid", true)
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -630,7 +738,7 @@ func TestClient_DeleteAccessor(t *testing.T) {
 	t.Run("when called without accessor id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.DeleteAccessor(t.Context(), "object-id", "user", "")
+		actual, err := client.DeleteAccessor(t.Context(), "object-id", "user", "", true)
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -642,6 +750,7 @@ func TestClient_DeleteAccessor(t *testing.T) {
 
 	t.Run("successfully deleted permissions for settings object", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "true")
 			switch request.Method {
 			case http.MethodDelete:
 				require.Equal(t, "/platform/classic/environment-api/v2/settings/objects/my-object-id/permissions/user/uid", request.URL.Path)
@@ -656,10 +765,27 @@ func TestClient_DeleteAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		actual, err := client.DeleteAccessor(t.Context(), "my-object-id", "user", "uid")
+		actual, err := client.DeleteAccessor(t.Context(), "my-object-id", "user", "uid", true)
 
 		assert.NoError(t, err)
 		assert.Equal(t, actual.StatusCode, http.StatusOK)
+	})
+
+	t.Run("tries to delete permissions for settings object without adminAcdess", func(t *testing.T) {
+		mux := http.NewServeMux()
+		mux.HandleFunc("DELETE /platform/classic/environment-api/v2/settings/objects/my-object-id/permissions/user/uid", func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "false")
+			writer.WriteHeader(http.StatusNotFound)
+		})
+		server := httptest.NewServer(mux)
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := permissions.NewClient(rest.NewClient(url, server.Client()))
+
+		_, err := client.DeleteAccessor(t.Context(), "my-object-id", "user", "uid", false)
+
+		assert.Error(t, err)
 	})
 
 	t.Run("If settings object with ID doesn't exists on server returns an error", func(t *testing.T) {
@@ -681,7 +807,7 @@ func TestClient_DeleteAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		actual, err := client.DeleteAccessor(t.Context(), "some-unknown-id", "user", "uid")
+		actual, err := client.DeleteAccessor(t.Context(), "some-unknown-id", "user", "uid", true)
 
 		assert.Empty(t, actual)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -698,7 +824,7 @@ func TestClient_DeleteAccessor(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		actual, err := client.DeleteAccessor(t.Context(), "some-unknown-id", "user", "uid")
+		actual, err := client.DeleteAccessor(t.Context(), "some-unknown-id", "user", "uid", true)
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -712,7 +838,7 @@ func TestClient_DeleteAllUsersAccessor(t *testing.T) {
 	t.Run("when called without object id parameter, returns an error", func(t *testing.T) {
 		client := permissions.NewClient(&rest.Client{})
 
-		actual, err := client.DeleteAllUsersAccessor(t.Context(), "")
+		actual, err := client.DeleteAllUsersAccessor(t.Context(), "", true)
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
@@ -724,6 +850,7 @@ func TestClient_DeleteAllUsersAccessor(t *testing.T) {
 
 	t.Run("successfully deleted permissions for settings object", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "true")
 			switch request.Method {
 			case http.MethodDelete:
 				require.Equal(t, "/platform/classic/environment-api/v2/settings/objects/my-object-id/permissions/all-users", request.URL.Path)
@@ -738,10 +865,27 @@ func TestClient_DeleteAllUsersAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		actual, err := client.DeleteAllUsersAccessor(t.Context(), "my-object-id")
+		actual, err := client.DeleteAllUsersAccessor(t.Context(), "my-object-id", true)
 
 		assert.NoError(t, err)
 		assert.Equal(t, actual.StatusCode, http.StatusOK)
+	})
+
+	t.Run("tries to delete permissions for settings object without adminAccess", func(t *testing.T) {
+		mux := http.NewServeMux()
+		mux.HandleFunc("DELETE /platform/classic/environment-api/v2/settings/objects/my-object-id/permissions/all-users", func(writer http.ResponseWriter, request *http.Request) {
+			require.Equal(t, request.URL.Query().Get("adminAccess"), "false")
+			writer.WriteHeader(http.StatusNotFound)
+		})
+		server := httptest.NewServer(mux)
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := permissions.NewClient(rest.NewClient(url, server.Client()))
+
+		_, err := client.DeleteAllUsersAccessor(t.Context(), "my-object-id", false)
+
+		assert.Error(t, err)
 	})
 
 	t.Run("If settings object with ID doesn't exists on server returns an error", func(t *testing.T) {
@@ -763,7 +907,7 @@ func TestClient_DeleteAllUsersAccessor(t *testing.T) {
 		url, _ := url.Parse(server.URL)
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
-		actual, err := client.DeleteAllUsersAccessor(t.Context(), "some-unknown-id")
+		actual, err := client.DeleteAllUsersAccessor(t.Context(), "some-unknown-id", true)
 
 		assert.Empty(t, actual)
 		assert.ErrorAs(t, err, &api.APIError{})
@@ -780,7 +924,7 @@ func TestClient_DeleteAllUsersAccessor(t *testing.T) {
 		client := permissions.NewClient(rest.NewClient(url, server.Client()))
 
 		server.Close()
-		actual, err := client.DeleteAllUsersAccessor(t.Context(), "some-unknown-id")
+		actual, err := client.DeleteAllUsersAccessor(t.Context(), "some-unknown-id", true)
 		assert.Empty(t, actual)
 		assert.Error(t, err)
 
