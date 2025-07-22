@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"net/url"
+	"strconv"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
@@ -35,15 +36,15 @@ func NewClient(client *rest.Client) *Client {
 	return &Client{client: client}
 }
 
-func (c *Client) GetAllAccessors(ctx context.Context, objectID string) (api.Response, error) {
-	return c.get(ctx, objectID, "", "")
+func (c *Client) GetAllAccessors(ctx context.Context, objectID string, adminAccess bool) (api.Response, error) {
+	return c.get(ctx, objectID, "", "", adminAccess)
 }
 
-func (c *Client) GetAllUsersAccessor(ctx context.Context, objectID string) (api.Response, error) {
-	return c.get(ctx, objectID, allUsersAccessorType, "")
+func (c *Client) GetAllUsersAccessor(ctx context.Context, objectID string, adminAccess bool) (api.Response, error) {
+	return c.get(ctx, objectID, allUsersAccessorType, "", adminAccess)
 }
 
-func (c *Client) GetAccessor(ctx context.Context, objectID string, accessorType string, accessorID string) (api.Response, error) {
+func (c *Client) GetAccessor(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool) (api.Response, error) {
 	if accessorType == "" {
 		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorType, Operation: GET}
 	}
@@ -52,10 +53,10 @@ func (c *Client) GetAccessor(ctx context.Context, objectID string, accessorType 
 		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorID, Operation: GET}
 	}
 
-	return c.get(ctx, objectID, accessorType, accessorID)
+	return c.get(ctx, objectID, accessorType, accessorID, adminAccess)
 }
 
-func (c *Client) get(ctx context.Context, objectID string, accessorType string, accessorID string) (api.Response, error) {
+func (c *Client) get(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool) (api.Response, error) {
 	if objectID == "" {
 		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingObjectID, Operation: GET}
 	}
@@ -65,7 +66,7 @@ func (c *Client) get(ctx context.Context, objectID string, accessorType string, 
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: GET}
 	}
 
-	resp, err := c.client.GET(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	resp, err := c.client.GET(ctx, path, getDefaultRequestOptions(adminAccess))
 
 	if err != nil {
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: GET}
@@ -74,7 +75,7 @@ func (c *Client) get(ctx context.Context, objectID string, accessorType string, 
 	return api.NewResponseFromHTTPResponse(resp)
 }
 
-func (c *Client) Create(ctx context.Context, objectID string, body []byte) (api.Response, error) {
+func (c *Client) Create(ctx context.Context, objectID string, adminAccess bool, body []byte) (api.Response, error) {
 	if objectID == "" {
 		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingObjectID, Operation: POST}
 	}
@@ -84,7 +85,7 @@ func (c *Client) Create(ctx context.Context, objectID string, body []byte) (api.
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: POST}
 	}
 
-	resp, err := c.client.POST(ctx, path, bytes.NewReader(body), rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	resp, err := c.client.POST(ctx, path, bytes.NewReader(body), getDefaultRequestOptions(adminAccess))
 	if err != nil {
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: POST}
 	}
@@ -92,11 +93,11 @@ func (c *Client) Create(ctx context.Context, objectID string, body []byte) (api.
 	return api.NewResponseFromHTTPResponse(resp)
 }
 
-func (c *Client) UpdateAllUsersAccessor(ctx context.Context, objectID string, body []byte) (api.Response, error) {
-	return c.update(ctx, objectID, allUsersAccessorType, "", body)
+func (c *Client) UpdateAllUsersAccessor(ctx context.Context, objectID string, adminAccess bool, body []byte) (api.Response, error) {
+	return c.update(ctx, objectID, allUsersAccessorType, "", adminAccess, body)
 }
 
-func (c *Client) UpdateAccessor(ctx context.Context, objectID string, accessorType string, accessorID string, body []byte) (api.Response, error) {
+func (c *Client) UpdateAccessor(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool, body []byte) (api.Response, error) {
 	if accessorType == "" {
 		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorType, Operation: PUT}
 	}
@@ -105,10 +106,10 @@ func (c *Client) UpdateAccessor(ctx context.Context, objectID string, accessorTy
 		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorID, Operation: PUT}
 	}
 
-	return c.update(ctx, objectID, accessorType, accessorID, body)
+	return c.update(ctx, objectID, accessorType, accessorID, adminAccess, body)
 }
 
-func (c *Client) update(ctx context.Context, objectID string, accessorType string, accessorID string, body []byte) (api.Response, error) {
+func (c *Client) update(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool, body []byte) (api.Response, error) {
 	if objectID == "" {
 		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingObjectID, Operation: PUT}
 	}
@@ -118,7 +119,7 @@ func (c *Client) update(ctx context.Context, objectID string, accessorType strin
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: PUT}
 	}
 
-	httpResp, err := c.client.PUT(ctx, path, bytes.NewReader(body), rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	httpResp, err := c.client.PUT(ctx, path, bytes.NewReader(body), getDefaultRequestOptions(adminAccess))
 
 	if err != nil {
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: PUT}
@@ -127,11 +128,11 @@ func (c *Client) update(ctx context.Context, objectID string, accessorType strin
 	return api.NewResponseFromHTTPResponse(httpResp)
 }
 
-func (c *Client) DeleteAllUsersAccessor(ctx context.Context, objectID string) (api.Response, error) {
-	return c.delete(ctx, objectID, allUsersAccessorType, "")
+func (c *Client) DeleteAllUsersAccessor(ctx context.Context, objectID string, adminAccess bool) (api.Response, error) {
+	return c.delete(ctx, objectID, allUsersAccessorType, "", adminAccess)
 }
 
-func (c *Client) DeleteAccessor(ctx context.Context, objectID string, accessorType string, accessorID string) (api.Response, error) {
+func (c *Client) DeleteAccessor(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool) (api.Response, error) {
 	if accessorType == "" {
 		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorType, Operation: DELETE}
 	}
@@ -140,10 +141,10 @@ func (c *Client) DeleteAccessor(ctx context.Context, objectID string, accessorTy
 		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorID, Operation: DELETE}
 	}
 
-	return c.delete(ctx, objectID, accessorType, accessorID)
+	return c.delete(ctx, objectID, accessorType, accessorID, adminAccess)
 }
 
-func (c *Client) delete(ctx context.Context, objectID string, accessorType string, accessorID string) (api.Response, error) {
+func (c *Client) delete(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool) (api.Response, error) {
 	if objectID == "" {
 		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingObjectID, Operation: DELETE}
 	}
@@ -153,11 +154,18 @@ func (c *Client) delete(ctx context.Context, objectID string, accessorType strin
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: DELETE}
 	}
 
-	httpResp, err := c.client.DELETE(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	httpResp, err := c.client.DELETE(ctx, path, getDefaultRequestOptions(adminAccess))
 
 	if err != nil {
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: DELETE}
 	}
 
 	return api.NewResponseFromHTTPResponse(httpResp)
+}
+
+func getDefaultRequestOptions(adminAccess bool) rest.RequestOptions {
+	return rest.RequestOptions{
+		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
+		QueryParams:           url.Values{"adminAccess": []string{strconv.FormatBool(adminAccess)}},
+	}
 }
