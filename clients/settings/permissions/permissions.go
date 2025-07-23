@@ -66,7 +66,7 @@ func (c *Client) get(ctx context.Context, objectID string, accessorType string, 
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: GET}
 	}
 
-	resp, err := c.client.GET(ctx, path, getDefaultRequestOptions(adminAccess))
+	resp, err := c.client.GET(ctx, path, getRequestOptions(adminAccess))
 
 	if err != nil {
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: GET}
@@ -85,7 +85,7 @@ func (c *Client) Create(ctx context.Context, objectID string, adminAccess bool, 
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: POST}
 	}
 
-	resp, err := c.client.POST(ctx, path, bytes.NewReader(body), getDefaultRequestOptions(adminAccess))
+	resp, err := c.client.POST(ctx, path, bytes.NewReader(body), getRequestOptions(adminAccess))
 	if err != nil {
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: POST}
 	}
@@ -119,7 +119,7 @@ func (c *Client) update(ctx context.Context, objectID string, accessorType strin
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: PUT}
 	}
 
-	httpResp, err := c.client.PUT(ctx, path, bytes.NewReader(body), getDefaultRequestOptions(adminAccess))
+	httpResp, err := c.client.PUT(ctx, path, bytes.NewReader(body), getRequestOptions(adminAccess))
 
 	if err != nil {
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: PUT}
@@ -154,7 +154,7 @@ func (c *Client) delete(ctx context.Context, objectID string, accessorType strin
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: DELETE}
 	}
 
-	httpResp, err := c.client.DELETE(ctx, path, getDefaultRequestOptions(adminAccess))
+	httpResp, err := c.client.DELETE(ctx, path, getRequestOptions(adminAccess))
 
 	if err != nil {
 		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: DELETE}
@@ -163,7 +163,7 @@ func (c *Client) delete(ctx context.Context, objectID string, accessorType strin
 	return api.NewResponseFromHTTPResponse(httpResp)
 }
 
-func getDefaultRequestOptions(adminAccess bool) rest.RequestOptions {
+func getRequestOptions(adminAccess bool) rest.RequestOptions {
 	return rest.RequestOptions{
 		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
 		QueryParams:           url.Values{"adminAccess": []string{strconv.FormatBool(adminAccess)}},
