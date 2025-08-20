@@ -65,6 +65,52 @@ func (c Client) List(ctx context.Context) (api.Response, error) {
 	return apiResp, nil
 }
 
+func (c Client) ListB(ctx context.Context) (api.Response, error) {
+	path := basePath.String() + ":lean"
+	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{
+		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
+		QueryParams:           url.Values{"add-fields": []string{"EXTERNALID"}},
+	})
+
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodGet, Wrapped: err}
+	}
+
+	apiResp, err := api.NewResponseFromHTTPResponse(resp)
+	if err != nil {
+		return apiResp, err
+	}
+
+	if apiResp.Data, err = modifyBody(apiResp.Data); err != nil {
+		return apiResp, api.RuntimeError{Resource: resource, Reason: "body transformation failed", Wrapped: err}
+	}
+
+	return apiResp, nil
+}
+
+func (c Client) ListC(ctx context.Context) (api.Response, error) {
+	path := basePath.String() + ":lean"
+	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{
+		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
+		QueryParams:           url.Values{"add-fields": []string{"EXTERNALID"}},
+	})
+
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodGet, Wrapped: err}
+	}
+
+	apiResp, err := api.NewResponseFromHTTPResponse(resp)
+	if err != nil {
+		return apiResp, err
+	}
+
+	if apiResp.Data, err = modifyBody(apiResp.Data); err != nil {
+		return apiResp, api.RuntimeError{Resource: resource, Reason: "body transformation failed", Wrapped: err}
+	}
+
+	return apiResp, nil
+}
+
 // modifyBody transform received json response to contain just a JSON list of elements
 func modifyBody(source []byte) ([]byte, error) {
 	var transformed map[string]any
