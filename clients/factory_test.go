@@ -142,6 +142,10 @@ func TestClientMissingPlatformURL(t *testing.T) {
 	restClient, err = f.CreateClassicClient()
 	assert.NoError(t, err)
 	assert.NotNil(t, restClient)
+
+	restClient, err = f.CreateClassicClientWithContext(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
 }
 
 func TestClientMissingOAuthCredentials(t *testing.T) {
@@ -186,6 +190,10 @@ func TestClientMissingOAuthCredentials(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
 	restClient, err = f.CreateClassicClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
+
+	restClient, err = f.CreateClassicClientWithContext(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, restClient)
 }
@@ -242,6 +250,10 @@ func TestClientPlatformURLParsingError(t *testing.T) {
 	restClient, err = f.CreateClassicClient()
 	assert.NoError(t, err)
 	assert.NotNil(t, restClient)
+
+	restClient, err = f.CreateClassicClientWithContext(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
 }
 
 func TestClientMissingAccountURL(t *testing.T) {
@@ -296,6 +308,10 @@ func TestClientMissingAccountURL(t *testing.T) {
 	assert.NotNil(t, restClient)
 
 	restClient, err = f.CreateClassicClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
+
+	restClient, err = f.CreateClassicClientWithContext(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, restClient)
 }
@@ -355,6 +371,10 @@ func TestClientAccountURLParsingError(t *testing.T) {
 	restClient, err = f.CreateClassicClient()
 	assert.NoError(t, err)
 	assert.NotNil(t, restClient)
+
+	restClient, err = f.CreateClassicClientWithContext(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, restClient)
 }
 
 func TestClientMissingClassicURL(t *testing.T) {
@@ -410,6 +430,10 @@ func TestClientMissingClassicURL(t *testing.T) {
 	assert.NotNil(t, restClient)
 
 	restClient, err = f.CreateClassicClient()
+	assert.Nil(t, restClient)
+	assert.ErrorIs(t, err, ErrClassicURLMissing)
+
+	restClient, err = f.CreateClassicClientWithContext(t.Context())
 	assert.Nil(t, restClient)
 	assert.ErrorIs(t, err, ErrClassicURLMissing)
 }
@@ -469,6 +493,10 @@ func TestClientMissingAccessToken(t *testing.T) {
 	restClient, err = f.CreateClassicClient()
 	assert.Nil(t, restClient)
 	assert.ErrorIs(t, err, ErrAccessTokenMissing)
+
+	restClient, err = f.CreateClassicClientWithContext(t.Context())
+	assert.Nil(t, restClient)
+	assert.ErrorIs(t, err, ErrAccessTokenMissing)
 }
 
 func TestClientClassicURLParsingError(t *testing.T) {
@@ -525,6 +553,10 @@ func TestClientClassicURLParsingError(t *testing.T) {
 	assert.NotNil(t, restClient)
 
 	restClient, err = f.CreateClassicClient()
+	assert.Nil(t, restClient)
+	assert.ErrorContains(t, err, failedToParseURL)
+
+	restClient, err = f.CreateClassicClientWithContext(t.Context())
 	assert.Nil(t, restClient)
 	assert.ErrorContains(t, err, failedToParseURL)
 }
@@ -587,6 +619,25 @@ func TestCreateClassicClient(t *testing.T) {
 		WithClassicURL(apiServer.URL).
 		WithAccessToken("test-access-token").
 		CreateClassicClient()
+	assert.NoError(t, err)
+
+	resp, err := client.GET(t.Context(), "", rest.RequestOptions{})
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+}
+
+func TestCreateClassicClientWithContext(t *testing.T) {
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		assert.Equal(t, "Api-Token test-access-token", auth)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
+
+	client, err := Factory().
+		WithClassicURL(apiServer.URL).
+		WithAccessToken("test-access-token").
+		CreateClassicClientWithContext(t.Context())
 	assert.NoError(t, err)
 
 	resp, err := client.GET(t.Context(), "", rest.RequestOptions{})
