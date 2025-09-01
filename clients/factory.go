@@ -243,6 +243,11 @@ func (f factory) CreatePlatformClient(ctx context.Context) (*rest.Client, error)
 
 // CreateClassicClient creates a REST client configured for accessing classic APIs.
 func (f factory) CreateClassicClient() (*rest.Client, error) {
+	return f.CreateClassicClientWithContext(context.TODO())
+}
+
+// CreateClassicClientWithContext creates a REST client configured for accessing classic APIs with a given context.
+func (f factory) CreateClassicClientWithContext(ctx context.Context) (*rest.Client, error) {
 	if f.accessToken == "" {
 		return nil, ErrAccessTokenMissing
 	}
@@ -251,7 +256,7 @@ func (f factory) CreateClassicClient() (*rest.Client, error) {
 		return nil, ErrClassicURLMissing
 	}
 
-	return f.createRestClient(f.classicURL, auth.NewAPITokenClient(context.TODO(), f.accessToken))
+	return f.createRestClient(f.classicURL, auth.NewAPITokenClient(ctx, f.accessToken))
 }
 
 func (f factory) createRestClient(u string, httpClient *http.Client) (*rest.Client, error) {
