@@ -15,11 +15,11 @@ import (
 	"fmt"
 )
 
-// checks if the PutGroupDto type satisfies the MappedNullable interface at compile time
-var _ MappedNullable = &PutGroupDto{}
+// checks if the InsertGroupDto type satisfies the MappedNullable interface at compile time
+var _ MappedNullable = &InsertGroupDto{}
 
-// PutGroupDto struct for PutGroupDto
-type PutGroupDto struct {
+// InsertGroupDto struct for InsertGroupDto
+type InsertGroupDto struct {
 	// The UUID of the user group.
 	Uuid *string `json:"uuid,omitempty"`
 	// The name of the user group.
@@ -31,28 +31,28 @@ type PutGroupDto struct {
 	AdditionalProperties     map[string]interface{}
 }
 
-type _PutGroupDto PutGroupDto
+type _InsertGroupDto InsertGroupDto
 
-// NewPutGroupDto instantiates a new PutGroupDto object
+// NewInsertGroupDto instantiates a new InsertGroupDto object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewPutGroupDto(name string) *PutGroupDto {
-	this := PutGroupDto{}
+func NewInsertGroupDto(name string) *InsertGroupDto {
+	this := InsertGroupDto{}
 	this.Name = name
 	return &this
 }
 
-// NewPutGroupDtoWithDefaults instantiates a new PutGroupDto object
+// NewInsertGroupDtoWithDefaults instantiates a new InsertGroupDto object
 // This constructor will only assign default values to properties that have it defined,
 // but it doesn't guarantee that properties required by API are set
-func NewPutGroupDtoWithDefaults() *PutGroupDto {
-	this := PutGroupDto{}
+func NewInsertGroupDtoWithDefaults() *InsertGroupDto {
+	this := InsertGroupDto{}
 	return &this
 }
 
 // GetUuid returns the Uuid field value if set, zero value otherwise.
-func (o *PutGroupDto) GetUuid() string {
+func (o *InsertGroupDto) GetUuid() string {
 	if o == nil || IsNil(o.Uuid) {
 		var ret string
 		return ret
@@ -62,7 +62,7 @@ func (o *PutGroupDto) GetUuid() string {
 
 // GetUuidOk returns a tuple with the Uuid field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *PutGroupDto) GetUuidOk() (*string, bool) {
+func (o *InsertGroupDto) GetUuidOk() (*string, bool) {
 	if o == nil || IsNil(o.Uuid) {
 		return nil, false
 	}
@@ -70,7 +70,7 @@ func (o *PutGroupDto) GetUuidOk() (*string, bool) {
 }
 
 // HasUuid returns a boolean if a field has been set.
-func (o *PutGroupDto) HasUuid() bool {
+func (o *InsertGroupDto) HasUuid() bool {
 	if o != nil && !IsNil(o.Uuid) {
 		return true
 	}
@@ -79,12 +79,12 @@ func (o *PutGroupDto) HasUuid() bool {
 }
 
 // SetUuid gets a reference to the given string and assigns it to the Uuid field.
-func (o *PutGroupDto) SetUuid(v string) {
+func (o *InsertGroupDto) SetUuid(v string) {
 	o.Uuid = &v
 }
 
 // GetName returns the Name field value
-func (o *PutGroupDto) GetName() string {
+func (o *InsertGroupDto) GetName() string {
 	if o == nil {
 		var ret string
 		return ret
@@ -95,7 +95,7 @@ func (o *PutGroupDto) GetName() string {
 
 // GetNameOk returns a tuple with the Name field value
 // and a boolean to check if the value has been set.
-func (o *PutGroupDto) GetNameOk() (*string, bool) {
+func (o *InsertGroupDto) GetNameOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -103,12 +103,12 @@ func (o *PutGroupDto) GetNameOk() (*string, bool) {
 }
 
 // SetName sets field value
-func (o *PutGroupDto) SetName(v string) {
+func (o *InsertGroupDto) SetName(v string) {
 	o.Name = v
 }
 
 // GetDescription returns the Description field value if set, zero value otherwise.
-func (o *PutGroupDto) GetDescription() string {
+func (o *InsertGroupDto) GetDescription() string {
 	if o == nil || IsNil(o.Description) {
 		var ret string
 		return ret
@@ -118,7 +118,7 @@ func (o *PutGroupDto) GetDescription() string {
 
 // GetDescriptionOk returns a tuple with the Description field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *PutGroupDto) GetDescriptionOk() (*string, bool) {
+func (o *InsertGroupDto) GetDescriptionOk() (*string, bool) {
 	if o == nil || IsNil(o.Description) {
 		return nil, false
 	}
@@ -126,7 +126,7 @@ func (o *PutGroupDto) GetDescriptionOk() (*string, bool) {
 }
 
 // HasDescription returns a boolean if a field has been set.
-func (o *PutGroupDto) HasDescription() bool {
+func (o *InsertGroupDto) HasDescription() bool {
 	if o != nil && !IsNil(o.Description) {
 		return true
 	}
@@ -135,12 +135,12 @@ func (o *PutGroupDto) HasDescription() bool {
 }
 
 // SetDescription gets a reference to the given string and assigns it to the Description field.
-func (o *PutGroupDto) SetDescription(v string) {
+func (o *InsertGroupDto) SetDescription(v string) {
 	o.Description = &v
 }
 
 // GetFederatedAttributeValues returns the FederatedAttributeValues field value if set, zero value otherwise.
-func (o *PutGroupDto) GetFederatedAttributeValues() []string {
+func (o *InsertGroupDto) GetFederatedAttributeValues() []string {
 	if o == nil || IsNil(o.FederatedAttributeValues) {
 		var ret []string
 		return ret
@@ -150,7 +150,7 @@ func (o *PutGroupDto) GetFederatedAttributeValues() []string {
 
 // GetFederatedAttributeValuesOk returns a tuple with the FederatedAttributeValues field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *PutGroupDto) GetFederatedAttributeValuesOk() ([]string, bool) {
+func (o *InsertGroupDto) GetFederatedAttributeValuesOk() ([]string, bool) {
 	if o == nil || IsNil(o.FederatedAttributeValues) {
 		return nil, false
 	}
@@ -158,7 +158,7 @@ func (o *PutGroupDto) GetFederatedAttributeValuesOk() ([]string, bool) {
 }
 
 // HasFederatedAttributeValues returns a boolean if a field has been set.
-func (o *PutGroupDto) HasFederatedAttributeValues() bool {
+func (o *InsertGroupDto) HasFederatedAttributeValues() bool {
 	if o != nil && !IsNil(o.FederatedAttributeValues) {
 		return true
 	}
@@ -167,11 +167,11 @@ func (o *PutGroupDto) HasFederatedAttributeValues() bool {
 }
 
 // SetFederatedAttributeValues gets a reference to the given []string and assigns it to the FederatedAttributeValues field.
-func (o *PutGroupDto) SetFederatedAttributeValues(v []string) {
+func (o *InsertGroupDto) SetFederatedAttributeValues(v []string) {
 	o.FederatedAttributeValues = v
 }
 
-func (o PutGroupDto) MarshalJSON() ([]byte, error) {
+func (o InsertGroupDto) MarshalJSON() ([]byte, error) {
 	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
@@ -179,7 +179,7 @@ func (o PutGroupDto) MarshalJSON() ([]byte, error) {
 	return json.Marshal(toSerialize)
 }
 
-func (o PutGroupDto) ToMap() (map[string]interface{}, error) {
+func (o InsertGroupDto) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	if !IsNil(o.Uuid) {
 		toSerialize["uuid"] = o.Uuid
@@ -199,7 +199,7 @@ func (o PutGroupDto) ToMap() (map[string]interface{}, error) {
 	return toSerialize, nil
 }
 
-func (o *PutGroupDto) UnmarshalJSON(data []byte) (err error) {
+func (o *InsertGroupDto) UnmarshalJSON(data []byte) (err error) {
 	// This validates that all required properties are included in the JSON object
 	// by unmarshalling the object into a generic map with string keys and checking
 	// that every required field exists as a key in the generic map.
@@ -221,15 +221,15 @@ func (o *PutGroupDto) UnmarshalJSON(data []byte) (err error) {
 		}
 	}
 
-	varPutGroupDto := _PutGroupDto{}
+	varInsertGroupDto := _InsertGroupDto{}
 
-	err = json.Unmarshal(data, &varPutGroupDto)
+	err = json.Unmarshal(data, &varInsertGroupDto)
 
 	if err != nil {
 		return err
 	}
 
-	*o = PutGroupDto(varPutGroupDto)
+	*o = InsertGroupDto(varInsertGroupDto)
 
 	additionalProperties := make(map[string]interface{})
 
@@ -244,38 +244,38 @@ func (o *PutGroupDto) UnmarshalJSON(data []byte) (err error) {
 	return err
 }
 
-type NullablePutGroupDto struct {
-	value *PutGroupDto
+type NullableInsertGroupDto struct {
+	value *InsertGroupDto
 	isSet bool
 }
 
-func (v NullablePutGroupDto) Get() *PutGroupDto {
+func (v NullableInsertGroupDto) Get() *InsertGroupDto {
 	return v.value
 }
 
-func (v *NullablePutGroupDto) Set(val *PutGroupDto) {
+func (v *NullableInsertGroupDto) Set(val *InsertGroupDto) {
 	v.value = val
 	v.isSet = true
 }
 
-func (v NullablePutGroupDto) IsSet() bool {
+func (v NullableInsertGroupDto) IsSet() bool {
 	return v.isSet
 }
 
-func (v *NullablePutGroupDto) Unset() {
+func (v *NullableInsertGroupDto) Unset() {
 	v.value = nil
 	v.isSet = false
 }
 
-func NewNullablePutGroupDto(val *PutGroupDto) *NullablePutGroupDto {
-	return &NullablePutGroupDto{value: val, isSet: true}
+func NewNullableInsertGroupDto(val *InsertGroupDto) *NullableInsertGroupDto {
+	return &NullableInsertGroupDto{value: val, isSet: true}
 }
 
-func (v NullablePutGroupDto) MarshalJSON() ([]byte, error) {
+func (v NullableInsertGroupDto) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.value)
 }
 
-func (v *NullablePutGroupDto) UnmarshalJSON(src []byte) error {
+func (v *NullableInsertGroupDto) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
