@@ -23,15 +23,15 @@ import (
 type GroupManagementAPIService service
 
 type ApiCreateGroupsRequest struct {
-	ctx         context.Context
-	ApiService  *GroupManagementAPIService
-	accountUuid string
-	putGroupDto *[]PutGroupDto
+	ctx            context.Context
+	ApiService     *GroupManagementAPIService
+	accountUuid    string
+	insertGroupDto *[]InsertGroupDto
 }
 
-// The body of the request. Contains a list of configurations for new groups.    Do not specify a UUID. A UUID is assigned automatically by Dynatrace.
-func (r ApiCreateGroupsRequest) PutGroupDto(putGroupDto []PutGroupDto) ApiCreateGroupsRequest {
-	r.putGroupDto = &putGroupDto
+// The body of the request. Contains a list of configurations for new groups.
+func (r ApiCreateGroupsRequest) InsertGroupDto(insertGroupDto []InsertGroupDto) ApiCreateGroupsRequest {
+	r.insertGroupDto = &insertGroupDto
 	return r
 }
 
@@ -76,8 +76,8 @@ func (a *GroupManagementAPIService) CreateGroupsExecute(r ApiCreateGroupsRequest
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
-	if r.putGroupDto == nil {
-		return localVarReturnValue, nil, reportError("putGroupDto is required and must be specified")
+	if r.insertGroupDto == nil {
+		return localVarReturnValue, nil, reportError("insertGroupDto is required and must be specified")
 	}
 
 	// to determine the Content-Type header
@@ -98,7 +98,7 @@ func (a *GroupManagementAPIService) CreateGroupsExecute(r ApiCreateGroupsRequest
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
 	// body params
-	localVarPostBody = r.putGroupDto
+	localVarPostBody = r.insertGroupDto
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err
