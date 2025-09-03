@@ -414,13 +414,13 @@
                 ],
                 "requestBody": {
                     "required": true,
-                    "description": "The body of the request. Contains a list of configurations for new groups. \n\n Do not specify a UUID. A UUID is assigned automatically by Dynatrace. ",
+                    "description": "The body of the request. Contains a list of configurations for new groups.",
                     "content": {
                         "application/json": {
                             "schema": {
                                 "type": "array",
                                 "items": {
-                                    "$ref": "#/components/schemas/PutGroupDto"
+                                    "$ref": "#/components/schemas/InsertGroupDto"
                                 }
                             }
                         }
@@ -1037,7 +1037,7 @@
                         }
                     },
                     {
-                        "name": "services;",
+                        "name": "services",
                         "required": false,
                         "in": "query",
                         "description": "Optional services list. Policies for given services will be returned",
@@ -2661,7 +2661,14 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successful response - policy boundary"
+                        "description": "Successful response - policy boundary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PolicyBoundaryOverview"
+                                }
+                            }
+                        }
                     },
                     "404": {
                         "description": "Failed. The specified resource is not found.",
@@ -5355,6 +5362,34 @@
                     "items"
                 ]
             },
+            "InsertGroupDto": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "description": "The UUID of the user group.",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "The name of the user group."
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "A short description of the user group. Max length is 255 characters."
+                    },
+                    "federatedAttributeValues": {
+                        "description": "A list of values associating this group with the corresponding claim from an identity provider. \n\n If present and the group has owner = `LOCAL`, then group owner is set to `SAML`. \n\n If missing and the group has owner = `SAML`, then group owner is set to `LOCAL`. \n\n Cannot set this value for groups having owner set to `SCIM` or `ALL_USERS`.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "name"
+                ]
+            },
             "PutGroupDto": {
                 "type": "object",
                 "properties": {
@@ -5368,7 +5403,7 @@
                     },
                     "description": {
                         "type": "string",
-                        "description": "A short description of the user group."
+                        "description": "A short description of the user group. Max length is 255 characters."
                     },
                     "federatedAttributeValues": {
                         "description": "A list of values associating this group with the corresponding claim from an identity provider. \n\n If present and the group has owner = `LOCAL`, then group owner is set to `SAML`. \n\n If missing and the group has owner = `SAML`, then group owner is set to `LOCAL`. \n\n Cannot set this value for groups having owner set to `SCIM` or `ALL_USERS`.",
@@ -5512,10 +5547,6 @@
                     "statementQuery": {
                         "type": "string",
                         "description": "The [statement](https://dt-url.net/ht03ucb) of the policy."
-                    },
-                    "category": {
-                        "type": "string",
-                        "description": "The category of the policy."
                     }
                 },
                 "required": [

@@ -27,9 +27,7 @@ type CreateOrUpdateLevelPolicyRequestDto struct {
 	// A list of tags.
 	Tags []string `json:"tags,omitempty"`
 	// The [statement](https://dt-url.net/ht03ucb) of the policy.
-	StatementQuery string `json:"statementQuery"`
-	// The category of the policy.
-	Category             *string `json:"category,omitempty"`
+	StatementQuery       string `json:"statementQuery"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -159,38 +157,6 @@ func (o *CreateOrUpdateLevelPolicyRequestDto) SetStatementQuery(v string) {
 	o.StatementQuery = v
 }
 
-// GetCategory returns the Category field value if set, zero value otherwise.
-func (o *CreateOrUpdateLevelPolicyRequestDto) GetCategory() string {
-	if o == nil || IsNil(o.Category) {
-		var ret string
-		return ret
-	}
-	return *o.Category
-}
-
-// GetCategoryOk returns a tuple with the Category field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *CreateOrUpdateLevelPolicyRequestDto) GetCategoryOk() (*string, bool) {
-	if o == nil || IsNil(o.Category) {
-		return nil, false
-	}
-	return o.Category, true
-}
-
-// HasCategory returns a boolean if a field has been set.
-func (o *CreateOrUpdateLevelPolicyRequestDto) HasCategory() bool {
-	if o != nil && !IsNil(o.Category) {
-		return true
-	}
-
-	return false
-}
-
-// SetCategory gets a reference to the given string and assigns it to the Category field.
-func (o *CreateOrUpdateLevelPolicyRequestDto) SetCategory(v string) {
-	o.Category = &v
-}
-
 func (o CreateOrUpdateLevelPolicyRequestDto) MarshalJSON() ([]byte, error) {
 	toSerialize, err := o.ToMap()
 	if err != nil {
@@ -207,9 +173,6 @@ func (o CreateOrUpdateLevelPolicyRequestDto) ToMap() (map[string]interface{}, er
 		toSerialize["tags"] = o.Tags
 	}
 	toSerialize["statementQuery"] = o.StatementQuery
-	if !IsNil(o.Category) {
-		toSerialize["category"] = o.Category
-	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -259,7 +222,6 @@ func (o *CreateOrUpdateLevelPolicyRequestDto) UnmarshalJSON(data []byte) (err er
 		delete(additionalProperties, "description")
 		delete(additionalProperties, "tags")
 		delete(additionalProperties, "statementQuery")
-		delete(additionalProperties, "category")
 		o.AdditionalProperties = additionalProperties
 	}
 

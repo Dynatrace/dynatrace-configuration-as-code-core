@@ -43,6 +43,7 @@ model_get_group_dto.go
 model_group_list_dto.go
 model_group_user_dto.go
 model_group_user_list_dto.go
+model_insert_group_dto.go
 model_ip_config_dto.go
 model_level_limits_dto.go
 model_level_policy_binding_dto.go
