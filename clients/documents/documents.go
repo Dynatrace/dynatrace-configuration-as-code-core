@@ -138,7 +138,7 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 
 	for result.NextPageKey != nil {
 
-		queryParams := url.Values{"filter": {filter}}
+		queryParams := url.Values{"filter": {filter}, "add-field": {"originExtensionId"}}
 		if *result.NextPageKey != "" {
 			queryParams["page-key"] = []string{*result.NextPageKey}
 		}

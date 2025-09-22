@@ -57,7 +57,8 @@ Content-Type: application/json
     "type": "dashboard",
     "version": 1,
     "owner": "12341234-1234-1234-1234-12341234",
-	"originAppId": "mytest.app"
+	"originAppId": "mytest.app",
+	"originExtensionId": "mytest.extension"
 }`
 	const payloadContent = `Content-Disposition: form-data; name="content"; filename="my-test-db"
 Content-Type: application/json
@@ -110,6 +111,8 @@ This is the document content`
 		assert.Equal(t, "12341234-1234-1234-1234-12341234", resp.Owner)
 		assert.NotNil(t, resp.OriginAppID)
 		assert.Equal(t, "mytest.app", *resp.OriginAppID)
+		assert.NotNil(t, resp.OriginExtensionID)
+		assert.Equal(t, "mytest.extension", *resp.OriginExtensionID)
 		assert.Equal(t, "This is the document content", string(resp.Data))
 		assert.NotZero(t, resp.Request)
 		assert.Nil(t, err)
@@ -801,7 +804,9 @@ func TestDocumentClient_List(t *testing.T) {
 			"externalId": "extId1",
             "type": "dashboard",
             "version": 1,
-            "owner": "owner1"
+            "owner": "owner1",
+			"originAppId": "app1",
+      		"originExtensionId": null
         }
     ],
     "nextPageKey": "next",
@@ -828,7 +833,9 @@ func TestDocumentClient_List(t *testing.T) {
 			"externalId": "extId2",
             "type": "dashboard",
             "version": 1,
-            "owner": "owner2"
+            "owner": "owner2",
+			"originAppId": null,
+      		"originExtensionId": "extension1"
         }
     ],
     "nextPageKey": null,
@@ -845,7 +852,7 @@ func TestDocumentClient_List(t *testing.T) {
 					}
 				},
 				ValidateRequest: func(t *testing.T, request *http.Request) {
-					assert.Equal(t, "filter=type+%3D%3D+%27dashboard%27", request.URL.RawQuery)
+					assert.Equal(t, "add-field=originExtensionId&filter=type+%3D%3D+%27dashboard%27", request.URL.RawQuery)
 				},
 			},
 			{
@@ -856,7 +863,7 @@ func TestDocumentClient_List(t *testing.T) {
 					}
 				},
 				ValidateRequest: func(t *testing.T, request *http.Request) {
-					assert.Equal(t, "filter=type+%3D%3D+%27dashboard%27&page-key=next", request.URL.RawQuery)
+					assert.Equal(t, "add-field=originExtensionId&filter=type+%3D%3D+%27dashboard%27&page-key=next", request.URL.RawQuery)
 				},
 			},
 		}
@@ -878,6 +885,9 @@ func TestDocumentClient_List(t *testing.T) {
 		assert.Equal(t, "dashboard", resp.Responses[0].Type)
 		assert.Equal(t, 1, resp.Responses[0].Version)
 		assert.Equal(t, "owner1", resp.Responses[0].Owner)
+		assert.NotNil(t, resp.Responses[0].OriginAppID)
+		assert.Equal(t, "app1", *resp.Responses[0].OriginAppID)
+		assert.Nil(t, resp.Responses[0].OriginExtensionID)
 		assert.Equal(t, http.StatusOK, resp.Responses[0].StatusCode)
 
 		assert.Equal(t, "id2", resp.Responses[1].ID)
@@ -887,6 +897,9 @@ func TestDocumentClient_List(t *testing.T) {
 		assert.Equal(t, "dashboard", resp.Responses[1].Type)
 		assert.Equal(t, 1, resp.Responses[1].Version)
 		assert.Equal(t, "owner2", resp.Responses[1].Owner)
+		assert.Nil(t, resp.Responses[1].OriginAppID)
+		assert.NotNil(t, resp.Responses[1].OriginExtensionID)
+		assert.EqualValues(t, "extension1", *resp.Responses[1].OriginExtensionID)
 		assert.Equal(t, http.StatusOK, resp.Responses[1].StatusCode)
 
 	})
