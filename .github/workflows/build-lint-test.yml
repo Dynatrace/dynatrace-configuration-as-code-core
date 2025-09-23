@@ -43,9 +43,6 @@ jobs:
       - name: 🏗️ Compile
         run: make compile
 
-      - name: 🛠️ Generate mocks
-        run: make generate-mocks
-
       - name: Install gotestsum
         run: go install gotest.tools/gotestsum@3f7ff0ec4aeb6f95f5d67c998b71f272aa8a8b41 #v1.12.1
 
