@@ -31,11 +31,6 @@ jobs:
     - name: Install gotestsum
       run: go install gotest.tools/gotestsum@3f7ff0ec4aeb6f95f5d67c998b71f272aa8a8b41 #v1.12.1
 
-    - name: Generate mocks
-      run: |
-        go install go.uber.org/mock/mockgen@v0.4
-        go generate ./...
-
     - name: 🌎 Integration test
       run: gotestsum --format testdox --format-icons hivis -- -v -race -tags=e2e -timeout=30m  ./...
       env:

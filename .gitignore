@@ -5,9 +5,6 @@
 .run/
 !.idea/copyright
 
-# Mock files
-**/*_mock.go
-
 # Generated files
 sbom.xml
 
