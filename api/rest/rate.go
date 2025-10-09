@@ -17,7 +17,7 @@ package rest
 import (
 	"context"
 	"fmt"
-	"github.com/go-logr/logr"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"sync"
@@ -67,15 +67,14 @@ func (rl *RateLimiter) Update(ctx context.Context, status int, headers http.Head
 	rl.Lock.Lock()
 	defer rl.Lock.Unlock()
 
-	logger := logr.FromContextOrDiscard(ctx)
-
 	limit, err := extractLimit(headers)
 	if err == nil && limit > 0 {
 		if rl.limiter == nil {
-			logger.V(1).Info(fmt.Sprintf("Rate limit set based on HTTP response. Client limited to %v requests per second", limit), "limit", limit)
+
+			slog.DebugContext(ctx, "Rate limit set based on HTTP response", slog.Float64("requestsPerSecondLimit", float64(limit)))
 			rl.limiter = rate.NewLimiter(limit, 1)
 		} else if limit != rl.limiter.Limit() {
-			logger.V(1).Info(fmt.Sprintf("Rate limit updated based on HTTP response. Client limited to %v requests per second", limit), "limit", limit)
+			slog.DebugContext(ctx, "Rate limit updated based on HTTP response", slog.Float64("requestsPerSecondLimit", float64(limit)))
 			rl.limiter.SetLimit(limit)
 		}
 	}
@@ -89,7 +88,8 @@ func (rl *RateLimiter) Update(ctx context.Context, status int, headers http.Head
 
 	reset, err := extractTimeout(headers)
 	if err != nil {
-		logger.V(1).Info(fmt.Sprintf("Received 429 TooManyRequests HTTP response but using default timeout of %s because could not extract one: %s", defaultTimeout, err.Error()), "timeout", defaultTimeout, "headers", headers)
+		slog.DebugContext(ctx, "Failed to extract timeout from 429 TooManyRequests response, using default timeout", slog.Int64("timeoutMillis", defaultTimeout.Milliseconds()), slog.String("error", err.Error()), slog.Any("headers", headers))
+
 		rt := defaultTimeout
 		rl.resetTimeout = &rt
 		ra := rl.Clock.Now().Add(defaultTimeout)
@@ -101,8 +101,7 @@ func (rl *RateLimiter) Update(ctx context.Context, status int, headers http.Head
 	rt := reset.Sub(rl.Clock.Now())
 	rl.resetTimeout = &rt
 
-	logger.V(1).Info(fmt.Sprintf("Received 429 TooManyRequests HTTP. Timeout: %s", rl.resetTimeout), "timeout", rl.resetTimeout)
-
+	slog.DebugContext(ctx, "Extracted timeout from 429 TooManyRequests response", slog.Int64("timeoutMillis", rl.resetTimeout.Milliseconds()))
 }
 
 // extractLimit tries to parse the limitHeader into a rate.Limit for use with the soft-limit rate.Limiter.
@@ -135,8 +134,6 @@ func (rl *RateLimiter) Wait(ctx context.Context) {
 	rl.Lock.RLock()
 	defer rl.Lock.RUnlock()
 
-	logger := logr.FromContextOrDiscard(ctx)
-
 	if rl.resetAt != nil && rl.resetTimeout != nil && rl.resetAt.After(rl.Clock.Now()) {
 		// hard limit triggered via 429 API response, wait until its timeout is reached
 		<-rl.Clock.After(*rl.resetTimeout)
@@ -145,7 +142,7 @@ func (rl *RateLimiter) Wait(ctx context.Context) {
 	if rl.limiter != nil {
 		err := rl.limiter.Wait(ctx)
 		if err != nil {
-			logger.Error(err, "Client-side rate limiting failed")
+			slog.ErrorContext(ctx, "Client-side rate limiting failed", slog.String("error", err.Error()))
 		}
 	}
 }

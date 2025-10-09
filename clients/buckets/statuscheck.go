@@ -18,9 +18,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
-
-	"github.com/go-logr/logr"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 )
@@ -42,7 +41,6 @@ const stateActive = "active"
 //   - bucketExists: if the bucket exists after the check.
 //   - err: any possible occurring error.
 func AwaitActiveOrNotFound(ctx context.Context, client StatusClient, bucketName string, maxDuration time.Duration, durationBetweenTries time.Duration) (bucketExists bool, err error) {
-	logger := logr.FromContextOrDiscard(ctx)
 	ctx, cancel := context.WithTimeout(ctx, maxDuration)
 	defer cancel()
 
@@ -63,7 +61,7 @@ func AwaitActiveOrNotFound(ctx context.Context, client StatusClient, bucketName 
 				if !errors.Is(err, &apiErr) {
 					return false, err
 				}
-				sleep(logger, bucketName, durationBetweenTries)
+				sleep(ctx, bucketName, durationBetweenTries)
 				continue
 			}
 			// try to unmarshal into internal struct
@@ -75,12 +73,12 @@ func AwaitActiveOrNotFound(ctx context.Context, client StatusClient, bucketName 
 			if res.Status == stateActive {
 				return true, nil
 			}
-			sleep(logger, bucketName, durationBetweenTries)
+			sleep(ctx, bucketName, durationBetweenTries)
 		}
 	}
 }
 
-func sleep(logger logr.Logger, bucketName string, durationBetweenTries time.Duration) {
-	logger.V(1).Info(fmt.Sprintf("Waiting for bucket '%s' to become stable...", bucketName))
+func sleep(ctx context.Context, bucketName string, durationBetweenTries time.Duration) {
+	slog.DebugContext(ctx, "Waiting for bucket to become stable", slog.String("bucketName", bucketName))
 	time.Sleep(durationBetweenTries)
 }

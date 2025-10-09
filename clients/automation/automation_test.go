@@ -43,8 +43,8 @@ func TestAutomationClient_Get(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, automation.Workflows, "")
+
+		resp, err := client.Get(t.Context(), automation.Workflows, "")
 		assert.Zero(t, resp)
 		assert.NotNil(t, err)
 	})
@@ -67,8 +67,7 @@ func TestAutomationClient_Get(t *testing.T) {
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
+		resp, err := client.Get(t.Context(), automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
 		assert.NotNil(t, resp)
 		assert.Equal(t, payload, string(resp.Data))
 		assert.NoError(t, err)
@@ -81,8 +80,8 @@ func TestAutomationClient_Get(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
+
+		resp, err := client.Get(t.Context(), automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -102,8 +101,8 @@ func TestAutomationClient_Get(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
+
+		resp, err := client.Get(t.Context(), automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -132,8 +131,7 @@ func TestAutomationClient_Create(t *testing.T) {
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Create(ctx, automation.Workflows, []byte(payload))
+		resp, err := client.Create(t.Context(), automation.Workflows, []byte(payload))
 		assert.NotNil(t, resp)
 		assert.Equal(t, payload, string(resp.Data))
 		assert.NoError(t, err)
@@ -156,8 +154,7 @@ func TestAutomationClient_Create(t *testing.T) {
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Create(ctx, automation.Workflows, []byte(payload))
+		resp, err := client.Create(t.Context(), automation.Workflows, []byte(payload))
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -183,8 +180,7 @@ func TestAutomationClient_Create(t *testing.T) {
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Create(ctx, automation.Workflows, []byte(payload))
+		resp, err := client.Create(t.Context(), automation.Workflows, []byte(payload))
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -199,8 +195,8 @@ func TestAutomationClient_Update(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, automation.Workflows, "", []byte(payload))
+
+		resp, err := client.Update(t.Context(), automation.Workflows, "", []byte(payload))
 		assert.Zero(t, resp)
 		assert.NotNil(t, err)
 	})
@@ -240,8 +236,7 @@ func TestAutomationClient_Update(t *testing.T) {
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45", []byte(payload))
+		resp, err := client.Update(t.Context(), automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45", []byte(payload))
 		assert.NotNil(t, resp)
 		assert.Equal(t, payload, string(resp.Data))
 		assert.NoError(t, err)
@@ -265,8 +260,7 @@ func TestAutomationClient_Update(t *testing.T) {
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45", []byte(payload))
+		resp, err := client.Update(t.Context(), automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45", []byte(payload))
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -292,8 +286,7 @@ func TestAutomationClient_Update(t *testing.T) {
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45", []byte(payload))
+		resp, err := client.Update(t.Context(), automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45", []byte(payload))
 
 		assert.Zero(t, resp)
 		assert.Error(t, err)
@@ -317,8 +310,8 @@ func TestAutomationClient_Delete(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Delete(ctx, automation.Workflows, "")
+
+		resp, err := client.Delete(t.Context(), automation.Workflows, "")
 		assert.Zero(t, resp)
 		assert.NotNil(t, err)
 	})
@@ -329,8 +322,8 @@ func TestAutomationClient_Delete(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Delete(ctx, automation.Workflows, "")
+
+		resp, err := client.Delete(t.Context(), automation.Workflows, "")
 		assert.Zero(t, resp)
 		assert.NotNil(t, err)
 	})
@@ -370,8 +363,8 @@ func TestAutomationClient_Delete(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
-		_, _ = client.Delete(testutils.ContextWithLogger(t), automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
-		_, _ = client.Delete(testutils.ContextWithLogger(t), automation.BusinessCalendars, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
+		_, _ = client.Delete(t.Context(), automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
+		_, _ = client.Delete(t.Context(), automation.BusinessCalendars, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
 	})
 
 	t.Run("Delete - adminAccess forbidden", func(t *testing.T) {
@@ -408,8 +401,8 @@ func TestAutomationClient_Delete(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Delete(ctx, automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
+
+		resp, err := client.Delete(t.Context(), automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.Equal(t, 2, server.Calls())
 		assert.Nil(t, err)
@@ -440,8 +433,8 @@ func TestAutomationClient_Delete(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Delete(ctx, automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
+
+		resp, err := client.Delete(t.Context(), automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
 		assert.Equal(t, 2, server.Calls())
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -466,8 +459,8 @@ func TestAutomationClient_Delete(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Delete(ctx, automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
+
+		resp, err := client.Delete(t.Context(), automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
 		assert.Equal(t, 1, server.Calls())
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -521,8 +514,8 @@ func TestAutomationClient_List(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.List(ctx, automation.Workflows)
+
+		resp, err := client.List(t.Context(), automation.Workflows)
 		assert.Len(t, resp, 2)
 		assert.Len(t, resp[0].Objects, 2)
 		assert.Len(t, resp[1].Objects, 1)
@@ -573,8 +566,8 @@ func TestAutomationClient_List(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.List(ctx, automation.Workflows)
+
+		resp, err := client.List(t.Context(), automation.Workflows)
 		assert.Len(t, resp, 2)
 		assert.Len(t, resp[0].Objects, 1)
 		assert.Len(t, resp[1].Objects, 1)
@@ -612,8 +605,8 @@ func TestAutomationClient_List(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.List(ctx, automation.Workflows)
+
+		resp, err := client.List(t.Context(), automation.Workflows)
 		assert.Len(t, resp, 0)
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
@@ -636,8 +629,8 @@ func TestAutomationClient_List(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.List(ctx, automation.Workflows)
+
+		resp, err := client.List(t.Context(), automation.Workflows)
 		var apiError api.APIError
 		assert.Len(t, resp, 0)
 		assert.ErrorAs(t, err, &apiError)
@@ -650,8 +643,8 @@ func TestAutomationClient_List(t *testing.T) {
 		defer server.Close()
 
 		client := automation.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.List(ctx, automation.Workflows)
+
+		resp, err := client.List(t.Context(), automation.Workflows)
 		assert.Equal(t, api.PagedListResponse{}, resp)
 		assert.NotNil(t, err)
 	})
@@ -704,8 +697,7 @@ func TestAutomationClient_List_PaginationLogic(t *testing.T) {
 
 	client := automation.NewClient(rest.NewClient(u, server.Client()))
 
-	ctx := testutils.ContextWithLogger(t)
-	resp, err := client.List(ctx, automation.Workflows)
+	resp, err := client.List(t.Context(), automation.Workflows)
 	assert.Nil(t, err)
 
 	assert.Len(t, resp, 7) // expect 7 pages - 6x full size 15, 1x size 10

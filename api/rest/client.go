@@ -20,12 +20,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"sync"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 )
 
@@ -203,7 +203,6 @@ func (c *Client) setHeadersOnRequest(req *http.Request, options RequestOptions) 
 }
 
 func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
-	logger := logr.FromContextOrDiscard(ctx)
 	if c.rateLimiter != nil {
 		c.rateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
 	}
@@ -256,7 +255,7 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 	retryOptions := mergeRetryOptions(c.retryOptions, options.CustomShouldRetryFunc, options.DelayAfterRetry, options.MaxRetries)
 
 	if ShouldRetry(response.StatusCode) && retryOptions.ShouldRetryFunc != nil && retryCount < retryOptions.MaxRetries && retryOptions.ShouldRetryFunc(response) {
-		logger.V(1).Info(fmt.Sprintf("Retrying failed request %q (HTTP %s) after %d ms delay... (try %d/%d)", req.URL, response.Status, retryOptions.DelayAfterRetry.Milliseconds(), retryCount+1, retryOptions.MaxRetries), "statusCode", response.StatusCode, "try", retryCount+1, "maxRetries", retryOptions.MaxRetries)
+		slog.DebugContext(ctx, "Retrying failed request", slog.String("url", req.URL.String()), slog.Int("status", response.StatusCode), slog.Int64("delayMillis", retryOptions.DelayAfterRetry.Milliseconds()), slog.Int("retryCount", retryCount), slog.Int("maxRetryCount", retryOptions.MaxRetries))
 		time.Sleep(retryOptions.DelayAfterRetry)
 		return c.sendWithRetries(ctx, req, retryCount+1, options)
 	}
