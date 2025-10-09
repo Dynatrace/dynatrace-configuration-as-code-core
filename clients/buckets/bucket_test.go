@@ -233,6 +233,29 @@ func TestList(t *testing.T) {
 		assert.Error(t, err)
 		assert.Empty(t, resp)
 	})
+
+	t.Run("returns error if response is invalid JSON", func(t *testing.T) {
+		const payload = `{ buckets: [] }`
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, request *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payload,
+					}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.List(t.Context())
+		assert.Error(t, err)
+		assert.Empty(t, resp)
+	})
+
 }
 
 func TestDelete(t *testing.T) {
