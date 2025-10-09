@@ -19,10 +19,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strconv"
 
-	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
@@ -146,7 +146,7 @@ func (c Client) List(ctx context.Context) (ListResponse, error) {
 	r := listResponse{}
 	err = json.Unmarshal(apiResp.Data, &r)
 	if err != nil {
-		logr.FromContextOrDiscard(ctx).Error(err, "Failed to unmarshal JSON response")
+		slog.ErrorContext(ctx, "Failed to unmarshal JSON response", slog.String("error", err.Error()))
 		return ListResponse{}, fmt.Errorf(errMsg, listOperation, fmt.Errorf(errUnmarshalMsg, err))
 	}
 
@@ -250,7 +250,6 @@ func (c Client) Delete(ctx context.Context, bucketName string) (api.Response, er
 //   - Response: A Response containing the result of the HTTP operation, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
 func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
-	logger := logr.FromContextOrDiscard(ctx)
 	// try to get existing bucket definition
 	apiResp, err := c.Get(ctx, bucketName)
 	if err != nil {
@@ -264,7 +263,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api
 	}
 
 	if bucketsEqual(apiResp.Data, data) {
-		logger.Info(fmt.Sprintf("Configuration unmodified, no need to update bucket '%s''", bucketName))
+		slog.DebugContext(ctx, "Configuration unmodified, no need to update bucket", slog.String("bucketName", bucketName))
 
 		return api.Response{
 			StatusCode: 200,

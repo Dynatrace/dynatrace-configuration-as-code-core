@@ -42,8 +42,8 @@ func TestOpenPipelineClient_Get(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, "")
+
+		resp, err := client.Get(t.Context(), "")
 		assert.Zero(t, resp)
 		assert.NotNil(t, err)
 	})
@@ -65,8 +65,8 @@ func TestOpenPipelineClient_Get(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, "bizevents")
+
+		resp, err := client.Get(t.Context(), "bizevents")
 		assert.Nil(t, err)
 		assert.Equal(t, payload, string(resp.Data))
 	})
@@ -78,8 +78,8 @@ func TestOpenPipelineClient_Get(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, "bizevents")
+
+		resp, err := client.Get(t.Context(), "bizevents")
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -99,8 +99,8 @@ func TestOpenPipelineClient_Get(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, "bizevents")
+
+		resp, err := client.Get(t.Context(), "bizevents")
 		assert.Zero(t, resp)
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
@@ -150,8 +150,8 @@ func TestOpenPipelineClient_List(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.List(ctx)
+
+		resp, err := client.List(t.Context())
 		assert.Nil(t, err)
 		assert.Len(t, resp, 3)
 		assert.Contains(t, resp, openpipeline.ListResponse{Id: "logs", Editable: true})
@@ -166,8 +166,8 @@ func TestOpenPipelineClient_List(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.List(ctx)
+
+		resp, err := client.List(t.Context())
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -187,8 +187,8 @@ func TestOpenPipelineClient_List(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.List(ctx)
+
+		resp, err := client.List(t.Context())
 		assert.Zero(t, resp)
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
@@ -210,8 +210,8 @@ func TestOpenPipelineClient_List(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		_, err := client.List(ctx)
+
+		_, err := client.List(t.Context())
 		wantErr := &json.SyntaxError{}
 		assert.ErrorAs(t, err, &wantErr)
 	})
@@ -299,8 +299,8 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.GetAll(ctx)
+
+		resp, err := client.GetAll(t.Context())
 		assert.Nil(t, err)
 		assert.Len(t, resp, 3)
 		assert.Equal(t, payloadGet1, string(resp[0].Data))
@@ -315,8 +315,8 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.GetAll(ctx)
+
+		resp, err := client.GetAll(t.Context())
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -336,8 +336,8 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.GetAll(ctx)
+
+		resp, err := client.GetAll(t.Context())
 		assert.Zero(t, resp)
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
@@ -368,8 +368,8 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.GetAll(ctx)
+
+		resp, err := client.GetAll(t.Context())
 		assert.Zero(t, resp)
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
@@ -399,8 +399,8 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "", []byte(putPayload))
+
+		resp, err := client.Update(t.Context(), "", []byte(putPayload))
 		assert.Zero(t, resp)
 		assert.NotNil(t, err)
 	})
@@ -438,8 +438,8 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "bizevents", []byte(putPayload))
+
+		resp, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
 		assert.Nil(t, err)
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 	})
@@ -451,8 +451,8 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "", []byte(putPayload))
+
+		resp, err := client.Update(t.Context(), "", []byte(putPayload))
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -480,8 +480,8 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "bizevents", []byte(putPayload))
+
+		resp, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
 		assert.Zero(t, resp)
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
@@ -512,8 +512,8 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "bizevents", []byte(putPayload))
+
+		resp, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
 		assert.Zero(t, resp)
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
@@ -560,8 +560,8 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "bizevents", []byte(putPayload))
+
+		resp, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
 		assert.Nil(t, err)
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 	})
@@ -595,8 +595,8 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		_, err := client.Update(ctx, "bizevents", []byte(putPayload))
+
+		_, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
 		assert.Equal(t, http.StatusConflict, apiError.StatusCode)
@@ -618,8 +618,8 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		_, err := client.Update(ctx, "bizevents", []byte(putPayload))
+
+		_, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
 		wantErr := &json.SyntaxError{}
 		assert.ErrorAs(t, err, &wantErr)
 	})
@@ -641,8 +641,8 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		_, err := client.Update(ctx, "bizevents", []byte(""))
+
+		_, err := client.Update(t.Context(), "bizevents", []byte(""))
 		wantErr := &json.SyntaxError{}
 		assert.ErrorAs(t, err, &wantErr)
 	})

@@ -91,9 +91,7 @@ func TestGet(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.Get(ctx, "bucket name")
+		resp, err := client.Get(t.Context(), "bucket name")
 		assert.NoError(t, err)
 		assert.Equal(t, resp.Data, []byte(activeBucketResponse))
 	})
@@ -115,9 +113,7 @@ func TestGet(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.Get(ctx, "bucket name")
+		resp, err := client.Get(t.Context(), "bucket name")
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -169,9 +165,8 @@ func TestList(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
+		resp, err := client.List(t.Context())
 
-		resp, err := client.List(ctx)
 		assert.NoError(t, err)
 		assert.Equal(t, resp[0].Data, []byte(payload))
 		assert.ElementsMatch(t, resp.All(), [][]byte{[]byte(bucket1), []byte(bucket2)})
@@ -194,9 +189,7 @@ func TestList(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.List(ctx)
+		resp, err := client.List(t.Context())
 
 		assert.NoError(t, err, "expected err to be nil")
 		assert.Equal(t, resp[0].Data, []byte(payload))
@@ -219,10 +212,7 @@ func TestList(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.List(ctx)
-
+		resp, err := client.List(t.Context())
 		assert.Len(t, resp, 0)
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
@@ -239,9 +229,7 @@ func TestList(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), faultyClient))
 
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.List(ctx)
+		resp, err := client.List(t.Context())
 		assert.Error(t, err)
 		assert.Empty(t, resp)
 	})
@@ -290,9 +278,7 @@ func TestDelete(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.Delete(ctx, "bucket name")
+		resp, err := client.Delete(t.Context(), "bucket name")
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 		assert.Equal(t, deletingBucketResponse, string(resp.Data))
@@ -315,9 +301,7 @@ func TestDelete(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.Delete(ctx, "bucket name")
+		resp, err := client.Delete(t.Context(), "bucket name")
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -341,9 +325,7 @@ func TestDelete(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.Delete(ctx, "bucket name")
+		resp, err := client.Delete(t.Context(), "bucket name")
 		assert.Error(t, err)
 		assert.Zero(t, resp)
 	})
@@ -377,9 +359,7 @@ func TestCreate(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.Create(ctx, "bucket name", []byte(someBucketData))
+		resp, err := client.Create(t.Context(), "bucket name", []byte(someBucketData))
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusCreated, resp.StatusCode)
 		assert.Equal(t, creatingBucketResponse, string(resp.Data))
@@ -396,9 +376,7 @@ func TestCreate(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.Create(ctx, "bucket name", []byte(someBucketData))
+		resp, err := client.Create(t.Context(), "bucket name", []byte(someBucketData))
 		assert.Error(t, err)
 		assert.Zero(t, resp)
 	})
@@ -413,9 +391,7 @@ func TestCreate(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.Create(ctx, "bucket name", []byte("-)§/$/(="))
+		resp, err := client.Create(t.Context(), "bucket name", []byte("-)§/$/(="))
 		assert.Error(t, err)
 		assert.Zero(t, resp)
 	})
@@ -450,8 +426,7 @@ func TestUpdate(t *testing.T) {
 		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
 		data := []byte("{}")
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "bucket name", data)
+		resp, err := client.Update(t.Context(), "bucket name", data)
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -506,8 +481,7 @@ func TestUpdate(t *testing.T) {
 		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
 		data := []byte("{}")
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "bucket name", data)
+		resp, err := client.Update(t.Context(), "bucket name", data)
 		assert.NoError(t, err)
 
 		m := map[string]any{}
@@ -545,9 +519,7 @@ func TestUpdate(t *testing.T) {
 	 "metricInterval": "PT1M"
 	}`)
 
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.Update(ctx, "bucket name", data)
+		resp, err := client.Update(t.Context(), "bucket name", data)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
@@ -585,8 +557,7 @@ func TestUpdate(t *testing.T) {
 			rest.NewClient(server.URL(), server.Client()))
 		data := []byte("{}")
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "bucket name", data)
+		resp, err := client.Update(t.Context(), "bucket name", data)
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -612,9 +583,7 @@ func TestUpdate(t *testing.T) {
 		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
 		data := []byte("{}")
 
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.Update(ctx, "bucket name", data)
+		resp, err := client.Update(t.Context(), "bucket name", data)
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -667,9 +636,7 @@ func TestDecodingBucketResponses(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.List(ctx)
+		resp, err := client.List(t.Context())
 		assert.NoError(t, err)
 		b, err := api.DecodeJSON[bucket](resp[0].Response)
 		assert.NoError(t, err)
@@ -703,9 +670,7 @@ func TestDecodingBucketResponses(t *testing.T) {
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-
-		resp, err := client.List(ctx)
+		resp, err := client.List(t.Context())
 		assert.NoError(t, err)
 
 		list, err := api.DecodeJSONObjects[bucket](resp[0])

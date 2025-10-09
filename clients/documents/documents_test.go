@@ -75,8 +75,8 @@ This is the document content`
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, "")
+
+		resp, err := client.Get(t.Context(), "")
 		assert.Zero(t, resp)
 		assert.NotNil(t, err)
 	})
@@ -99,8 +99,8 @@ This is the document content`
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+
+		resp, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
 		assert.NotZero(t, resp)
 		assert.Equal(t, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420", resp.ID)
 		assert.Equal(t, "my-test-db", resp.Name)
@@ -136,8 +136,8 @@ This is the document content`
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		_, err := client.Get(ctx, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+
+		_, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
 		assert.ErrorIs(t, err, http.ErrNotMultipart)
 	})
 
@@ -158,8 +158,8 @@ This is the document content`
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		_, err := client.Get(ctx, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+
+		_, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
 		assert.ErrorContains(t, err, "unable to read multipart")
 	})
 
@@ -180,8 +180,8 @@ This is the document content`
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		_, err := client.Get(ctx, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+
+		_, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
 		assert.ErrorIs(t, err, documents.ErrNoMetadata)
 	})
 
@@ -202,8 +202,8 @@ This is the document content`
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		_, err := client.Get(ctx, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+
+		_, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
 		assert.ErrorIs(t, err, documents.ErrNoContent)
 	})
 
@@ -214,8 +214,8 @@ This is the document content`
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+
+		resp, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -235,8 +235,8 @@ This is the document content`
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Get(ctx, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+
+		resp, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
 		assert.Zero(t, resp)
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
@@ -268,7 +268,6 @@ func TestDocumentClient_Create(t *testing.T) {
 	)
 
 	t.Run("simple case", func(t *testing.T) {
-		ctx := testutils.ContextWithLogger(t)
 
 		responses := []testutils.ResponseDef{
 			{
@@ -294,14 +293,13 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(ctx, "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
 
 		require.NoError(t, err)
 		assert.JSONEq(t, expected, string(res.Data))
 	})
 
 	t.Run("create call returns invalid response body", func(t *testing.T) {
-		ctx := testutils.ContextWithLogger(t)
 
 		responses := []testutils.ResponseDef{
 			{
@@ -318,14 +316,13 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		_, err := client.Create(ctx, "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		_, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
 
 		jsonErr := &json.SyntaxError{}
 		assert.ErrorAs(t, err, &jsonErr)
 	})
 
 	t.Run("create call returns non successful response", func(t *testing.T) {
-		ctx := testutils.ContextWithLogger(t)
 
 		responses := []testutils.ResponseDef{
 			{
@@ -342,14 +339,13 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(ctx, "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
 
 		require.Empty(t, res)
 		require.Error(t, err)
 	})
 
 	t.Run("patch call returns non successful response; rollback success", func(t *testing.T) {
-		ctx := testutils.ContextWithLogger(t)
 
 		responses := []testutils.ResponseDef{
 			{
@@ -390,7 +386,7 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(ctx, "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
 
 		assert.Empty(t, res)
 		assert.Error(t, err)
@@ -401,7 +397,6 @@ func TestDocumentClient_Create(t *testing.T) {
 	})
 
 	t.Run("patch call returns 404 - retry succeeds", func(t *testing.T) {
-		ctx := testutils.ContextWithLogger(t)
 
 		responses := []testutils.ResponseDef{
 			{
@@ -434,14 +429,13 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(ctx, "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
 
 		require.NoError(t, err)
 		assert.JSONEq(t, expected, string(res.Data))
 	})
 
 	t.Run("patch call returns 404 - retry fails", func(t *testing.T) {
-		ctx := testutils.ContextWithLogger(t)
 
 		responses := []testutils.ResponseDef{
 			{
@@ -468,7 +462,7 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(ctx, "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
 
 		assert.Empty(t, res)
 		assert.Error(t, err)
@@ -479,7 +473,6 @@ func TestDocumentClient_Create(t *testing.T) {
 	})
 
 	t.Run("patch call returns non successful response; rollback fails", func(t *testing.T) {
-		ctx := testutils.ContextWithLogger(t)
 
 		responses := []testutils.ResponseDef{
 			{
@@ -512,7 +505,7 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(ctx, "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
 
 		assert.Empty(t, res)
 		assert.Error(t, err)
@@ -578,8 +571,7 @@ This is the document content
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+		resp, err := client.Update(t.Context(), "", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -600,8 +592,7 @@ This is the document content
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -622,8 +613,7 @@ This is the document content
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -658,8 +648,7 @@ This is the document content
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.JSONEq(t, expected, string(resp.Data))
@@ -706,8 +695,7 @@ This is the document content
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", false, []byte(documentContent), someArbitraryDocumentType)
+		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", false, []byte(documentContent), someArbitraryDocumentType)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -741,8 +729,7 @@ This is the document content
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -775,8 +762,7 @@ This is the document content
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		ctx := testutils.ContextWithLogger(t)
-		_, err := client.Update(ctx, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+		_, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 
 		jsonErr := &json.SyntaxError{}
 		assert.ErrorAs(t, err, &jsonErr)
@@ -872,8 +858,8 @@ func TestDocumentClient_List(t *testing.T) {
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.List(ctx, "type == 'dashboard'")
+
+		resp, err := client.List(t.Context(), "type == 'dashboard'")
 		assert.Len(t, resp.Responses, 2)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.NoError(t, err)
@@ -927,8 +913,8 @@ func TestDocumentClient_List(t *testing.T) {
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.List(ctx, "")
+
+		resp, err := client.List(t.Context(), "")
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -945,8 +931,8 @@ func TestDocumentClient_List(t *testing.T) {
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.List(ctx, "")
+
+		resp, err := client.List(t.Context(), "")
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -967,8 +953,8 @@ func TestDocumentClient_List(t *testing.T) {
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		_, err := client.List(ctx, "type == 'dashboard'")
+
+		_, err := client.List(t.Context(), "type == 'dashboard'")
 		jsonErr := &json.SyntaxError{}
 		assert.ErrorAs(t, err, &jsonErr)
 	})
@@ -1015,8 +1001,8 @@ This is the document content
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Delete(ctx, "")
+
+		resp, err := client.Delete(t.Context(), "")
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 
@@ -1056,8 +1042,8 @@ This is the document content
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Delete(ctx, "id-of-document")
+
+		resp, err := client.Delete(t.Context(), "id-of-document")
 		assert.NotZero(t, resp)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.NoError(t, err)
@@ -1078,8 +1064,8 @@ This is the document content
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Delete(ctx, "id-of-document")
+
+		resp, err := client.Delete(t.Context(), "id-of-document")
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -1094,8 +1080,8 @@ This is the document content
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-		ctx := testutils.ContextWithLogger(t)
-		resp, err := client.Delete(ctx, "id-of-document")
+
+		resp, err := client.Delete(t.Context(), "id-of-document")
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
