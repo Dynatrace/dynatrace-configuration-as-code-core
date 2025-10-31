@@ -299,6 +299,7 @@ func (a Client) makeRequestWithAdminAccess(resourceType ResourceType, request fu
 			return nil, err
 		}
 		if resp != nil && resp.StatusCode == http.StatusForbidden {
+			resp.Body.Close()
 			return request(rest.RequestOptions{})
 		}
 		return resp, err
