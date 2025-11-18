@@ -20,13 +20,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"sync"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // RequestOptions are additional options that should be applied
@@ -176,12 +173,6 @@ func (c *Client) BaseURL() *url.URL {
 }
 
 func (c *Client) acquireLockAndSendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
-	// Apply concurrent request limiting if concurrentRequestLimiter is set
-	if c.concurrentRequestLimiter != nil {
-		c.concurrentRequestLimiter.Acquire()
-		defer c.concurrentRequestLimiter.Release()
-	}
-
 	c.setHeadersOnRequest(req, options)
 	return c.sendWithRetries(ctx, req, retryCount, options)
 }
@@ -203,37 +194,11 @@ func (c *Client) setHeadersOnRequest(req *http.Request, options RequestOptions) 
 }
 
 func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCount int, options RequestOptions) (*http.Response, error) {
-	if c.rateLimiter != nil {
-		c.rateLimiter.Wait(ctx) // If a limit is reached, this blocks until operations are permitted again
-	}
-
-	if c.httpClient == nil {
-		c.httpClient = &http.Client{
-			Timeout: c.timeout,
-		}
-	}
-
-	var reqID string
-	var err error
-	// wrap the body so that it could be read again
-	if req.Body, err = ReusableReader(req.Body); err != nil {
-		return nil, err
-	}
-	if c.httpListener != nil {
-		reqID = uuid.NewString()
-		c.httpListener.onRequest(reqID, req)
-	}
-
 	response, err := c.httpClient.Do(req)
 	if err != nil {
-		if c.httpListener != nil {
-			c.httpListener.onResponse(reqID, nil, err)
-		}
-
 		if isConnectionResetErr(err) {
 			return nil, fmt.Errorf("unable to connect to host %q, connection closed unexpectedly: %w", req.Host, err)
 		}
-
 		return nil, err
 	}
 
@@ -242,43 +207,7 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 		return nil, err
 	}
 
-	if c.httpListener != nil {
-		c.httpListener.onResponse(reqID, response, nil)
-	}
-
-	// Update the rate limiter with the response headers
-	if c.rateLimiter != nil {
-		c.rateLimiter.Update(ctx, response.StatusCode, response.Header)
-	}
-
-	// merge client retry options with request retry options
-	retryOptions := mergeRetryOptions(c.retryOptions, options.CustomShouldRetryFunc, options.DelayAfterRetry, options.MaxRetries)
-
-	if ShouldRetry(response.StatusCode) && retryOptions.ShouldRetryFunc != nil && retryCount < retryOptions.MaxRetries && retryOptions.ShouldRetryFunc(response) {
-		slog.DebugContext(ctx, "Retrying failed request", slog.String("url", req.URL.String()), slog.Int("status", response.StatusCode), slog.Int64("delayMillis", retryOptions.DelayAfterRetry.Milliseconds()), slog.Int("retryCount", retryCount), slog.Int("maxRetryCount", retryOptions.MaxRetries))
-		time.Sleep(retryOptions.DelayAfterRetry)
-		return c.sendWithRetries(ctx, req, retryCount+1, options)
-	}
 	return response, nil
-}
-
-// mergeRetryOptions merges the client-set retry options with the options specified for a specific request.
-// The options for the request are preferred over the ones for the client
-func mergeRetryOptions(clientOptions *RetryOptions, retryFunc RetryFunc, delay *time.Duration, maxRetries *int) RetryOptions {
-	mergedOptions := RetryOptions{}
-	if clientOptions != nil {
-		mergedOptions = *clientOptions
-	}
-	if retryFunc != nil {
-		mergedOptions.ShouldRetryFunc = retryFunc
-	}
-	if delay != nil {
-		mergedOptions.DelayAfterRetry = *delay
-	}
-	if maxRetries != nil {
-		mergedOptions.MaxRetries = *maxRetries
-	}
-	return mergedOptions
 }
 
 // sendRequestWithRetries sends an HTTP request with custom headers and modified request body, with retries if configured.
