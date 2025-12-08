@@ -176,13 +176,13 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 	return retVal, nil
 }
 
-func (c Client) Create(ctx context.Context, name string, isPrivate bool, externalId string, data []byte, documentType DocumentType) (api.Response, error) {
+func (c Client) Create(ctx context.Context, name string, isPrivate bool, id string, data []byte, documentType DocumentType) (api.Response, error) {
 	d := Document{
-		Kind:       documentType,
-		Name:       name,
-		Public:     !isPrivate,
-		ExternalID: externalId,
-		Content:    data,
+		Kind:    documentType,
+		Name:    name,
+		Public:  !isPrivate,
+		ID:      id,
+		Content: data,
 	}
 
 	body := &bytes.Buffer{}
