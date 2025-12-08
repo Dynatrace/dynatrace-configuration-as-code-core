@@ -23,11 +23,11 @@ import (
 )
 
 type Document struct {
-	Kind       string
-	Name       string
-	ExternalID string
-	Public     bool
-	Content    []byte
+	Kind    string
+	Name    string
+	ID      string
+	Public  bool
+	Content []byte
 }
 
 func (d *Document) write(w io.Writer) (*multipart.Writer, error) {
@@ -42,8 +42,8 @@ func (d *Document) write(w io.Writer) (*multipart.Writer, error) {
 	if err := writer.WriteField("isPrivate", strconv.FormatBool(!d.Public)); err != nil {
 		return nil, err
 	}
-	if d.ExternalID != "" {
-		if err := writer.WriteField("externalId", d.ExternalID); err != nil {
+	if d.ID != "" {
+		if err := writer.WriteField("id", d.ID); err != nil {
 			return nil, err
 		}
 	}

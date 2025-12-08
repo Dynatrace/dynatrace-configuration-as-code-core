@@ -53,7 +53,6 @@ Content-Type: application/json
     "id": "b17ec54b-07ac-4c73-9c4d-232e1b2e2420",
     "name": "my-test-db",
 	"isPrivate": true,
-	"externalId": "extId",
     "type": "dashboard",
     "version": 1,
     "owner": "12341234-1234-1234-1234-12341234",
@@ -105,7 +104,6 @@ This is the document content`
 		assert.Equal(t, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420", resp.ID)
 		assert.Equal(t, "my-test-db", resp.Name)
 		assert.Equal(t, true, resp.IsPrivate)
-		assert.Equal(t, "extId", resp.ExternalID)
 		assert.Equal(t, "dashboard", resp.Type)
 		assert.Equal(t, 1, resp.Version)
 		assert.Equal(t, "12341234-1234-1234-1234-12341234", resp.Owner)
@@ -251,7 +249,6 @@ func TestDocumentClient_Create(t *testing.T) {
   "name": "name",
   "type": "notebook",
   "isPrivate": false,
-  "externalId": "externalID",
   "description": null,
   "version": 2
 }`
@@ -260,7 +257,6 @@ func TestDocumentClient_Create(t *testing.T) {
   "name": "name",
   "type": "notebook",
   "isPrivate": true,
-  "externalId": "externalID",
   "description": null,
   "version": 1
 }`
@@ -522,7 +518,6 @@ func TestDocumentClient_Update(t *testing.T) {
 "id": "038ab74f-0a3a-4bf8-9068-85e2d633a1e6",
 "name": "my-test-db",
 "isPrivate": true,
-"externalId": "extId",
 "type": "dashboard",
 "version": 1
 }`
@@ -545,7 +540,6 @@ Content-Type: application/json
     "id": "b17ec54b-07ac-4c73-9c4d-232e1b2e2420",
     "name": "my-test-db",
 	"isPrivate": true,
-	"externalId": "extId",
     "type": "dashboard",
     "version": 1,
     "owner": "12341234-1234-1234-1234-12341234"
@@ -787,7 +781,6 @@ func TestDocumentClient_List(t *testing.T) {
             "id": "id1",
             "name": "name1",
 			"isPrivate": true,
-			"externalId": "extId1",
             "type": "dashboard",
             "version": 1,
             "owner": "owner1",
@@ -816,7 +809,6 @@ func TestDocumentClient_List(t *testing.T) {
             "id": "id2",
             "name": "name2",
 			"isPrivate": false,
-			"externalId": "extId2",
             "type": "dashboard",
             "version": 1,
             "owner": "owner2",
@@ -867,7 +859,6 @@ func TestDocumentClient_List(t *testing.T) {
 		assert.Equal(t, "id1", resp.Responses[0].ID)
 		assert.Equal(t, "name1", resp.Responses[0].Name)
 		assert.Equal(t, true, resp.Responses[0].IsPrivate)
-		assert.Equal(t, "extId1", resp.Responses[0].ExternalID)
 		assert.Equal(t, "dashboard", resp.Responses[0].Type)
 		assert.Equal(t, 1, resp.Responses[0].Version)
 		assert.Equal(t, "owner1", resp.Responses[0].Owner)
@@ -879,7 +870,6 @@ func TestDocumentClient_List(t *testing.T) {
 		assert.Equal(t, "id2", resp.Responses[1].ID)
 		assert.Equal(t, "name2", resp.Responses[1].Name)
 		assert.Equal(t, false, resp.Responses[1].IsPrivate)
-		assert.Equal(t, "extId2", resp.Responses[1].ExternalID)
 		assert.Equal(t, "dashboard", resp.Responses[1].Type)
 		assert.Equal(t, 1, resp.Responses[1].Version)
 		assert.Equal(t, "owner2", resp.Responses[1].Owner)
@@ -981,7 +971,6 @@ Content-Type: application/json
     "id": "b17ec54b-07ac-4c73-9c4d-232e1b2e2420",
     "name": "my-test-db",
 	"isPrivate": true,
-	"externalId": "extId1",
     "type": "dashboard",
     "version": 1,
     "owner": "12341234-1234-1234-1234-12341234"

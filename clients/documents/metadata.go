@@ -23,7 +23,6 @@ import (
 
 type Metadata struct {
 	ID                string  `json:"id"`
-	ExternalID        string  `json:"externalId"`
 	Owner             string  `json:"owner"`
 	Name              string  `json:"name"`
 	Type              string  `json:"type"`
