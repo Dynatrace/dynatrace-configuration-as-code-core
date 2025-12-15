@@ -141,6 +141,8 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 		queryParams := url.Values{"filter": {filter}, "add-field": {"originExtensionId"}}
 		if *result.NextPageKey != "" {
 			queryParams["page-key"] = []string{*result.NextPageKey}
+		} else {
+
 		}
 
 		ro := rest.RequestOptions{QueryParams: queryParams}
