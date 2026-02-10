@@ -208,6 +208,15 @@ func (a Client) Update(ctx context.Context, resourceType ResourceType, id string
 //   - ListResponse: A ListResponse which is an api.PagedListResponse containing all objects fetched from the api
 //   - error: An error if the HTTP call fails or another error happened.
 func (a Client) List(ctx context.Context, resourceType ResourceType) (api.PagedListResponse, error) {
+	return a.listPaged(ctx, resourceType, false)
+}
+
+// ExportWorkflows fetches all workflows using the /export endpoint.
+func (a Client) ExportWorkflows(ctx context.Context) (api.PagedListResponse, error) {
+	return a.listPaged(ctx, Workflows, true)
+}
+
+func (a Client) listPaged(ctx context.Context, resourceType ResourceType, useExportEndpoint bool) (api.PagedListResponse, error) {
 	// retVal are the collected paginated API responses
 	var retVal api.PagedListResponse
 
@@ -218,7 +227,7 @@ func (a Client) List(ctx context.Context, resourceType ResourceType) (api.PagedL
 	wfAdminAccess := resourceType == Workflows // only use admin access for workflows
 
 	for retrieved < totalCount {
-		if nextResult, err := a.listPage(ctx, resourceType, wfAdminAccess, retrieved); err != nil {
+		if nextResult, err := a.listPage(ctx, resourceType, wfAdminAccess, useExportEndpoint, retrieved); err != nil {
 			return api.PagedListResponse{}, err
 		} else {
 			if wfAdminAccess && !nextResult.WfAdminAccess {
@@ -235,7 +244,7 @@ func (a Client) List(ctx context.Context, resourceType ResourceType) (api.PagedL
 	return retVal, nil
 }
 
-func (a Client) listPage(ctx context.Context, resourceType ResourceType, wfAdminAccess bool, offset int) (listNextResult, error) {
+func (a Client) listPage(ctx context.Context, resourceType ResourceType, wfAdminAccess bool, useExportEndpoint bool, offset int) (listNextResult, error) {
 	opts := rest.RequestOptions{
 		QueryParams: url.Values{
 			"offset": []string{strconv.Itoa(offset)},
@@ -245,7 +254,12 @@ func (a Client) listPage(ctx context.Context, resourceType ResourceType, wfAdmin
 		opts.QueryParams["adminAccess"] = []string{"true"}
 	}
 
-	resp, err := a.restClient.GET(ctx, resources[resourceType].Path, opts)
+	path := resources[resourceType].Path
+	if useExportEndpoint {
+		path = resources[resourceType].Path + "/export"
+	}
+
+	resp, err := a.restClient.GET(ctx, path, opts)
 	if err != nil {
 		return listNextResult{}, fmt.Errorf(errMsg, listOperation, resourceType, err)
 	}
