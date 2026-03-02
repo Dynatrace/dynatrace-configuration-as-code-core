@@ -34,6 +34,9 @@ import (
 type Resource struct {
 	// Path is the API path to be used for this resource
 	Path string
+	// GetPath returns the URL path for single-resource GET requests given a resource ID.
+	// If nil, the Get method falls back to url.JoinPath(Path, id).
+	GetPath func(id string) (string, error)
 }
 
 // ResourceType enumerates different kind of resources
@@ -57,7 +60,12 @@ const (
 
 var (
 	resources = map[ResourceType]Resource{
-		Workflows:         {Path: "/platform/automation/v1/workflows"},
+		Workflows: {
+			Path: "/platform/automation/v1/workflows",
+			GetPath: func(id string) (string, error) {
+				return url.JoinPath("/platform/automation/v1/workflows", id, "export")
+			},
+		},
 		BusinessCalendars: {Path: "/platform/automation/v1/business-calendars"},
 		SchedulingRules:   {Path: "/platform/automation/v1/scheduling-rules"},
 	}
@@ -116,7 +124,15 @@ func (a Client) Get(ctx context.Context, resourceType ResourceType, id string) (
 	if id == "" {
 		return api.Response{}, fmt.Errorf(errMsg, getOperation, resourceType, ErrMissingID)
 	}
-	path, err := url.JoinPath(resources[resourceType].Path, id)
+
+	r := resources[resourceType]
+	getPath := r.GetPath
+	if getPath == nil {
+		getPath = func(id string) (string, error) {
+			return url.JoinPath(r.Path, id)
+		}
+	}
+	path, err := getPath(id)
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithId, getOperation, resourceType, id, err)
 	}

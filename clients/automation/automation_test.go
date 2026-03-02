@@ -59,6 +59,9 @@ func TestAutomationClient_Get(t *testing.T) {
 						ResponseBody: payload,
 					}
 				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					assert.Contains(t, req.URL.Path, "/91cc8988-2223-404a-a3f5-5f1a839ecd45/export")
+				},
 			},
 		}
 
@@ -86,6 +89,34 @@ func TestAutomationClient_Get(t *testing.T) {
 		assert.Error(t, err)
 	})
 
+	t.Run("GET - OK - BusinessCalendars uses default path without export", func(t *testing.T) {
+
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payload,
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					assert.Contains(t, req.URL.Path, "/91cc8988-2223-404a-a3f5-5f1a839ecd45")
+					assert.NotContains(t, req.URL.Path, "/export")
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := automation.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.Get(t.Context(), automation.BusinessCalendars, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
+		assert.NotNil(t, resp)
+		assert.Equal(t, payload, string(resp.Data))
+		assert.NoError(t, err)
+	})
+
 	t.Run("GET - API Call returned with != 2xx", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
@@ -93,6 +124,9 @@ func TestAutomationClient_Get(t *testing.T) {
 					return testutils.Response{
 						ResponseCode: http.StatusBadRequest,
 					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					assert.Contains(t, req.URL.Path, "/91cc8988-2223-404a-a3f5-5f1a839ecd45/export")
 				},
 			},
 		}
