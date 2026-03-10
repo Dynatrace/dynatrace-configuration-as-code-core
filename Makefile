@@ -5,7 +5,7 @@ default: test
 setup:
 	@echo "Installing build tools..."
 	@go install github.com/google/addlicense@v1.1.1
-	@go install gotest.tools/gotestsum@v1.10.1
+	@go install gotest.tools/gotestsum@v1.13.0
 
 lint: setup
 ifeq ($(OS),Windows_NT)
