@@ -264,7 +264,7 @@ func (c Client) RemoveRecipients(ctx context.Context, id string, data []byte) er
 	return nil
 }
 
-// Create creates a given document object
+// Create creates a given direct share object
 func (c Client) Create(ctx context.Context, data []byte) (api.Response, error) {
 	httpResp, err := c.client.POST(ctx, directSharesResourcePath, bytes.NewReader(data), rest.RequestOptions{})
 	if err != nil {
@@ -278,7 +278,7 @@ func (c Client) Create(ctx context.Context, data []byte) (api.Response, error) {
 	return resp, nil
 }
 
-// Delete removes a given automation object by ID
+// Delete removes a given direct share object by ID
 func (c Client) Delete(ctx context.Context, id string) (err error) {
 	if id == "" {
 		return fmt.Errorf(errMsg, deleteOperation, ErrIDEmpty)

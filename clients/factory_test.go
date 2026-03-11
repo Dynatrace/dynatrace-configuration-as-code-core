@@ -27,6 +27,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/accounts"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/directshares"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/openpipeline"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/segments"
@@ -68,6 +69,11 @@ func TestClientCreation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &automation.Client{}, clientInstance)
+
+	clientInstance, err = f.DirectSharesClient(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &directshares.Client{}, clientInstance)
 
 	clientInstance, err = f.DocumentClient(t.Context())
 	assert.NoError(t, err)
@@ -122,6 +128,10 @@ func TestClientMissingPlatformURL(t *testing.T) {
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrPlatformURLMissing)
 
+	clientInstance, err = f.DirectSharesClient(t.Context())
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrPlatformURLMissing)
+
 	clientInstance, err = f.DocumentClient(t.Context())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrPlatformURLMissing)
@@ -170,6 +180,10 @@ func TestClientMissingOAuthCredentials(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
 	clientInstance, err = f.AutomationClient(t.Context())
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
+
+	clientInstance, err = f.DirectSharesClient(t.Context())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
@@ -227,6 +241,10 @@ func TestClientPlatformURLParsingError(t *testing.T) {
 	assert.ErrorContains(t, err, failedToParseURL)
 
 	clientInstance, err = f.AutomationClient(t.Context())
+	assert.Nil(t, clientInstance)
+	assert.ErrorContains(t, err, failedToParseURL)
+
+	clientInstance, err = f.DirectSharesClient(t.Context())
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
 
@@ -289,6 +307,11 @@ func TestClientMissingAccountURL(t *testing.T) {
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &automation.Client{}, clientInstance)
 
+	clientInstance, err = f.DirectSharesClient(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &directshares.Client{}, clientInstance)
+
 	clientInstance, err = f.DocumentClient(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
@@ -350,6 +373,11 @@ func TestClientAccountURLParsingError(t *testing.T) {
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &automation.Client{}, clientInstance)
 
+	clientInstance, err = f.DirectSharesClient(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &directshares.Client{}, clientInstance)
+
 	clientInstance, err = f.DocumentClient(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
@@ -409,6 +437,11 @@ func TestClientMissingClassicURL(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &automation.Client{}, clientInstance)
+
+	clientInstance, err = f.DirectSharesClient(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &directshares.Client{}, clientInstance)
 
 	clientInstance, err = f.DocumentClient(t.Context())
 	assert.NoError(t, err)
@@ -471,6 +504,11 @@ func TestClientMissingAccessToken(t *testing.T) {
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &automation.Client{}, clientInstance)
 
+	clientInstance, err = f.DirectSharesClient(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &directshares.Client{}, clientInstance)
+
 	clientInstance, err = f.DocumentClient(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
@@ -532,6 +570,11 @@ func TestClientClassicURLParsingError(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &automation.Client{}, clientInstance)
+
+	clientInstance, err = f.DirectSharesClient(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &directshares.Client{}, clientInstance)
 
 	clientInstance, err = f.DocumentClient(t.Context())
 	assert.NoError(t, err)

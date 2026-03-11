@@ -28,6 +28,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/accounts"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/directshares"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/openpipeline"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/segments"
@@ -182,6 +183,15 @@ func (f factory) BucketClient(ctx context.Context) (*buckets.Client, error) {
 		return nil, err
 	}
 	return buckets.NewClient(restClient), nil
+}
+
+// DirectSharesClient creates and returns a new instance of directshares.Client for interacting with the direct-shares API.
+func (f factory) DirectSharesClient(ctx context.Context) (*directshares.Client, error) {
+	restClient, err := f.CreatePlatformClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return directshares.NewClient(restClient), nil
 }
 
 // DocumentClient creates and returns a new instance of documents.Client for interacting with the document API.
