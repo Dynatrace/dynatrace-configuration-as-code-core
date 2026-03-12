@@ -40,10 +40,10 @@ type ClientError struct {
 
 func (e ClientError) Error() string {
 	if e.Identifier != "" {
-		return fmt.Sprintf("failed to %s %s with id %s: %v", e.Operation, e.Resource, e.Identifier, e.Wrapped)
+		return fmt.Sprintf("failed to %s in resource %s with id %s: %v", e.Operation, e.Resource, e.Identifier, e.Wrapped)
 	}
 
-	return fmt.Sprintf("failed to %s %s: %v", e.Operation, e.Resource, e.Wrapped)
+	return fmt.Sprintf("failed to %s in resource %s: %v", e.Operation, e.Resource, e.Wrapped)
 }
 
 func (e ClientError) Unwrap() error {
@@ -55,6 +55,10 @@ func (e ClientError) Unwrap() error {
 // endpoint of the API, but rather indicates that the request does not meet
 // certain requirements before being sent.
 type ValidationError struct {
+	// Resource is the name of the resource involved in the failed operation.
+	// This helps identify which part of the system or API the error relates to.
+	Resource string
+
 	// Field is the name of the field that failed validation.
 	Field string
 
@@ -64,10 +68,10 @@ type ValidationError struct {
 
 func (e ValidationError) Error() string {
 	if e.Reason != "" {
-		return fmt.Sprintf("validation failed for field %s: %s.", e.Field, e.Reason)
+		return fmt.Sprintf("validation failed for field %s in resource %s: %s.", e.Field, e.Resource, e.Reason)
 	}
 
-	return fmt.Sprintf("validation failed for field %s.", e.Field)
+	return fmt.Sprintf("validation failed for field %s in resource %s.", e.Field, e.Resource)
 }
 
 // RuntimeError represents an error that occurs when the program makes assumptions
@@ -94,10 +98,10 @@ type RuntimeError struct {
 
 func (e RuntimeError) Error() string {
 	if e.Reason != "" {
-		return fmt.Sprintf("request with id %s invalid: %s. %v", e.Identifier, e.Reason, e.Wrapped)
+		return fmt.Sprintf("invalid request with id %s in resource %s: %s. %v", e.Identifier, e.Resource, e.Reason, e.Wrapped)
 	}
 
-	return fmt.Sprintf("request with id %s invalid: %v", e.Identifier, e.Wrapped)
+	return fmt.Sprintf("invalid request with id %s in resource %s: %v", e.Identifier, e.Resource, e.Wrapped)
 }
 
 func (e RuntimeError) Unwrap() error { return e.Wrapped }
