@@ -32,7 +32,7 @@ const endpointPath = "platform/storage/filter-segments/v1/filter-segments"
 const resource = "segments"
 
 var basePath = url.URL{Path: endpointPath}
-var idValidationErr = api.ValidationError{Field: "id", Reason: "is empty"}
+var idValidationErr = api.ValidationError{Resource: resource, Field: "id", Reason: "is empty"}
 
 func NewClient(client *rest.Client) *Client {
 	return &Client{restClient: client}
@@ -121,8 +121,8 @@ func (c Client) Update(ctx context.Context, id string, body []byte) (api.Respons
 	err = json.Unmarshal(existing.Data, &getResponse)
 	if err != nil || getResponse.Version == 0 || getResponse.Owner == "" {
 		return api.Response{}, errors.Join(
-			api.ValidationError{Field: "version", Reason: "could be invalid"},
-			api.ValidationError{Field: "owner", Reason: "could be empty"},
+			api.ValidationError{Resource: resource, Field: "version", Reason: "could be invalid"},
+			api.ValidationError{Resource: resource, Field: "owner", Reason: "could be empty"},
 			err,
 		)
 	}

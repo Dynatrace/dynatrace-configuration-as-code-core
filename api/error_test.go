@@ -27,7 +27,7 @@ import (
 
 func TestClientError_Error(t *testing.T) {
 	t.Run("without identifier", func(t *testing.T) {
-		expectedErrorMessage := "failed to GET segments: test error"
+		expectedErrorMessage := "failed to GET in resource segments: test error"
 		err := api.ClientError{
 			Wrapped:   errors.New("test error"),
 			Operation: http.MethodGet,
@@ -38,7 +38,7 @@ func TestClientError_Error(t *testing.T) {
 		assert.Equal(t, expectedErrorMessage, err.Error())
 	})
 	t.Run("with identifier", func(t *testing.T) {
-		expectedErrorMessage := "failed to GET segments with id 123: test error"
+		expectedErrorMessage := "failed to GET in resource segments with id 123: test error"
 		err := api.ClientError{
 			Wrapped:    errors.New("test error"),
 			Operation:  http.MethodGet,
@@ -65,18 +65,20 @@ func TestClientError_Unwrap(t *testing.T) {
 
 func TestValidationError_Error(t *testing.T) {
 	t.Run("without reason", func(t *testing.T) {
-		expectedErrorMessage := "validation failed for field field."
+		expectedErrorMessage := "validation failed for field field in resource segments."
 		err := api.ValidationError{
-			Field: "field",
+			Resource: "segments",
+			Field:    "field",
 		}
 
 		assert.Equal(t, expectedErrorMessage, err.Error())
 	})
 	t.Run("with reason", func(t *testing.T) {
-		expectedErrorMessage := "validation failed for field field: this is a reason."
+		expectedErrorMessage := "validation failed for field field in resource segments: this is a reason."
 		err := api.ValidationError{
-			Field:  "field",
-			Reason: "this is a reason",
+			Resource: "segments",
+			Field:    "field",
+			Reason:   "this is a reason",
 		}
 
 		assert.Equal(t, expectedErrorMessage, err.Error())
@@ -85,20 +87,20 @@ func TestValidationError_Error(t *testing.T) {
 
 func TestRuntimeError_Error(t *testing.T) {
 	t.Run("without reason", func(t *testing.T) {
-		expectedErrorMessage := "request with id 123 invalid: test error"
+		expectedErrorMessage := "invalid request with id 123 in resource segments: test error"
 		err := api.RuntimeError{
 			Wrapped:    errors.New("test error"),
-			Resource:   "resource",
+			Resource:   "segments",
 			Identifier: "123",
 		}
 
 		assert.Equal(t, expectedErrorMessage, err.Error())
 	})
 	t.Run("with reason", func(t *testing.T) {
-		expectedErrorMessage := "request with id 123 invalid: this is a reason. test error"
+		expectedErrorMessage := "invalid request with id 123 in resource segments: this is a reason. test error"
 		err := api.RuntimeError{
 			Wrapped:    errors.New("test error"),
-			Resource:   "resource",
+			Resource:   "segments",
 			Reason:     "this is a reason",
 			Identifier: "123",
 		}

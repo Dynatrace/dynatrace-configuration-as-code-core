@@ -81,7 +81,7 @@ func TestGet(t *testing.T) {
 		actual, err := client.Get(t.Context(), "")
 
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, api.ValidationError{Field: "id", Reason: "is empty"})
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "segments", Field: "id", Reason: "is empty"})
 		assert.Empty(t, actual)
 	})
 
