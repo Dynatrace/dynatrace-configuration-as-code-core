@@ -38,7 +38,7 @@ func TestList(t *testing.T) {
 		apiResponse1 := `{
   "totalCount": 2,
   "nextPageKey": "key_for_next_page",
-  "directShares": [
+  "direct-shares": [
     {
       "id": "direct-share-id-1",
       "documentId": "doc-id-1",
@@ -53,7 +53,7 @@ func TestList(t *testing.T) {
 }`
 		apiResponse2 := `{
   "totalCount": 2,
-  "directShares": [
+  "direct-shares": [
     {
       "id": "direct-share-id-2",
       "documentId": "doc-id-2",
@@ -99,7 +99,7 @@ func TestList(t *testing.T) {
 		apiResponse1 := `{
   "totalCount": 2,
   "nextPageKey": "key_for_next_page",
-  "directShares": [
+  "direct-shares": [
     {
       "id": "direct-share-id-1",
       "documentId": "doc-id-1",
