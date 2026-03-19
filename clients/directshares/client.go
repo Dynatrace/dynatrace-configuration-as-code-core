@@ -86,7 +86,7 @@ func processListResponse(httpResponse *http.Response) (string, api.ListResponse,
 
 	var directSharesResponse struct {
 		NextPage     string            `json:"nextPageKey"`
-		DirectShares []json.RawMessage `json:"directShares"`
+		DirectShares []json.RawMessage `json:"direct-shares"`
 	}
 
 	if err := json.Unmarshal(resp.Data, &directSharesResponse); err != nil {
