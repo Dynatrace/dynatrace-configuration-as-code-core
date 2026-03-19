@@ -60,7 +60,7 @@ func TestAutomationClient_Get(t *testing.T) {
 					}
 				},
 				ValidateRequest: func(t *testing.T, req *http.Request) {
-					assert.Contains(t, req.URL.Path, "/91cc8988-2223-404a-a3f5-5f1a839ecd45/export")
+					assert.Contains(t, req.URL.Path, "/91cc8988-2223-404a-a3f5-5f1a839ecd45")
 				},
 			},
 		}
@@ -126,7 +126,7 @@ func TestAutomationClient_Get(t *testing.T) {
 					}
 				},
 				ValidateRequest: func(t *testing.T, req *http.Request) {
-					assert.Contains(t, req.URL.Path, "/91cc8988-2223-404a-a3f5-5f1a839ecd45/export")
+					assert.Contains(t, req.URL.Path, "/91cc8988-2223-404a-a3f5-5f1a839ecd45")
 				},
 			},
 		}

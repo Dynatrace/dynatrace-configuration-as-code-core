@@ -63,7 +63,7 @@ var (
 		Workflows: {
 			Path: "/platform/automation/v1/workflows",
 			GetPath: func(id string) (string, error) {
-				return url.JoinPath("/platform/automation/v1/workflows", id, "export")
+				return url.JoinPath("/platform/automation/v1/workflows", id)
 			},
 		},
 		BusinessCalendars: {Path: "/platform/automation/v1/business-calendars"},
