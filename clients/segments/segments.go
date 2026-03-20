@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -28,23 +27,25 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
-const endpointPath = "platform/storage/filter-segments/v1/filter-segments"
-const resource = "segments"
+const (
+	segmentsResourcePath = "/platform/storage/filter-segments/v1/filter-segments"
+	resource             = "segments"
+)
 
-var basePath = url.URL{Path: endpointPath}
 var idValidationErr = api.ValidationError{Resource: resource, Field: "id", Reason: "is empty"}
 
-func NewClient(client *rest.Client) *Client {
-	return &Client{restClient: client}
-}
-
+// Client is used to interact with the Segments API.
 type Client struct {
 	restClient *rest.Client
 }
 
+// NewClient creates a new segments Client using the given rest.Client.
+func NewClient(client *rest.Client) *Client {
+	return &Client{restClient: client}
+}
+
 func (c Client) List(ctx context.Context) (api.Response, error) {
-	path := basePath.String() + ":lean"
-	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{
+	resp, err := c.restClient.GET(ctx, segmentsResourcePath+":lean", rest.RequestOptions{
 		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
 		QueryParams:           url.Values{"add-fields": []string{"EXTERNALID"}},
 	})
@@ -55,10 +56,11 @@ func (c Client) List(ctx context.Context) (api.Response, error) {
 
 	apiResp, err := api.NewResponseFromHTTPResponse(resp)
 	if err != nil {
-		return apiResp, err
+		return apiResp, api.ClientError{Resource: resource, Operation: http.MethodGet, Wrapped: err}
 	}
 
-	if apiResp.Data, err = modifyBody(apiResp.Data); err != nil {
+	apiResp.Data, err = modifyBody(apiResp.Data)
+	if err != nil {
 		return apiResp, api.RuntimeError{Resource: resource, Reason: "body transformation failed", Wrapped: err}
 	}
 
@@ -83,8 +85,12 @@ func (c Client) Get(ctx context.Context, id string) (api.Response, error) {
 		return api.Response{}, idValidationErr
 	}
 
-	path := basePath.JoinPath(id).String()
-	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{
+	path, err := url.JoinPath(segmentsResourcePath, id)
+	if err != nil {
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to construct URL", Wrapped: err}
+	}
+
+	httpResp, err := c.restClient.GET(ctx, path, rest.RequestOptions{
 		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
 		QueryParams:           url.Values{"add-fields": []string{"INCLUDES", "VARIABLES", "EXTERNALID", "RESOURCECONTEXT"}},
 	})
@@ -92,19 +98,29 @@ func (c Client) Get(ctx context.Context, id string) (api.Response, error) {
 		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodGet, Wrapped: err}
 	}
 
-	return api.NewResponseFromHTTPResponse(resp)
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodGet, Wrapped: err}
+	}
+	return resp, nil
 }
 
-func (c Client) Create(ctx context.Context, body []byte) (api.Response, error) {
-	resp, err := c.restClient.POST(ctx, endpointPath, bytes.NewReader(body), rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+// Create creates a new segment.
+func (c Client) Create(ctx context.Context, data []byte) (api.Response, error) {
+	httpResp, err := c.restClient.POST(ctx, segmentsResourcePath, bytes.NewReader(data), rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
 	if err != nil {
 		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodPost, Wrapped: err}
 	}
 
-	return api.NewResponseFromHTTPResponse(resp)
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodPost, Wrapped: err}
+	}
+	return resp, nil
 }
 
-func (c Client) Update(ctx context.Context, id string, body []byte) (api.Response, error) {
+// Update updates an existing segment by ID.
+func (c Client) Update(ctx context.Context, id string, data []byte) (api.Response, error) {
 	if id == "" {
 		return api.Response{}, idValidationErr
 	}
@@ -119,44 +135,79 @@ func (c Client) Update(ctx context.Context, id string, body []byte) (api.Respons
 		Owner   string `json:"owner"`
 	}
 	err = json.Unmarshal(existing.Data, &getResponse)
-	if err != nil || getResponse.Version == 0 || getResponse.Owner == "" {
-		return api.Response{}, errors.Join(
-			api.ValidationError{Resource: resource, Field: "version", Reason: "could be invalid"},
-			api.ValidationError{Resource: resource, Field: "owner", Reason: "could be empty"},
-			err,
-		)
+	if err != nil {
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to unmarshal existing owner and version", Wrapped: err}
 	}
 
-	// Adds owner if not set(they are mandatory from the API),
-	// and always override uid with the uid that is getting updated
-	body, err = addOwnerAndUIDIfNotSet(body, getResponse.Owner, id)
+	if getResponse.Version == 0 {
+		return api.Response{}, api.ValidationError{Resource: resource, Field: "version", Reason: "is invalid"}
+	}
+	if getResponse.Owner == "" {
+		return api.Response{}, api.ValidationError{Resource: resource, Field: "owner", Reason: "is empty"}
+	}
+
+	data, err = addOwnerAndUIDIfNotSet(data, getResponse.Owner, id)
 	if err != nil {
 		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to add owner and UID", Wrapped: err}
 	}
 
-	path := basePath.JoinPath(id).String()
-	resp, err := c.restClient.PUT(ctx, path, bytes.NewReader(body), rest.RequestOptions{
+	path, err := url.JoinPath(segmentsResourcePath, id)
+	if err != nil {
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to construct URL", Wrapped: err}
+	}
+
+	httpResp, err := c.restClient.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{
 		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
-		QueryParams:           map[string][]string{"optimistic-locking-version": {strconv.Itoa(getResponse.Version)}}})
+		QueryParams:           map[string][]string{"optimistic-locking-version": {strconv.Itoa(getResponse.Version)}},
+	})
 	if err != nil {
 		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodPut, Identifier: id, Wrapped: err}
 	}
 
-	return api.NewResponseFromHTTPResponse(resp)
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodPut, Wrapped: err}
+	}
+	return resp, nil
 }
 
+func addOwnerAndUIDIfNotSet(payload []byte, owner string, uid string) ([]byte, error) {
+	var request map[string]any
+	if err := json.Unmarshal(payload, &request); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal request payload: %w", err)
+	}
+	if _, ok := request["owner"]; !ok {
+		request["owner"] = owner
+	}
+	request["uid"] = uid
+	newpayload, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request payload: %w", err)
+	}
+	return newpayload, nil
+}
+
+// Delete removes a given segment by ID.
 func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 	if id == "" {
 		return api.Response{}, idValidationErr
 	}
 
-	path := basePath.JoinPath(id).String()
-	resp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	path, err := url.JoinPath(segmentsResourcePath, id)
 	if err != nil {
-		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodDelete, Identifier: id, Wrapped: err}
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to construct URL", Wrapped: err}
 	}
 
-	return api.NewResponseFromHTTPResponse(resp)
+	httpResp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodDelete, Wrapped: err}
+	}
+
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodDelete, Wrapped: err}
+	}
+	return resp, nil
 }
 
 func (c Client) GetAll(ctx context.Context) ([]api.Response, error) {
@@ -182,28 +233,4 @@ func (c Client) GetAll(ctx context.Context) ([]api.Response, error) {
 	}
 
 	return result, nil
-}
-
-func unmarshalRequest(payload []byte) (map[string]any, error) {
-	var request map[string]any
-	err := json.Unmarshal(payload, &request)
-	if err != nil {
-		return request, fmt.Errorf("failed to unmarshal request payload: %w", err)
-	}
-	return request, nil
-}
-
-func addOwnerAndUIDIfNotSet(payload []byte, owner string, uid string) ([]byte, error) {
-	request, err := unmarshalRequest(payload)
-	if err != nil {
-		return nil, err
-	}
-	_, ok := request["owner"]
-	if !ok {
-		request["owner"] = owner
-	}
-
-	request["uid"] = uid
-
-	return json.Marshal(request)
 }
