@@ -16,7 +16,6 @@ package segments_test
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -178,10 +177,14 @@ func TestGetAll(t *testing.T) {
 		resp, err := client.GetAll(t.Context())
 
 		assert.Empty(t, resp)
-		assert.ErrorAs(t, err, &api.APIError{})
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
 
 		var apiErr api.APIError
-		errors.As(err, &apiErr)
+		assert.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
 		assert.Equal(t, apiResponse, string(apiErr.Body))
 	})
@@ -209,10 +212,14 @@ func TestGetAll(t *testing.T) {
 		resp, err := client.GetAll(t.Context())
 
 		assert.Empty(t, resp)
-		assert.ErrorAs(t, err, &api.APIError{})
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
 
 		var apiErr api.APIError
-		errors.As(err, &apiErr)
+		assert.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
 	})
 
@@ -303,7 +310,15 @@ func TestCreate(t *testing.T) {
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
 		_, err := client.Create(t.Context(), []byte(payload))
-		assert.Error(t, err)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusBadGateway, apiErr.StatusCode)
 	})
 	t.Run("error returned from client, expected error", func(t *testing.T) {
 		httpClient := &http.Client{}
@@ -311,7 +326,11 @@ func TestCreate(t *testing.T) {
 		client := segments.NewClient(rest.NewClient(path, httpClient))
 
 		_, err := client.Create(t.Context(), []byte(payload))
-		assert.Error(t, err)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
 	})
 	t.Run("successfully created new entity on server", func(t *testing.T) {
 		apiResponse := `{
@@ -355,7 +374,11 @@ func TestUpdate(t *testing.T) {
 		client := segments.NewClient(rest.NewClient(path, httpClient))
 
 		_, err := client.Update(t.Context(), "id", []byte(``))
-		assert.Error(t, err)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
 	})
 	t.Run("id not provided, expecting validation error", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -367,7 +390,7 @@ func TestUpdate(t *testing.T) {
 		client := segments.NewClient(rest.NewClient(url, server.Client()))
 
 		_, err := client.Update(t.Context(), "", []byte(``))
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "segments", Field: "id", Reason: "is empty"})
 	})
 	t.Run("unexpected error while checking for status on server", func(t *testing.T) {
 		payload := `{
@@ -404,6 +427,16 @@ func TestUpdate(t *testing.T) {
 
 		require.Error(t, err)
 		require.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
+		assert.Equal(t, "uid", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusBadGateway, apiErr.StatusCode)
 	})
 	t.Run("successfully updated existing entity on server, uid in provided payload not matching and gets overwritten", func(t *testing.T) {
 		uid := "D82a1jdA23a"
@@ -586,8 +619,68 @@ func TestUpdate(t *testing.T) {
 		resp, err := client.Update(t.Context(), uid, []byte(payload))
 
 		assert.Empty(t, resp)
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "segments", Field: "owner", Reason: "is empty"})
 	})
+
+	t.Run("error test case, return a get response with an invalid version", func(t *testing.T) {
+		uid := "D82a1jdA23a"
+		payload := `{
+			  "allowedOperations" : [ "READ", "WRITE", "DELETE" ],
+			  "description" : "only includes data of the dev environment",
+			  "includes" : [ ],
+			  "isPublic" : false,
+			  "name" : "dev_environment",
+			  "variables" : {
+			    "type" : "query",
+			    "value" : "fetch logs | limit 1"
+			  }
+			}`
+
+		apiExistingResource := `{
+			  "uid": "D82a1jdA23a",
+			  "name": "dev_environment",
+			  "description": "only includes data of the dev environment",
+			  "variables": {
+			    "type": "query",
+			    "value": "fetch logs | limit 1"
+			  },
+			  "isPublic": false,
+			  "includes": [
+			    {
+			      "filter": "here goes the filter",
+			      "dataObject": "logs"
+			    },
+			    {
+			      "filter": "here goes another filter",
+			      "dataObject": "events"
+			    }
+			  ],
+			  "version": 0
+			}`
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, r.URL.Path)
+			switch r.Method {
+			case http.MethodGet:
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(apiExistingResource))
+				break
+			case http.MethodPut:
+				t.Errorf("should failt at owner validation")
+				break
+			}
+		}))
+		defer server.Close()
+
+		url, _ := url.Parse(server.URL)
+		client := segments.NewClient(rest.NewClient(url, server.Client()))
+
+		resp, err := client.Update(t.Context(), uid, []byte(payload))
+
+		assert.Empty(t, resp)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "segments", Field: "version", Reason: "is invalid"})
+	})
+
 	t.Run("error test case, malformed payload provided to update", func(t *testing.T) {
 		uid := "D82a1jdA23a"
 		payload := `{///---....}`
@@ -623,7 +716,7 @@ func TestUpdate(t *testing.T) {
 				w.Write([]byte(apiExistingResource))
 				break
 			case http.MethodPut:
-				t.Errorf("should failt at unmarshall payload")
+				t.Errorf("should fail at unmarshall payload")
 				break
 			}
 		}))
@@ -635,7 +728,12 @@ func TestUpdate(t *testing.T) {
 		resp, err := client.Update(t.Context(), uid, []byte(payload))
 
 		assert.Empty(t, resp)
-		assert.Error(t, err)
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "segments", runtimeErr.Resource)
+		assert.Equal(t, uid, runtimeErr.Identifier)
+		assert.Equal(t, "failed to add owner and UID", runtimeErr.Reason)
 	})
 }
 
@@ -646,7 +744,12 @@ func TestDelete(t *testing.T) {
 		client := segments.NewClient(rest.NewClient(path, httpClient))
 
 		_, err := client.Delete(t.Context(), "id")
-		assert.Error(t, err)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodDelete, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
+		assert.Equal(t, "id", clientErr.Identifier)
 	})
 	t.Run("error empty id provided, expected error", func(t *testing.T) {
 		httpClient := &http.Client{}
@@ -654,8 +757,7 @@ func TestDelete(t *testing.T) {
 		client := segments.NewClient(rest.NewClient(path, httpClient))
 
 		_, err := client.Delete(t.Context(), "")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "id")
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "segments", Field: "id", Reason: "is empty"})
 	})
 	t.Run("ID doesn't exists on server returns error", func(t *testing.T) {
 		apiResponse := `{
@@ -680,10 +782,15 @@ func TestDelete(t *testing.T) {
 		resp, err := client.Delete(t.Context(), "uid")
 
 		assert.Empty(t, resp)
-		assert.ErrorAs(t, err, &api.APIError{})
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodDelete, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
+		assert.Equal(t, "uid", clientErr.Identifier)
 
 		var apiErr api.APIError
-		errors.As(err, &apiErr)
+		assert.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
 		assert.Equal(t, apiResponse, string(apiErr.Body))
 	})
