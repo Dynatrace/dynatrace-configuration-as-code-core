@@ -17,6 +17,7 @@ package permissions
 import (
 	"bytes"
 	"context"
+	"net/http"
 	"net/url"
 	"strconv"
 
@@ -24,143 +25,175 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
-const endpointConfigPath = "platform/classic/environment-api/v2/settings/objects"
-const permissionResourcePath = "permissions"
-const allUsersAccessorType = "all-users"
+const (
+	endpointConfigPath     = "platform/classic/environment-api/v2/settings/objects"
+	permissionResourcePath = "permissions"
+	allUsersAccessorType   = "all-users"
+	resource               = "permissions"
+)
 
+var (
+	objectIDValidationErr     = api.ValidationError{Resource: resource, Field: "objectID", Reason: "is empty"}
+	accessorTypeValidationErr = api.ValidationError{Resource: resource, Field: "accessorType", Reason: "is empty"}
+	accessorIDValidationErr   = api.ValidationError{Resource: resource, Field: "accessorID", Reason: "is empty"}
+)
+
+// Client is used to interact with the Settings Permissions API.
 type Client struct {
-	client *rest.Client
+	restClient *rest.Client
 }
 
+// NewClient creates a new permissions Client using the given rest.Client.
 func NewClient(client *rest.Client) *Client {
-	return &Client{client: client}
+	return &Client{restClient: client}
 }
 
-func (c *Client) GetAllAccessors(ctx context.Context, objectID string, adminAccess bool) (api.Response, error) {
+// GetAllAccessors returns all accessors for a given settings object.
+func (c Client) GetAllAccessors(ctx context.Context, objectID string, adminAccess bool) (api.Response, error) {
 	return c.get(ctx, objectID, "", "", adminAccess)
 }
 
-func (c *Client) GetAllUsersAccessor(ctx context.Context, objectID string, adminAccess bool) (api.Response, error) {
+// GetAllUsersAccessor returns the all-users accessor for a given settings object.
+func (c Client) GetAllUsersAccessor(ctx context.Context, objectID string, adminAccess bool) (api.Response, error) {
 	return c.get(ctx, objectID, allUsersAccessorType, "", adminAccess)
 }
 
-func (c *Client) GetAccessor(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool) (api.Response, error) {
+// GetAccessor returns a specific accessor for a given settings object.
+func (c Client) GetAccessor(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool) (api.Response, error) {
 	if accessorType == "" {
-		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorType, Operation: GET}
+		return api.Response{}, accessorTypeValidationErr
 	}
 
 	if accessorID == "" {
-		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorID, Operation: GET}
+		return api.Response{}, accessorIDValidationErr
 	}
 
 	return c.get(ctx, objectID, accessorType, accessorID, adminAccess)
 }
 
-func (c *Client) get(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool) (api.Response, error) {
+func (c Client) get(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool) (api.Response, error) {
 	if objectID == "" {
-		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingObjectID, Operation: GET}
+		return api.Response{}, objectIDValidationErr
 	}
 
 	path, err := url.JoinPath(endpointConfigPath, objectID, permissionResourcePath, accessorType, accessorID)
 	if err != nil {
-		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: GET}
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: objectID, Reason: "failed to construct URL", Wrapped: err}
 	}
 
-	resp, err := c.client.GET(ctx, path, getRequestOptions(adminAccess))
-
+	httpResp, err := c.restClient.GET(ctx, path, getRequestOptions(adminAccess))
 	if err != nil {
-		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: GET}
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: objectID, Operation: http.MethodGet, Wrapped: err}
 	}
 
-	return api.NewResponseFromHTTPResponse(resp)
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: objectID, Operation: http.MethodGet, Wrapped: err}
+	}
+	return resp, nil
 }
 
-func (c *Client) Create(ctx context.Context, objectID string, adminAccess bool, body []byte) (api.Response, error) {
+// Create creates a new permission entry for a given settings object.
+func (c Client) Create(ctx context.Context, objectID string, adminAccess bool, body []byte) (api.Response, error) {
 	if objectID == "" {
-		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingObjectID, Operation: POST}
+		return api.Response{}, objectIDValidationErr
 	}
 
 	path, err := url.JoinPath(endpointConfigPath, objectID, permissionResourcePath)
 	if err != nil {
-		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: POST}
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: objectID, Reason: "failed to construct URL", Wrapped: err}
 	}
 
-	resp, err := c.client.POST(ctx, path, bytes.NewReader(body), getRequestOptions(adminAccess))
+	httpResp, err := c.restClient.POST(ctx, path, bytes.NewReader(body), getRequestOptions(adminAccess))
 	if err != nil {
-		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: POST}
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: objectID, Operation: http.MethodPost, Wrapped: err}
 	}
 
-	return api.NewResponseFromHTTPResponse(resp)
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: objectID, Operation: http.MethodPost, Wrapped: err}
+	}
+	return resp, nil
 }
 
-func (c *Client) UpdateAllUsersAccessor(ctx context.Context, objectID string, adminAccess bool, body []byte) (api.Response, error) {
+// UpdateAllUsersAccessor updates the all-users accessor for a given settings object.
+func (c Client) UpdateAllUsersAccessor(ctx context.Context, objectID string, adminAccess bool, body []byte) (api.Response, error) {
 	return c.update(ctx, objectID, allUsersAccessorType, "", adminAccess, body)
 }
 
-func (c *Client) UpdateAccessor(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool, body []byte) (api.Response, error) {
+// UpdateAccessor updates a specific accessor for a given settings object.
+func (c Client) UpdateAccessor(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool, body []byte) (api.Response, error) {
 	if accessorType == "" {
-		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorType, Operation: PUT}
+		return api.Response{}, accessorTypeValidationErr
 	}
 
 	if accessorID == "" {
-		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorID, Operation: PUT}
+		return api.Response{}, accessorIDValidationErr
 	}
 
 	return c.update(ctx, objectID, accessorType, accessorID, adminAccess, body)
 }
 
-func (c *Client) update(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool, body []byte) (api.Response, error) {
+func (c Client) update(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool, body []byte) (api.Response, error) {
 	if objectID == "" {
-		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingObjectID, Operation: PUT}
+		return api.Response{}, objectIDValidationErr
 	}
 
 	path, err := url.JoinPath(endpointConfigPath, objectID, permissionResourcePath, accessorType, accessorID)
 	if err != nil {
-		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: PUT}
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: objectID, Reason: "failed to construct URL", Wrapped: err}
 	}
 
-	httpResp, err := c.client.PUT(ctx, path, bytes.NewReader(body), getRequestOptions(adminAccess))
-
+	httpResp, err := c.restClient.PUT(ctx, path, bytes.NewReader(body), getRequestOptions(adminAccess))
 	if err != nil {
-		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: PUT}
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: objectID, Operation: http.MethodPut, Wrapped: err}
 	}
 
-	return api.NewResponseFromHTTPResponse(httpResp)
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: objectID, Operation: http.MethodPut, Wrapped: err}
+	}
+	return resp, nil
 }
 
-func (c *Client) DeleteAllUsersAccessor(ctx context.Context, objectID string, adminAccess bool) (api.Response, error) {
+// DeleteAllUsersAccessor deletes the all-users accessor for a given settings object.
+func (c Client) DeleteAllUsersAccessor(ctx context.Context, objectID string, adminAccess bool) (api.Response, error) {
 	return c.delete(ctx, objectID, allUsersAccessorType, "", adminAccess)
 }
 
-func (c *Client) DeleteAccessor(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool) (api.Response, error) {
+// DeleteAccessor deletes a specific accessor for a given settings object.
+func (c Client) DeleteAccessor(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool) (api.Response, error) {
 	if accessorType == "" {
-		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorType, Operation: DELETE}
+		return api.Response{}, accessorTypeValidationErr
 	}
 
 	if accessorID == "" {
-		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingAccessorID, Operation: DELETE}
+		return api.Response{}, accessorIDValidationErr
 	}
 
 	return c.delete(ctx, objectID, accessorType, accessorID, adminAccess)
 }
 
-func (c *Client) delete(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool) (api.Response, error) {
+func (c Client) delete(ctx context.Context, objectID string, accessorType string, accessorID string, adminAccess bool) (api.Response, error) {
 	if objectID == "" {
-		return api.Response{}, ErrorPermissions{Wrapped: ErrorMissingObjectID, Operation: DELETE}
+		return api.Response{}, objectIDValidationErr
 	}
 
 	path, err := url.JoinPath(endpointConfigPath, objectID, permissionResourcePath, accessorType, accessorID)
 	if err != nil {
-		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: DELETE}
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: objectID, Reason: "failed to construct URL", Wrapped: err}
 	}
 
-	httpResp, err := c.client.DELETE(ctx, path, getRequestOptions(adminAccess))
-
+	httpResp, err := c.restClient.DELETE(ctx, path, getRequestOptions(adminAccess))
 	if err != nil {
-		return api.Response{}, ErrorPermissions{Wrapped: err, Operation: DELETE}
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: objectID, Operation: http.MethodDelete, Wrapped: err}
 	}
 
-	return api.NewResponseFromHTTPResponse(httpResp)
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: objectID, Operation: http.MethodDelete, Wrapped: err}
+	}
+	return resp, nil
 }
 
 func getRequestOptions(adminAccess bool) rest.RequestOptions {
