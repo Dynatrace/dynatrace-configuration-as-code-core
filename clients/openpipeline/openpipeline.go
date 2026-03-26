@@ -19,7 +19,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 
@@ -30,79 +29,74 @@ import (
 const (
 	maxUpdateAttempts        = 10
 	openPipelineResourcePath = "/platform/openpipeline/v1/configurations"
-
-	errMsg       = "failed to %s openpipeline resource: %w"
-	errMsgWithId = "failed to %s openpipeline resource with id %s: %w"
-
-	getOperation    = "get"
-	updateOperation = "update"
-	listOperation   = "list"
+	resource                 = "openpipeline"
 )
 
-var ErrEmptyID = errors.New("id must be non-empty")
+var idValidationErr = api.ValidationError{Resource: resource, Field: "id", Reason: "is empty"}
 
-type ListResponse struct {
-	Id       string `json:"id"`
-	Editable bool   `json:"editable"`
-}
-
-func NewClient(client *rest.Client) *Client {
-	c := &Client{
-		restClient: client,
-	}
-
-	return c
-}
-
-// Client can be used to interact with the Automation API
+// Client is used to interact with the OpenPipeline API.
 type Client struct {
 	restClient *rest.Client
 }
 
+// NewClient creates a new OpenPipeline Client using the given rest.Client.
+func NewClient(client *rest.Client) *Client {
+	return &Client{restClient: client}
+}
+
+// Get returns one specific OpenPipeline configuration by ID.
 func (c Client) Get(ctx context.Context, id string) (api.Response, error) {
 	if id == "" {
-		return api.Response{}, fmt.Errorf(errMsg, getOperation, ErrEmptyID)
+		return api.Response{}, idValidationErr
 	}
 
 	path, err := url.JoinPath(openPipelineResourcePath, id)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithId, getOperation, id, err)
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to construct URL", Wrapped: err}
 	}
 
-	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{})
+	httpResp, err := c.restClient.GET(ctx, path, rest.RequestOptions{})
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithId, getOperation, id, err)
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodGet, Wrapped: err}
 	}
 
-	return api.NewResponseFromHTTPResponse(resp)
-}
-
-func (c Client) List(ctx context.Context) ([]ListResponse, error) {
-	httpResp, err := c.restClient.GET(ctx, openPipelineResourcePath, rest.RequestOptions{})
-	if err != nil {
-		return nil, fmt.Errorf(errMsg, listOperation, err)
-	}
 	resp, err := api.NewResponseFromHTTPResponse(httpResp)
 	if err != nil {
-		return nil, fmt.Errorf(errMsg, listOperation, err)
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodGet, Wrapped: err}
 	}
-
-	var resources []ListResponse
-	err = json.Unmarshal(resp.Data, &resources)
-	if err != nil {
-		return nil, fmt.Errorf(errMsg, listOperation, err)
-	}
-	return resources, nil
+	return resp, nil
 }
 
+// List returns all OpenPipeline configurations.
+func (c Client) List(ctx context.Context) (api.Response, error) {
+	httpResp, err := c.restClient.GET(ctx, openPipelineResourcePath, rest.RequestOptions{})
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodGet, Wrapped: err}
+	}
+
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodGet, Wrapped: err}
+	}
+	return resp, nil
+}
+
+// GetAll returns all OpenPipeline configurations with their full details.
 func (c Client) GetAll(ctx context.Context) ([]api.Response, error) {
 	listResp, err := c.List(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	var configurations []struct {
+		Id string `json:"id"`
+	}
+	if err = json.Unmarshal(listResp.Data, &configurations); err != nil {
+		return nil, api.RuntimeError{Resource: resource, Reason: "unmarshalling failed", Wrapped: err}
+	}
+
 	var resources []api.Response
-	for _, r := range listResp {
+	for _, r := range configurations {
 		rr, err := c.Get(ctx, r.Id)
 		if err != nil {
 			return nil, err
@@ -112,7 +106,13 @@ func (c Client) GetAll(ctx context.Context) ([]api.Response, error) {
 	return resources, nil
 }
 
+// Update updates an existing OpenPipeline configuration by ID.
+// It retries on conflict errors up to a maximum number of attempts.
 func (c Client) Update(ctx context.Context, id string, payload []byte) (api.Response, error) {
+	if id == "" {
+		return api.Response{}, idValidationErr
+	}
+
 	var resp api.Response
 	var err error
 
@@ -137,33 +137,35 @@ func (c Client) update(ctx context.Context, id string, payload []byte) (api.Resp
 	}
 
 	var remoteJson map[string]any
-	err = json.Unmarshal(getResp.Data, &remoteJson)
-	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithId, updateOperation, id, fmt.Errorf("unable to unmarshal GET response: %w", err))
+	if err = json.Unmarshal(getResp.Data, &remoteJson); err != nil {
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to unmarshal GET response", Wrapped: err}
 	}
 
 	var localJson map[string]any
-	err = json.Unmarshal(payload, &localJson)
-	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithId, updateOperation, id, fmt.Errorf("unable to unmarshal request payload: %w", err))
+	if err = json.Unmarshal(payload, &localJson); err != nil {
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to unmarshal request payload", Wrapped: err}
 	}
 
 	localJson["version"] = remoteJson["version"]
 	localJson["updateToken"] = remoteJson["updateToken"]
-	payload, err = json.Marshal(localJson)
+	mergedPayload, err := json.Marshal(localJson)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithId, updateOperation, id, fmt.Errorf("unable to marshal payload: %w", err))
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to marshal payload", Wrapped: err}
 	}
 
 	path, err := url.JoinPath(openPipelineResourcePath, id)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithId, updateOperation, id, err)
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to construct URL", Wrapped: err}
 	}
 
-	resp, err := c.restClient.PUT(ctx, path, bytes.NewReader(payload), rest.RequestOptions{})
+	httpResp, err := c.restClient.PUT(ctx, path, bytes.NewReader(mergedPayload), rest.RequestOptions{})
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithId, updateOperation, id, err)
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodPut, Wrapped: err}
 	}
 
-	return api.NewResponseFromHTTPResponse(resp)
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodPut, Wrapped: err}
+	}
+	return resp, nil
 }
