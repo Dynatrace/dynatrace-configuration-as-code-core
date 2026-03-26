@@ -135,6 +135,12 @@ func TestList(t *testing.T) {
 		resp, err := client.List(t.Context())
 
 		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "direct-shares", clientErr.Resource)
+
 		var apiErr api.APIError
 		assert.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
@@ -149,7 +155,11 @@ func TestList(t *testing.T) {
 		resp, err := client.List(t.Context())
 
 		assert.Empty(t, resp)
-		assert.ErrorAs(t, err, &api.ClientError{})
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "direct-shares", clientErr.Resource)
 	})
 
 	t.Run("errors if JSON unmarshaling fails", func(t *testing.T) {
@@ -171,7 +181,11 @@ func TestList(t *testing.T) {
 		resp, err := client.List(t.Context())
 
 		assert.Empty(t, resp)
-		assert.ErrorAs(t, err, &api.RuntimeError{})
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "direct-shares", runtimeErr.Resource)
+		assert.Equal(t, "unmarshalling failed", runtimeErr.Reason)
 	})
 }
 
@@ -244,6 +258,12 @@ func TestGet(t *testing.T) {
 
 		assert.Empty(t, resp)
 
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "direct-shares", clientErr.Resource)
+		assert.Equal(t, "false_ID", clientErr.Identifier)
+
 		var apiErr api.APIError
 		assert.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
@@ -259,7 +279,12 @@ func TestGet(t *testing.T) {
 		resp, err := client.Get(t.Context(), "some-id")
 
 		assert.Empty(t, resp)
-		assert.ErrorAs(t, err, &api.ClientError{})
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "direct-shares", clientErr.Resource)
+		assert.Equal(t, "some-id", clientErr.Identifier)
 	})
 }
 
@@ -357,6 +382,12 @@ func TestGetRecipients(t *testing.T) {
 		resp, err := client.GetRecipients(t.Context(), "direct-share-id-1")
 
 		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "direct-shares", clientErr.Resource)
+
 		var apiErr api.APIError
 		assert.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
@@ -386,6 +417,11 @@ func TestGetRecipients(t *testing.T) {
 
 		assert.Empty(t, resp)
 
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "direct-shares", clientErr.Resource)
+
 		var apiErr api.APIError
 		assert.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
@@ -401,7 +437,12 @@ func TestGetRecipients(t *testing.T) {
 		resp, err := client.GetRecipients(t.Context(), "some-id")
 
 		assert.Empty(t, resp)
-		assert.ErrorAs(t, err, &api.ClientError{})
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "direct-shares", clientErr.Resource)
+		assert.Equal(t, "some-id", clientErr.Identifier)
 	})
 
 	t.Run("errors if JSON unmarshaling fails", func(t *testing.T) {
@@ -422,7 +463,11 @@ func TestGetRecipients(t *testing.T) {
 
 		resp, err := client.GetRecipients(t.Context(), "direct-share-id-1")
 		assert.Empty(t, resp)
-		assert.ErrorAs(t, err, &api.RuntimeError{})
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "direct-shares", runtimeErr.Resource)
+		assert.Equal(t, "unmarshalling failed", runtimeErr.Reason)
 	})
 }
 func TestAddRecipients(t *testing.T) {
@@ -479,6 +524,12 @@ func TestAddRecipients(t *testing.T) {
 
 		err := client.AddRecipients(t.Context(), "false_ID", []byte(`{}`))
 
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "direct-shares", clientErr.Resource)
+		assert.Equal(t, "false_ID", clientErr.Identifier)
+
 		var apiErr api.APIError
 		assert.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
@@ -493,7 +544,11 @@ func TestAddRecipients(t *testing.T) {
 
 		err := client.AddRecipients(t.Context(), "some-id", []byte(`{}`))
 
-		assert.ErrorAs(t, err, &api.ClientError{})
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "direct-shares", clientErr.Resource)
+		assert.Equal(t, "some-id", clientErr.Identifier)
 	})
 }
 
@@ -551,6 +606,12 @@ func TestRemoveRecipients(t *testing.T) {
 
 		err := client.RemoveRecipients(t.Context(), "false_ID", []byte(`{}`))
 
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "direct-shares", clientErr.Resource)
+		assert.Equal(t, "false_ID", clientErr.Identifier)
+
 		var apiErr api.APIError
 		assert.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, http.StatusForbidden, apiErr.StatusCode)
@@ -565,7 +626,11 @@ func TestRemoveRecipients(t *testing.T) {
 
 		err := client.RemoveRecipients(t.Context(), "some-id", []byte(`{}`))
 
-		assert.ErrorAs(t, err, &api.ClientError{})
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "direct-shares", clientErr.Resource)
+		assert.Equal(t, "some-id", clientErr.Identifier)
 	})
 }
 
@@ -627,6 +692,12 @@ func TestCreate(t *testing.T) {
 		actual, err := client.Create(t.Context(), []byte(given))
 
 		assert.Empty(t, actual)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "direct-shares", clientErr.Resource)
+
 		var apiErr api.APIError
 		assert.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
@@ -641,7 +712,11 @@ func TestCreate(t *testing.T) {
 
 		actual, err := client.Create(t.Context(), []byte(given))
 		assert.Empty(t, actual)
-		assert.ErrorAs(t, err, &api.ClientError{})
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "direct-shares", clientErr.Resource)
 	})
 }
 
@@ -695,6 +770,12 @@ func TestDelete(t *testing.T) {
 
 		err := client.Delete(t.Context(), "false_ID")
 
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodDelete, clientErr.Operation)
+		assert.Equal(t, "direct-shares", clientErr.Resource)
+		assert.Equal(t, "false_ID", clientErr.Identifier)
+
 		var apiErr api.APIError
 		assert.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
@@ -708,6 +789,11 @@ func TestDelete(t *testing.T) {
 		client := directshares.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
 		err := client.Delete(t.Context(), "some-id")
-		assert.ErrorAs(t, err, &api.ClientError{})
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodDelete, clientErr.Operation)
+		assert.Equal(t, "direct-shares", clientErr.Resource)
+		assert.Equal(t, "some-id", clientErr.Identifier)
 	})
 }
