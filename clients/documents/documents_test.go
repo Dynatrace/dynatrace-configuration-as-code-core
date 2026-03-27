@@ -15,10 +15,8 @@
 package documents_test
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,7 +32,12 @@ const boundary = "Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy"
 
 var contentType = fmt.Sprintf("multipart/form-data;boundary=%s", boundary)
 
-func TestDocumentClient_Get(t *testing.T) {
+func TestNewClient(t *testing.T) {
+	actual := documents.NewClient(&rest.Client{})
+	require.IsType(t, documents.Client{}, *actual)
+}
+
+func TestGet(t *testing.T) {
 	const metadataContent = `Content-Disposition: form-data; name="metadata"
 Content-Type: application/json
 
@@ -68,23 +71,11 @@ This is the document content`
 	payloadWithoutMetadata := fmt.Sprintf("--%s\n%s\n--%s--", boundary, payloadContent, boundary)
 	payloadWithoutContent := fmt.Sprintf("--%s\n%s\n--%s--", boundary, metadataContent, boundary)
 
-	t.Run("Get - no ID given", func(t *testing.T) {
-		responses := []testutils.ResponseDef{}
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		resp, err := client.Get(t.Context(), "")
-		assert.Zero(t, resp)
-		assert.NotNil(t, err)
-	})
-
-	t.Run("GET - OK", func(t *testing.T) {
-
+	t.Run("successfully returns document for requested ID", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/document/v1/documents/b17ec54b-07ac-4c73-9c4d-232e1b2e2420", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payload,
@@ -100,27 +91,74 @@ This is the document content`
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
-		assert.NotZero(t, resp)
-		assert.Equal(t, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420", resp.ID)
-		assert.Equal(t, "my-test-db", resp.Name)
-		assert.Equal(t, true, resp.IsPrivate)
-		assert.Equal(t, "dashboard", resp.Type)
-		assert.Equal(t, 1, resp.Version)
-		assert.Equal(t, "12341234-1234-1234-1234-12341234", resp.Owner)
-		assert.NotNil(t, resp.OriginAppID)
-		assert.Equal(t, "mytest.app", *resp.OriginAppID)
-		assert.NotNil(t, resp.OriginExtensionID)
-		assert.Equal(t, "mytest.extension", *resp.OriginExtensionID)
-		assert.Equal(t, "This is the document content", string(resp.Data))
-		assert.NotZero(t, resp.Request)
-		assert.Nil(t, err)
 
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp)
+		assert.Equal(t, "This is the document content", string(resp.Data))
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
-	t.Run("GET - no multipart given", func(t *testing.T) {
+	t.Run("errors if called without ID parameter", func(t *testing.T) {
+		client := documents.NewClient(&rest.Client{})
+
+		resp, err := client.Get(t.Context(), "")
+
+		assert.Empty(t, resp)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "documents", Field: "id", Reason: "is empty"})
+	})
+
+	t.Run("errors if document with ID doesn't exist on server", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusNotFound,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "documents", clientErr.Resource)
+		assert.Equal(t, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
+	})
+
+	t.Run("errors if HTTP request fails", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
+
+		resp, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "documents", clientErr.Resource)
+		assert.Equal(t, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420", clientErr.Identifier)
+	})
+
+	t.Run("errors if response is not multipart", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payload,
@@ -135,14 +173,21 @@ This is the document content`
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		_, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
-		assert.ErrorIs(t, err, http.ErrNotMultipart)
+		resp, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+
+		assert.Empty(t, resp)
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "documents", runtimeErr.Resource)
+		assert.Equal(t, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420", runtimeErr.Identifier)
+		assert.Equal(t, "failed to extract multipart boundary", runtimeErr.Reason)
 	})
 
-	t.Run("GET - no boundary given", func(t *testing.T) {
+	t.Run("errors if multipart boundary is missing", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payload,
@@ -157,14 +202,19 @@ This is the document content`
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		_, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
-		assert.ErrorContains(t, err, "unable to read multipart")
+		resp, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+
+		assert.Empty(t, resp)
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "documents", runtimeErr.Resource)
 	})
 
-	t.Run("GET - no metadata given", func(t *testing.T) {
+	t.Run("errors if metadata field not found in response", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payloadWithoutMetadata,
@@ -179,14 +229,20 @@ This is the document content`
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		_, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
-		assert.ErrorIs(t, err, documents.ErrNoMetadata)
+		resp, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+
+		assert.Empty(t, resp)
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "documents", runtimeErr.Resource)
+		assert.Equal(t, "metadata field not found in response", runtimeErr.Reason)
 	})
 
-	t.Run("GET - no content given", func(t *testing.T) {
+	t.Run("errors if content field not found in response", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payloadWithoutContent,
@@ -201,30 +257,64 @@ This is the document content`
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		_, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
-		assert.ErrorIs(t, err, documents.ErrNoContent)
-	})
-
-	t.Run("GET - Unable to make HTTP call", func(t *testing.T) {
-
-		responses := []testutils.ResponseDef{}
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := documents.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-
 		resp, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
-		assert.Zero(t, resp)
-		assert.Error(t, err)
-	})
 
-	t.Run("GET - API Call returned with != 2xx", func(t *testing.T) {
+		assert.Empty(t, resp)
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "documents", runtimeErr.Resource)
+		assert.Equal(t, "content field not found in response", runtimeErr.Reason)
+	})
+}
+
+func TestList(t *testing.T) {
+	const listPayloadPage1 = `{
+    "documents": [
+        {
+            "id": "id1",
+            "name": "name1",
+            "isPrivate": true,
+            "type": "dashboard",
+            "version": 1,
+            "owner": "owner1",
+            "originAppId": "app1"
+        }
+    ],
+    "nextPageKey": "next",
+    "totalCount": 2
+}`
+
+	const listPayloadPage2 = `{
+    "documents": [
+        {
+            "id": "id2",
+            "name": "name2",
+            "isPrivate": false,
+            "type": "dashboard",
+            "version": 1,
+            "owner": "owner2",
+            "originExtensionId": "extension1"
+        }
+    ],
+    "nextPageKey": null,
+    "totalCount": 2
+}`
+
+	t.Run("successfully returns all documents with pagination", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusBadRequest,
-					}
+					require.Equal(t, "/platform/document/v1/documents", req.URL.Path)
+					require.Equal(t, "add-field=originExtensionId&filter=type+%3D%3D+%27dashboard%27", req.URL.RawQuery)
+					return testutils.Response{ResponseCode: http.StatusOK, ResponseBody: listPayloadPage1}
+				},
+			},
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/document/v1/documents", req.URL.Path)
+					require.Equal(t, "add-field=originExtensionId&filter=type+%3D%3D+%27dashboard%27&page-key=next", req.URL.RawQuery)
+					return testutils.Response{ResponseCode: http.StatusOK, ResponseBody: listPayloadPage2}
 				},
 			},
 		}
@@ -234,15 +324,89 @@ This is the document content`
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
-		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+		resp, err := client.List(t.Context(), "type == 'dashboard'")
+
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp)
+		assert.Len(t, resp.Responses, 2, "two document objects in total should be downloaded")
+	})
+
+	t.Run("errors if can't execute all calls successfully", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{ResponseCode: http.StatusOK, ResponseBody: listPayloadPage1}
+				},
+			},
+			{
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
+					return testutils.Response{ResponseCode: http.StatusInternalServerError, ResponseBody: "Some error message from the server"}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.List(t.Context(), "")
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "documents", clientErr.Resource)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	})
+
+	t.Run("errors if HTTP request fails", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
+
+		resp, err := client.List(t.Context(), "")
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "documents", clientErr.Resource)
+	})
+
+	t.Run("errors if JSON unmarshaling fails", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/document/v1/documents", req.URL.Path)
+					return testutils.Response{ResponseCode: http.StatusOK, ResponseBody: "invalid json"}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.List(t.Context(), "type == 'dashboard'")
+
+		assert.Empty(t, resp)
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "documents", runtimeErr.Resource)
+		assert.Equal(t, "unmarshalling failed", runtimeErr.Reason)
 	})
 }
 
-func TestDocumentClient_Create(t *testing.T) {
+func TestCreate(t *testing.T) {
 	const (
 		expected = `{
   "id": "f0427cd7-c779-4dc1-9cf6-2730738b4ea0",
@@ -263,11 +427,11 @@ func TestDocumentClient_Create(t *testing.T) {
 		respPatch = `{"documentMetadata":` + expected + `}`
 	)
 
-	t.Run("simple case", func(t *testing.T) {
-
+	t.Run("successfully creates a new document", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				POST: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/document/v1/documents", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusCreated,
 						ResponseBody: respCreate,
@@ -295,8 +459,7 @@ func TestDocumentClient_Create(t *testing.T) {
 		assert.JSONEq(t, expected, string(res.Data))
 	})
 
-	t.Run("create call returns invalid response body", func(t *testing.T) {
-
+	t.Run("errors if POST returns invalid response body", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				POST: func(t *testing.T, req *http.Request) testutils.Response {
@@ -312,14 +475,17 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		_, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		resp, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
 
-		jsonErr := &json.SyntaxError{}
-		assert.ErrorAs(t, err, &jsonErr)
+		assert.Empty(t, resp)
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "documents", runtimeErr.Resource)
+		assert.Equal(t, "failed to unmarshal create response", runtimeErr.Reason)
 	})
 
-	t.Run("create call returns non successful response", func(t *testing.T) {
-
+	t.Run("errors if POST returns server error", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				POST: func(t *testing.T, req *http.Request) testutils.Response {
@@ -335,14 +501,37 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		resp, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
 
-		require.Empty(t, res)
-		require.Error(t, err)
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "documents", clientErr.Resource)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
 	})
 
-	t.Run("patch call returns non successful response; rollback success", func(t *testing.T) {
+	t.Run("errors if HTTP request fails", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
+		defer server.Close()
 
+		client := documents.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
+
+		resp, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "documents", clientErr.Resource)
+	})
+
+	t.Run("rolls back on PATCH failure and returns error", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				POST: func(t *testing.T, req *http.Request) testutils.Response {
@@ -382,18 +571,21 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		resp, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
 
-		assert.Empty(t, res)
-		assert.Error(t, err)
+		assert.Empty(t, resp)
 
-		// var apiErr api.APIError
-		assert.ErrorAs(t, err, &api.APIError{})
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "documents", clientErr.Resource)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
 		assert.ErrorContains(t, err, "some internal error")
 	})
 
-	t.Run("patch call returns 404 - retry succeeds", func(t *testing.T) {
-
+	t.Run("retries on PATCH 404 and succeeds", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				POST: func(t *testing.T, req *http.Request) testutils.Response {
@@ -431,8 +623,7 @@ func TestDocumentClient_Create(t *testing.T) {
 		assert.JSONEq(t, expected, string(res.Data))
 	})
 
-	t.Run("patch call returns 404 - retry fails", func(t *testing.T) {
-
+	t.Run("errors after exhausting PATCH 404 retries", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				POST: func(t *testing.T, req *http.Request) testutils.Response {
@@ -458,18 +649,21 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		resp, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
 
-		assert.Empty(t, res)
-		assert.Error(t, err)
+		assert.Empty(t, resp)
 
-		// var apiErr api.APIError
-		assert.ErrorAs(t, err, &api.APIError{})
-		assert.ErrorContains(t, err, "failed with status code 404")
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "documents", clientErr.Resource)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
 	})
 
-	t.Run("patch call returns non successful response; rollback fails", func(t *testing.T) {
-
+	t.Run("errors on PATCH failure when rollback also fails", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				POST: func(t *testing.T, req *http.Request) testutils.Response {
@@ -501,18 +695,20 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		resp, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
 
-		assert.Empty(t, res)
-		assert.Error(t, err)
+		assert.Empty(t, resp)
 
-		// var apiErr api.APIError
-		assert.ErrorAs(t, err, &api.APIError{})
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "documents", clientErr.Resource)
+
 		assert.ErrorContains(t, err, "some internal error")
 	})
 }
 
-func TestDocumentClient_Update(t *testing.T) {
+func TestUpdate(t *testing.T) {
 	const (
 		expected = `{
 "id": "038ab74f-0a3a-4bf8-9068-85e2d633a1e6",
@@ -557,69 +753,11 @@ This is the document content
 		patchPayload = `{"documentMetadata":` + expected + `}`
 	)
 
-	t.Run("Update - Missing id", func(t *testing.T) {
-		responses := []testutils.ResponseDef{}
-
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		resp, err := client.Update(t.Context(), "", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
-		assert.Zero(t, resp)
-		assert.Error(t, err)
-	})
-
-	t.Run("Update - Document not found", func(t *testing.T) {
+	t.Run("successfully updates an existing document", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusNotFound,
-					}
-				},
-			},
-		}
-
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
-		assert.Zero(t, resp)
-		assert.Error(t, err)
-	})
-
-	t.Run("Update - Fails to fetch existing document", func(t *testing.T) {
-		responses := []testutils.ResponseDef{
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusInternalServerError,
-					}
-				},
-			},
-		}
-
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
-
-		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
-
-	})
-
-	t.Run("Update - Existing document found", func(t *testing.T) {
-		responses := []testutils.ResponseDef{
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
+					require.Equal(t, "/platform/document/v1/documents/038ab74f-0a3a-4bf8-9068-85e2d633a1e6", request.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: getPayload,
@@ -629,6 +767,8 @@ This is the document content
 			},
 			{
 				PATCH: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/document/v1/documents/038ab74f-0a3a-4bf8-9068-85e2d633a1e6", req.URL.Path)
+					require.Equal(t, "1", req.URL.Query().Get("optimistic-locking-version"))
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: patchPayload,
@@ -643,42 +783,27 @@ This is the document content
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.JSONEq(t, expected, string(resp.Data))
 	})
 
-	t.Run("Update - Existing document found with arbitrary document-kind", func(t *testing.T) {
-		const someArbitraryDocumentType = "my-super-awesome-document-kind"
+	t.Run("errors if called without ID parameter", func(t *testing.T) {
+		client := documents.NewClient(&rest.Client{})
 
+		resp, err := client.Update(t.Context(), "", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+
+		assert.Empty(t, resp)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "documents", Field: "id", Reason: "is empty"})
+	})
+
+	t.Run("errors if document with ID doesn't exist on server", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-
-					payload := strings.ReplaceAll(getPayload, documents.Dashboard, someArbitraryDocumentType)
-
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: payload,
-						ContentType:  contentType,
-					}
-				},
-			},
-			{
-				PATCH: func(t *testing.T, req *http.Request) testutils.Response {
-					if err := req.ParseMultipartForm(32 << 10); err != nil { // 32 kb
-						t.Fatalf("Unable to parse multipart form data: %s", err)
-					}
-
-					assert.Equal(t, []string{someArbitraryDocumentType}, req.MultipartForm.Value["type"])
-					assert.Equal(t, []string{"false"}, req.MultipartForm.Value["isPrivate"])
-					assert.Equal(t, []string{"my-dashboard"}, req.MultipartForm.Value["name"])
-
-					payload := strings.ReplaceAll(patchPayload, documents.Dashboard, someArbitraryDocumentType)
-
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: payload,
+						ResponseCode: http.StatusNotFound,
 					}
 				},
 			},
@@ -689,28 +814,42 @@ This is the document content
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", false, []byte(documentContent), someArbitraryDocumentType)
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 
-		expected := strings.ReplaceAll(expected, documents.Dashboard, someArbitraryDocumentType)
+		assert.Empty(t, resp)
 
-		assert.JSONEq(t, expected, string(resp.Data))
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "documents", clientErr.Resource)
+		assert.Equal(t, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
 	})
 
-	t.Run("Update - Existing document found - Update fails", func(t *testing.T) {
+	t.Run("errors if HTTP request fails on GET", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
+
+		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "documents", clientErr.Resource)
+		assert.Equal(t, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", clientErr.Identifier)
+	})
+
+	t.Run("errors if server returns error on GET", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: getPayload,
-						ContentType:  contentType,
-					}
-				},
-			},
-			{
-				PATCH: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusInternalServerError,
 					}
@@ -725,16 +864,23 @@ This is the document content
 
 		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 
-		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "documents", clientErr.Resource)
+		assert.Equal(t, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
 	})
 
-	t.Run("Update - Existing document found - Update fails due to invalid response body", func(t *testing.T) {
+	t.Run("errors if server returns error on PATCH", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: getPayload,
@@ -743,7 +889,47 @@ This is the document content
 				},
 			},
 			{
-				PATCH: func(t *testing.T, req *http.Request) testutils.Response {
+				PATCH: func(t *testing.T, _ *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusInternalServerError,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPatch, clientErr.Operation)
+		assert.Equal(t, "documents", clientErr.Resource)
+		assert.Equal(t, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	})
+
+	t.Run("errors if PATCH returns invalid response body", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: getPayload,
+						ContentType:  contentType,
+					}
+				},
+			},
+			{
+				PATCH: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 					}
@@ -758,90 +944,39 @@ This is the document content
 
 		_, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
 
-		jsonErr := &json.SyntaxError{}
-		assert.ErrorAs(t, err, &jsonErr)
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "documents", runtimeErr.Resource)
+		assert.Equal(t, "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", runtimeErr.Identifier)
+		assert.Equal(t, "extracting metadata failed", runtimeErr.Reason)
 	})
-}
 
-func TestDocumentClient_List(t *testing.T) {
-	const listPayloadPage1 = `{
-    "documents": [
-        {
-            "modificationInfo": {
-                "createdBy": "12341234-1234-1234-1234-12341234",
-                "createdTime": "2024-04-10T17:21:06.797Z",
-                "lastModifiedBy": "2f321c04-566e-4779-b576-3c033b8cd9e9",
-                "lastModifiedTime": "2024-04-10T17:21:06.797Z"
-            },
-            "access": [
-                "read",
-                "write",
-                "delete"
-            ],
-            "id": "id1",
-            "name": "name1",
-			"isPrivate": true,
-            "type": "dashboard",
-            "version": 1,
-            "owner": "owner1",
-			"originAppId": "app1",
-      		"originExtensionId": null
-        }
-    ],
-    "nextPageKey": "next",
-    "totalCount": 2
-}`
+	t.Run("successfully updates with arbitrary document type", func(t *testing.T) {
+		const someArbitraryDocumentType = "my-super-awesome-document-kind"
 
-	const listPayloadPage2 = `{
-    "documents": [
-        {
-            "modificationInfo": {
-                "createdBy": "12341234-1234-1234-1234-12341234",
-                "createdTime": "2024-04-10T17:21:06.797Z",
-                "lastModifiedBy": "2f321c04-566e-4779-b576-3c033b8cd9e9",
-                "lastModifiedTime": "2024-04-10T17:21:06.797Z"
-            },
-            "access": [
-                "read",
-                "write",
-                "delete"
-            ],
-            "id": "id2",
-            "name": "name2",
-			"isPrivate": false,
-            "type": "dashboard",
-            "version": 1,
-            "owner": "owner2",
-			"originAppId": null,
-      		"originExtensionId": "extension1"
-        }
-    ],
-    "nextPageKey": null,
-    "totalCount": 2
-}`
-
-	t.Run("List - OK", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
-						ResponseBody: listPayloadPage1,
+						ResponseBody: getPayload,
+						ContentType:  contentType,
 					}
-				},
-				ValidateRequest: func(t *testing.T, request *http.Request) {
-					assert.Equal(t, "add-field=originExtensionId&filter=type+%3D%3D+%27dashboard%27", request.URL.RawQuery)
 				},
 			},
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				PATCH: func(t *testing.T, req *http.Request) testutils.Response {
+					if err := req.ParseMultipartForm(32 << 10); err != nil {
+						t.Fatalf("Unable to parse multipart form data: %s", err)
+					}
+					assert.Equal(t, []string{someArbitraryDocumentType}, req.MultipartForm.Value["type"])
+					assert.Equal(t, []string{"false"}, req.MultipartForm.Value["isPrivate"])
+					assert.Equal(t, []string{"my-dashboard"}, req.MultipartForm.Value["name"])
+
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
-						ResponseBody: listPayloadPage2,
+						ResponseBody: `{"documentMetadata":{"id":"038ab74f","name":"my-dashboard","type":"` + someArbitraryDocumentType + `","isPrivate":false,"version":1}}`,
 					}
-				},
-				ValidateRequest: func(t *testing.T, request *http.Request) {
-					assert.Equal(t, "add-field=originExtensionId&filter=type+%3D%3D+%27dashboard%27&page-key=next", request.URL.RawQuery)
 				},
 			},
 		}
@@ -851,107 +986,14 @@ func TestDocumentClient_List(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.List(t.Context(), "type == 'dashboard'")
-		assert.Len(t, resp.Responses, 2)
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", false, []byte(documentContent), someArbitraryDocumentType)
+
 		assert.NoError(t, err)
-
-		assert.Equal(t, "id1", resp.Responses[0].ID)
-		assert.Equal(t, "name1", resp.Responses[0].Name)
-		assert.Equal(t, true, resp.Responses[0].IsPrivate)
-		assert.Equal(t, "dashboard", resp.Responses[0].Type)
-		assert.Equal(t, 1, resp.Responses[0].Version)
-		assert.Equal(t, "owner1", resp.Responses[0].Owner)
-		assert.NotNil(t, resp.Responses[0].OriginAppID)
-		assert.Equal(t, "app1", *resp.Responses[0].OriginAppID)
-		assert.Nil(t, resp.Responses[0].OriginExtensionID)
-		assert.Equal(t, http.StatusOK, resp.Responses[0].StatusCode)
-
-		assert.Equal(t, "id2", resp.Responses[1].ID)
-		assert.Equal(t, "name2", resp.Responses[1].Name)
-		assert.Equal(t, false, resp.Responses[1].IsPrivate)
-		assert.Equal(t, "dashboard", resp.Responses[1].Type)
-		assert.Equal(t, 1, resp.Responses[1].Version)
-		assert.Equal(t, "owner2", resp.Responses[1].Owner)
-		assert.Nil(t, resp.Responses[1].OriginAppID)
-		assert.NotNil(t, resp.Responses[1].OriginExtensionID)
-		assert.EqualValues(t, "extension1", *resp.Responses[1].OriginExtensionID)
-		assert.Equal(t, http.StatusOK, resp.Responses[1].StatusCode)
-
-	})
-
-	t.Run("List - Loading Page Fails", func(t *testing.T) {
-		responses := []testutils.ResponseDef{
-			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: listPayloadPage1,
-					}
-				},
-			},
-			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusInternalServerError,
-					}
-				},
-			},
-		}
-
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		resp, err := client.List(t.Context(), "")
-
-		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
-		assert.Len(t, resp.Responses, 0)
-
-	})
-
-	t.Run("List - Request Fails", func(t *testing.T) {
-		responses := []testutils.ResponseDef{}
-
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := documents.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-
-		resp, err := client.List(t.Context(), "")
-		assert.Zero(t, resp)
-		assert.Error(t, err)
-	})
-
-	t.Run("List - Requested data is invalid", func(t *testing.T) {
-		responses := []testutils.ResponseDef{
-			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: "",
-					}
-				},
-			},
-		}
-
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		_, err := client.List(t.Context(), "type == 'dashboard'")
-		jsonErr := &json.SyntaxError{}
-		assert.ErrorAs(t, err, &jsonErr)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 }
 
-func TestDocumentClient_Delete(t *testing.T) {
-
+func TestDelete(t *testing.T) {
 	const getPayload = `--Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy
 Content-Disposition: form-data; name="metadata"
 Content-Type: application/json
@@ -983,25 +1025,11 @@ This is the document content
 --Aas2UU1KdxSpaAyiNZ4-tnuzbwqnKuNK8vMOGy--
 `
 
-	t.Run("Delete - id missing", func(t *testing.T) {
-		responses := []testutils.ResponseDef{}
-
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		resp, err := client.Delete(t.Context(), "")
-		assert.Zero(t, resp)
-		assert.Error(t, err)
-
-	})
-
-	t.Run("Delete - OK", func(t *testing.T) {
+	t.Run("successfully deletes document with ID from server", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
-					assert.Equal(t, "/platform/document/v1/documents/id-of-document", req.URL.Path)
+					require.Equal(t, "/platform/document/v1/documents/id-of-document", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: getPayload,
@@ -1011,7 +1039,7 @@ This is the document content
 			},
 			{
 				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
-					assert.Equal(t, "/platform/document/v1/documents/id-of-document", req.URL.Path)
+					require.Equal(t, "/platform/document/v1/documents/id-of-document", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 					}
@@ -1019,7 +1047,7 @@ This is the document content
 			},
 			{
 				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
-					assert.Equal(t, "/platform/document/v1/trash/documents/id-of-document", req.URL.Path)
+					require.Equal(t, "/platform/document/v1/trash/documents/id-of-document", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 					}
@@ -1033,15 +1061,24 @@ This is the document content
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Delete(t.Context(), "id-of-document")
-		assert.NotZero(t, resp)
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
 		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
-	t.Run("Delete - Fails finding existing document", func(t *testing.T) {
+	t.Run("errors if called without ID parameter", func(t *testing.T) {
+		client := documents.NewClient(&rest.Client{})
+
+		resp, err := client.Delete(t.Context(), "")
+
+		assert.Empty(t, resp)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "documents", Field: "id", Reason: "is empty"})
+	})
+
+	t.Run("errors if document with ID doesn't exist on server", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusNotFound,
 					}
@@ -1056,22 +1093,33 @@ This is the document content
 
 		resp, err := client.Delete(t.Context(), "id-of-document")
 
-		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "documents", clientErr.Resource)
+		assert.Equal(t, "id-of-document", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
 	})
 
-	t.Run("Delete - Failed to execute Request", func(t *testing.T) {
-		responses := []testutils.ResponseDef{}
-
-		server := testutils.NewHTTPTestServer(t, responses)
+	t.Run("errors if HTTP request fails", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
 		defer server.Close()
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
 		resp, err := client.Delete(t.Context(), "id-of-document")
-		assert.Zero(t, resp)
-		assert.Error(t, err)
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "documents", clientErr.Resource)
+		assert.Equal(t, "id-of-document", clientErr.Identifier)
 	})
 }
