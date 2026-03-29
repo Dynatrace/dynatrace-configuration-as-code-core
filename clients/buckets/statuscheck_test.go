@@ -16,7 +16,6 @@ package buckets_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"testing"
@@ -77,7 +76,13 @@ func TestAwaitBucketStable_ReturnsOnDeadlineOfParent(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), time.Duration(0))
 	cancel()
 	exists, err := buckets.AwaitActiveOrNotFound(ctx, client, "my-bucket", time.Minute, time.Duration(0))
-	assert.ErrorContains(t, err, "context canceled")
+
+	var runtimeErr api.RuntimeError
+	assert.ErrorAs(t, err, &runtimeErr)
+	assert.Equal(t, "buckets", runtimeErr.Resource)
+	assert.Equal(t, "my-bucket", runtimeErr.Identifier)
+	assert.Equal(t, "context canceled before bucket became stable", runtimeErr.Reason)
+
 	assert.False(t, exists)
 }
 
@@ -88,7 +93,13 @@ func TestAwaitBucketStable_ReturnsOnDeadline(t *testing.T) {
 		}, nil
 	}}
 	exists, err := buckets.AwaitActiveOrNotFound(t.Context(), client, "my-bucket", time.Duration(0), time.Duration(0))
-	assert.ErrorContains(t, err, "context canceled")
+
+	var runtimeErr api.RuntimeError
+	assert.ErrorAs(t, err, &runtimeErr)
+	assert.Equal(t, "buckets", runtimeErr.Resource)
+	assert.Equal(t, "my-bucket", runtimeErr.Identifier)
+	assert.Equal(t, "context canceled before bucket became stable", runtimeErr.Reason)
+
 	assert.False(t, exists)
 }
 
@@ -118,7 +129,12 @@ func TestAwaitBucketStable_ErrorsInvalidResponseData(t *testing.T) {
 		}, nil
 	}}
 	exists, err := buckets.AwaitActiveOrNotFound(t.Context(), client, "my-bucket", time.Minute, time.Duration(0))
-	wantErr := &json.SyntaxError{}
-	assert.ErrorAs(t, err, &wantErr)
+
+	var runtimeErr api.RuntimeError
+	assert.ErrorAs(t, err, &runtimeErr)
+	assert.Equal(t, "buckets", runtimeErr.Resource)
+	assert.Equal(t, "my-bucket", runtimeErr.Identifier)
+	assert.Equal(t, "failed to unmarshal bucket response", runtimeErr.Reason)
+
 	assert.False(t, exists)
 }

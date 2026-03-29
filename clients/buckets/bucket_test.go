@@ -19,11 +19,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
@@ -72,12 +71,17 @@ const (
 }`
 )
 
+func TestNewClient(t *testing.T) {
+	actual := buckets.NewClient(&rest.Client{})
+	require.IsType(t, buckets.Client{}, *actual)
+}
+
 func TestGet(t *testing.T) {
 	t.Run("successfully fetch a bucket", func(t *testing.T) {
-
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/management/v1/bucket-definitions/bucket name", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: activeBucketResponse,
@@ -93,14 +97,23 @@ func TestGet(t *testing.T) {
 
 		resp, err := client.Get(t.Context(), "bucket name")
 		assert.NoError(t, err)
-		assert.Equal(t, resp.Data, []byte(activeBucketResponse))
+		assert.Equal(t, activeBucketResponse, string(resp.Data))
 	})
 
-	t.Run("returns an error in case of a server issue", func(t *testing.T) {
+	t.Run("errors if called without bucketName parameter", func(t *testing.T) {
+		client := buckets.NewClient(&rest.Client{})
 
+		actual, err := client.Get(t.Context(), "")
+
+		assert.Empty(t, actual)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "buckets", Field: "bucketName", Reason: "is empty"})
+	})
+
+	t.Run("errors if server returns non-2xx", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/management/v1/bucket-definitions/bucket name", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusNotFound,
 						ResponseBody: "{}",
@@ -116,9 +129,33 @@ func TestGet(t *testing.T) {
 		resp, err := client.Get(t.Context(), "bucket name")
 
 		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "buckets", clientErr.Resource)
+		assert.Equal(t, "bucket name", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
+	})
+
+	t.Run("errors if HTTP request fails", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
+		defer server.Close()
+
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
+
+		resp, err := client.Get(t.Context(), "some-bucket")
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "buckets", clientErr.Resource)
+		assert.Equal(t, "some-bucket", clientErr.Identifier)
 	})
 }
 
@@ -151,7 +188,8 @@ func TestList(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/management/v1/bucket-definitions", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payload,
@@ -176,7 +214,8 @@ func TestList(t *testing.T) {
 		const payload = `{ "buckets": [] }`
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/management/v1/bucket-definitions", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payload,
@@ -191,15 +230,16 @@ func TestList(t *testing.T) {
 
 		resp, err := client.List(t.Context())
 
-		assert.NoError(t, err, "expected err to be nil")
+		assert.NoError(t, err)
 		assert.Equal(t, resp[0].Data, []byte(payload))
 		assert.Empty(t, resp.All())
 	})
 
-	t.Run("returns error in case of HTTP error", func(t *testing.T) {
+	t.Run("errors if server returns non-2xx", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/management/v1/bucket-definitions", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusNotFound,
 						ResponseBody: "{}",
@@ -214,31 +254,38 @@ func TestList(t *testing.T) {
 
 		resp, err := client.List(t.Context())
 		assert.Len(t, resp, 0)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
 
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "buckets", clientErr.Resource)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
 	})
 
-	t.Run("returns error in case of network error", func(t *testing.T) {
-
-		server := testutils.NewHTTPTestServer(t, nil)
+	t.Run("errors if HTTP request fails", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
 		defer server.Close()
 
-		faultyClient := server.FaultyClient()
-
-		client := buckets.NewClient(rest.NewClient(server.URL(), faultyClient))
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
 		resp, err := client.List(t.Context())
-		assert.Error(t, err)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "buckets", clientErr.Resource)
+
 		assert.Empty(t, resp)
 	})
 
-	t.Run("returns error if response is invalid JSON", func(t *testing.T) {
+	t.Run("errors if response is invalid JSON", func(t *testing.T) {
 		const payload = `{ buckets: [] }`
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payload,
@@ -252,46 +299,34 @@ func TestList(t *testing.T) {
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.List(t.Context())
-		assert.Error(t, err)
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "buckets", runtimeErr.Resource)
+		assert.Equal(t, "unmarshalling failed", runtimeErr.Reason)
+
 		assert.Empty(t, resp)
 	})
-
 }
 
 func TestDelete(t *testing.T) {
-	t.Run("fails if bucket name is empty", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-		defer server.Close()
-		url, _ := url.Parse(server.URL)
+	t.Run("errors if bucket name is empty", func(t *testing.T) {
+		client := buckets.NewClient(&rest.Client{})
 
-		client := buckets.NewClient(rest.NewClient(url, server.Client()))
-		_, err := client.Delete(t.Context(), "")
-		assert.ErrorIs(t, err, buckets.ErrBucketEmpty)
+		actual, err := client.Delete(t.Context(), "")
+
+		assert.Empty(t, actual)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "buckets", Field: "bucketName", Reason: "is empty"})
 	})
 
-	t.Run("delete bucket - OK", func(t *testing.T) {
+	t.Run("successfully deletes bucket", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				DELETE: func(t *testing.T, request *http.Request) testutils.Response {
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/management/v1/bucket-definitions/bucket name", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusAccepted,
 						ResponseBody: deletingBucketResponse,
-					}
-				},
-			},
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: deletingBucketResponse,
-					}
-				},
-			},
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusNotFound,
-						ResponseBody: "",
 					}
 				},
 			},
@@ -307,11 +342,11 @@ func TestDelete(t *testing.T) {
 		assert.Equal(t, deletingBucketResponse, string(resp.Data))
 	})
 
-	t.Run("returns an error when bucket to be deleted is not found", func(t *testing.T) {
-
+	t.Run("errors if bucket to be deleted is not found", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				DELETE: func(t *testing.T, request *http.Request) testutils.Response {
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/management/v1/bucket-definitions/bucket name", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusNotFound,
 					}
@@ -327,29 +362,32 @@ func TestDelete(t *testing.T) {
 		resp, err := client.Delete(t.Context(), "bucket name")
 
 		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodDelete, clientErr.Operation)
+		assert.Equal(t, "buckets", clientErr.Resource)
+		assert.Equal(t, "bucket name", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
 	})
 
-	t.Run("delete bucket - network error", func(t *testing.T) {
-		responses := []testutils.ResponseDef{
-			{
-				DELETE: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusNotFound,
-					}
-				},
-			},
-		}
-
-		server := testutils.NewHTTPTestServer(t, responses)
+	t.Run("errors if HTTP request fails", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
 		resp, err := client.Delete(t.Context(), "bucket name")
-		assert.Error(t, err)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodDelete, clientErr.Operation)
+		assert.Equal(t, "buckets", clientErr.Resource)
+		assert.Equal(t, "bucket name", clientErr.Identifier)
+
 		assert.Zero(t, resp)
 	})
 }
@@ -364,11 +402,11 @@ func TestCreate(t *testing.T) {
  "version": 1
 }`
 
-	t.Run("create bucket - OK", func(t *testing.T) {
-
+	t.Run("successfully creates bucket", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				POST: func(t *testing.T, request *http.Request) testutils.Response {
+				POST: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/management/v1/bucket-definitions", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusCreated,
 						ResponseBody: creatingBucketResponse,
@@ -388,90 +426,148 @@ func TestCreate(t *testing.T) {
 		assert.Equal(t, creatingBucketResponse, string(resp.Data))
 	})
 
-	t.Run("create bucket - network error", func(t *testing.T) {
-
-		responses := []testutils.ResponseDef{
-			// no request should reach test server
-		}
-
-		server := testutils.NewHTTPTestServer(t, responses)
+	t.Run("errors if HTTP request fails", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
 		resp, err := client.Create(t.Context(), "bucket name", []byte(someBucketData))
-		assert.Error(t, err)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "buckets", clientErr.Resource)
+		assert.Equal(t, "bucket name", clientErr.Identifier)
+
 		assert.Zero(t, resp)
 	})
 
-	t.Run("create bucket - invalid data", func(t *testing.T) {
+	t.Run("errors if data is invalid JSON", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
+		defer server.Close()
 
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.Create(t.Context(), "bucket name", []byte("-)§/$/(="))
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "buckets", runtimeErr.Resource)
+		assert.Equal(t, "bucket name", runtimeErr.Identifier)
+		assert.Equal(t, "failed to set bucket name in payload", runtimeErr.Reason)
+
+		assert.Zero(t, resp)
+	})
+
+	t.Run("errors if server returns non-2xx", func(t *testing.T) {
+		errorResponse := `{"error":{"code":400,"message":"Invalid request body"}}`
 		responses := []testutils.ResponseDef{
-			// no request should reach test server
+			{
+				POST: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusBadRequest,
+						ResponseBody: errorResponse,
+					}
+				},
+			},
 		}
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Create(t.Context(), "bucket name", []byte("-)§/$/(="))
-		assert.Error(t, err)
-		assert.Zero(t, resp)
+		resp, err := client.Create(t.Context(), "bucket name", []byte(someBucketData))
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "buckets", clientErr.Resource)
+		assert.Equal(t, "bucket name", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
+		assert.Equal(t, errorResponse, string(apiErr.Body))
 	})
 }
 
 func TestUpdate(t *testing.T) {
+	t.Run("errors if called without bucketName parameter", func(t *testing.T) {
+		client := buckets.NewClient(&rest.Client{})
 
-	t.Run("returns an error when update fails", func(t *testing.T) {
+		actual, err := client.Update(t.Context(), "", nil)
 
+		assert.Empty(t, actual)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "buckets", Field: "bucketName", Reason: "is empty"})
+	})
+
+	t.Run("errors if GET fails with server error", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: activeBucketResponse,
-					}
-				},
-			},
-			{
-				PUT: func(t *testing.T, request *http.Request) testutils.Response {
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/management/v1/bucket-definitions/bucket name", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusForbidden,
-						ResponseBody: "no write access message",
+						ResponseBody: "expected error, we don't want to get",
 					}
 				},
 			},
 		}
-
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
-		data := []byte("{}")
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Update(t.Context(), "bucket name", data)
+		resp, err := client.Update(t.Context(), "bucket name", []byte("{}"))
 
 		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusForbidden, apiError.StatusCode)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "buckets", clientErr.Resource)
+		assert.Equal(t, "bucket name", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusForbidden, apiErr.StatusCode)
 	})
 
-	t.Run("update bucket - OK", func(t *testing.T) {
+	t.Run("errors if GET HTTP request fails", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
+		defer server.Close()
+
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
+
+		resp, err := client.Update(t.Context(), "bucket name", []byte("{}"))
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "buckets", clientErr.Resource)
+		assert.Equal(t, "bucket name", clientErr.Identifier)
+	})
+
+	t.Run("successfully updates bucket", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/management/v1/bucket-definitions/bucket name", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: activeBucketResponse,
 					}
 				},
-				ValidateRequest: func(t *testing.T, req *http.Request) {
-					assert.Contains(t, req.URL.String(), url.PathEscape("bucket name"))
-				},
 			},
 			{
-				PUT: func(t *testing.T, request *http.Request) testutils.Response {
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/management/v1/bucket-definitions/bucket name", req.URL.Path)
+					require.Equal(t, "1", req.URL.Query().Get("optimistic-locking-version"))
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: updatingBucketResponse,
@@ -479,21 +575,12 @@ func TestUpdate(t *testing.T) {
 				},
 				ValidateRequest: func(t *testing.T, req *http.Request) {
 					data, err := io.ReadAll(req.Body)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 
 					m := map[string]any{}
-					err = json.Unmarshal(data, &m)
-					assert.NoError(t, err)
+					require.NoError(t, json.Unmarshal(data, &m))
 
 					assert.Equal(t, "bucket name", m["bucketName"])
-				},
-			},
-			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: activeBucketResponse,
-					}
 				},
 			},
 		}
@@ -501,31 +588,26 @@ func TestUpdate(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
-		data := []byte("{}")
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Update(t.Context(), "bucket name", data)
+		resp, err := client.Update(t.Context(), "bucket name", []byte("{}"))
 		assert.NoError(t, err)
 
 		m := map[string]any{}
 		err = json.Unmarshal(resp.Data, &m)
 		assert.NoError(t, err)
-
 		assert.Equal(t, "bucket name", m["bucketName"])
 	})
 
-	t.Run("unmodified bucket - nothing happens", func(t *testing.T) {
-
+	t.Run("skips update when bucket is unmodified", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/management/v1/bucket-definitions/bucket name", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: activeBucketResponse,
 					}
-				},
-				ValidateRequest: func(t *testing.T, req *http.Request) {
-					assert.Contains(t, req.URL.String(), url.PathEscape("bucket name"))
 				},
 			},
 		}
@@ -547,71 +629,72 @@ func TestUpdate(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
-	t.Run("returns an error when update fails with conflict", func(t *testing.T) {
-
-		responses := []testutils.ResponseDef{}
-
-		for i := 0; i < 5; i++ {
-			get := testutils.ResponseDef{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
+	t.Run("errors if PUT returns conflict", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: activeBucketResponse,
 					}
 				},
-			}
-			responses = append(responses, get)
-
-			put := testutils.ResponseDef{
-				PUT: func(t *testing.T, request *http.Request) testutils.Response {
+			},
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusConflict,
 						ResponseBody: `some conflicting error'`,
 					}
 				},
-			}
-			responses = append(responses, put)
+			},
 		}
 
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(
-			rest.NewClient(server.URL(), server.Client()))
-		data := []byte("{}")
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Update(t.Context(), "bucket name", data)
+		resp, err := client.Update(t.Context(), "bucket name", []byte("{}"))
 
 		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusConflict, apiError.StatusCode)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPut, clientErr.Operation)
+		assert.Equal(t, "buckets", clientErr.Resource)
+		assert.Equal(t, "bucket name", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusConflict, apiErr.StatusCode)
 	})
 
-	t.Run("returns an error when update fails because GET fails", func(t *testing.T) {
-
+	t.Run("errors if update payload is invalid JSON", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
 					return testutils.Response{
-						ResponseCode: http.StatusForbidden,
-						ResponseBody: "expected error, we don't want to get",
+						ResponseCode: http.StatusOK,
+						ResponseBody: activeBucketResponse,
 					}
 				},
 			},
 		}
+
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := buckets.NewClient(rest.NewClient(server.URL(), &http.Client{}))
-		data := []byte("{}")
+		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Update(t.Context(), "bucket name", data)
+		resp, err := client.Update(t.Context(), "bucket name", []byte("{invalid"))
 
 		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusForbidden, apiError.StatusCode)
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "buckets", runtimeErr.Resource)
+		assert.Equal(t, "bucket name", runtimeErr.Identifier)
+		assert.Equal(t, "failed to unmarshal request payload", runtimeErr.Reason)
 	})
 }
 
@@ -642,10 +725,9 @@ func TestDecodingBucketResponses(t *testing.T) {
 	}
 
 	t.Run("Get single bucket", func(t *testing.T) {
-
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: bucket1,
@@ -660,7 +742,7 @@ func TestDecodingBucketResponses(t *testing.T) {
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.List(t.Context())
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		b, err := api.DecodeJSON[bucket](resp[0].Response)
 		assert.NoError(t, err)
 
@@ -670,7 +752,6 @@ func TestDecodingBucketResponses(t *testing.T) {
 	})
 
 	t.Run("List multiple buckets", func(t *testing.T) {
-
 		payload := fmt.Sprintf(`{
 		"buckets": [
 			%s,
@@ -680,7 +761,7 @@ func TestDecodingBucketResponses(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, request *http.Request) testutils.Response {
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payload,
@@ -694,7 +775,7 @@ func TestDecodingBucketResponses(t *testing.T) {
 		client := buckets.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.List(t.Context())
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		list, err := api.DecodeJSONObjects[bucket](resp[0])
 		assert.NoError(t, err)

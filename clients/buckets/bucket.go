@@ -18,31 +18,23 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
+	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
-
-	"github.com/google/go-cmp/cmp"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 )
 
 const (
-	endpointPath    = "platform/storage/management/v1/bucket-definitions"
-	errUnmarshalMsg = "failed to unmarshal JSON response: %w"
-	errMsg          = "failed to %s bucket: %w"
-	errMsgWithName  = "failed to %s bucket with name %s: %w"
-	getOperation    = "get"
-	updateOperation = "update"
-	deleteOperation = "delete"
-	createOperation = "create"
-	listOperation   = "list"
+	endpointPath = "/platform/storage/management/v1/bucket-definitions"
+	resource     = "buckets"
 )
 
 var (
-	ErrBucketEmpty        = fmt.Errorf("bucketName must be non-empty")
+	idValidationErr       = api.ValidationError{Resource: resource, Field: "bucketName", Reason: "is empty"}
 	defaultRequestOptions = rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests}
 )
 
@@ -53,101 +45,60 @@ type bucketResponse struct {
 }
 
 // ListResponse is a Bucket API response containing multiple bucket objects.
-// For convenience, it contains a slice of Buckets in addition to the base api.Response data.
 type ListResponse = api.PagedListResponse
 
 type listResponse struct {
 	Buckets []json.RawMessage `json:"buckets"`
 }
 
+// Client is used to interact with the Grail bucket management API.
 type Client struct {
 	restClient *rest.Client
 }
 
-// Option represents a functional Option for the Client.
-type Option func(*Client)
-
-// NewClient creates a new instance of a Client, which provides methods for interacting with the Grail bucket management API.
-// This function initializes and returns a new Client instance that can be used to perform various operations
-// on the remote server.
-//
-// Parameters:
-//   - client: A pointer to a rest.Client instance used for making HTTP requests to the remote server.
-//   - option: A variadic slice of apiClient Option. Each Option will be applied to the new Client and define options such as retry settings.
-//
-// Returns:
-//   - *Client: A pointer to a new Client instance initialized with the provided rest.Client and logger.
-func NewClient(client *rest.Client, option ...Option) *Client {
-	client.SetHeader("Cache-Control", "no-cache")
-	c := &Client{
-		restClient: client,
-	}
-
-	for _, o := range option {
-		o(c)
-	}
-
-	return c
+// NewClient creates a new buckets Client using the given rest.Client.
+func NewClient(client *rest.Client) *Client {
+	return &Client{restClient: client}
 }
 
-// Get retrieves a bucket definition based on the provided bucketName. The function sends a GET request
-// to the server using the given context and bucketName. It returns a Response and an error indicating
-// the success or failure its execution.
-//
-// If the HTTP request to the server fails, the method returns an empty Response and an error explaining the issue.
-//
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
-//
-// Parameters:
-//   - ctx: Context for controlling the HTTP operation's lifecycle.
-//   - bucketName: The name of the bucket to be retrieved.
-//
-// Returns:
-//   - Response: A Response containing the result of the HTTP call, including status code and data.
-//   - error: An error if the HTTP call fails or another error happened.
+// Get retrieves a bucket definition by bucketName.
 func (c Client) Get(ctx context.Context, bucketName string) (api.Response, error) {
+	if bucketName == "" {
+		return api.Response{}, idValidationErr
+	}
+
 	path, err := url.JoinPath(endpointPath, bucketName)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, getOperation, bucketName, err)
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: bucketName, Reason: "failed to construct URL", Wrapped: err}
 	}
 
-	resp, err := c.restClient.GET(ctx, path, defaultRequestOptions)
+	httpResp, err := c.restClient.GET(ctx, path, defaultRequestOptions)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, getOperation, bucketName, err)
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: bucketName, Operation: http.MethodGet, Wrapped: err}
 	}
 
-	return api.NewResponseFromHTTPResponse(resp)
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: bucketName, Operation: http.MethodGet, Wrapped: err}
+	}
+	return resp, nil
 }
 
-// List retrieves all bucket definitions. The function sends a GET request
-// to the server using the given context. It returns a slice of bucket Responses and an error indicating
-// the success or failure its execution.
-//
-// If the HTTP request to the server fails, the method returns an empty slice and an error explaining the issue.
-//
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
-//
-// Parameters:
-//   - ctx: Context for controlling the HTTP operation's lifecycle. Possibly containing a logger created with logr.NewContext.
-//
-// Returns:
-//   - []Response: A slice of bucket Response containing the individual buckets resulting from the HTTP call, including status code and data.
-//   - error: An error if the HTTP call fails or another error happened.
+// List retrieves all bucket definitions.
 func (c Client) List(ctx context.Context) (ListResponse, error) {
-	resp, err := c.restClient.GET(ctx, endpointPath, defaultRequestOptions)
+	httpResp, err := c.restClient.GET(ctx, endpointPath, defaultRequestOptions)
 	if err != nil {
-		return ListResponse{}, fmt.Errorf(errMsg, listOperation, err)
+		return ListResponse{}, api.ClientError{Resource: resource, Operation: http.MethodGet, Wrapped: err}
 	}
 
-	apiResp, err := api.NewResponseFromHTTPResponse(resp)
+	apiResp, err := api.NewResponseFromHTTPResponse(httpResp)
 	if err != nil {
-		return ListResponse{}, err
+		return ListResponse{}, api.ClientError{Resource: resource, Operation: http.MethodGet, Wrapped: err}
 	}
+
 	r := listResponse{}
-	err = json.Unmarshal(apiResp.Data, &r)
-	if err != nil {
-		slog.ErrorContext(ctx, "Failed to unmarshal JSON response", slog.String("error", err.Error()))
-		return ListResponse{}, fmt.Errorf(errMsg, listOperation, fmt.Errorf(errUnmarshalMsg, err))
+	if err = json.Unmarshal(apiResp.Data, &r); err != nil {
+		return ListResponse{}, api.RuntimeError{Resource: resource, Reason: "unmarshalling failed", Wrapped: err}
 	}
 
 	b := make([][]byte, len(r.Buckets))
@@ -163,118 +114,74 @@ func (c Client) List(ctx context.Context) (ListResponse, error) {
 	}, nil
 }
 
-// Create sends a request to the server to create a new bucket with the provided bucketName and data.
-// The function prepares the data by setting the bucket name, then performs a POST request using the
-// underlying apiClient. It returns a Response and an error indicating the success or failure of its execution.
-//
-// If setting the bucket name in the data encounters an error, or if the HTTP request to the server
-// fails, the function returns an empty Response and an error explaining the issue.
-//
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
-//
-// Parameters:
-//   - ctx: Context for controlling the HTTP operation's lifecycle. Possibly containing a logger created with logr.NewContext.
-//   - bucketName: The name of the bucket to be created.
-//   - data: The data containing information about the new bucket.
-//
-// Returns:
-//   - Response: A Response containing the result of the HTTP call, including status code and data.
-//   - error: An error if the HTTP call fails or another error happened.
+// Create sends a request to create a new bucket with the provided bucketName and data.
 func (c Client) Create(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
 	if err := setBucketName(bucketName, &data); err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, bucketName, fmt.Errorf("unable to set bucket name: %w", err))
-	}
-	r, err := c.restClient.POST(ctx, endpointPath, bytes.NewReader(data), defaultRequestOptions)
-	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, bucketName, err)
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: bucketName, Reason: "failed to set bucket name in payload", Wrapped: err}
 	}
 
-	return api.NewResponseFromHTTPResponse(r)
+	httpResp, err := c.restClient.POST(ctx, endpointPath, bytes.NewReader(data), defaultRequestOptions)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: bucketName, Operation: http.MethodPost, Wrapped: err}
+	}
+
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: bucketName, Operation: http.MethodPost, Wrapped: err}
+	}
+	return resp, nil
 }
 
-// Delete sends a request to the server to delete a bucket definition identified by the provided bucketName.
-// It returns a Response and an error indicating the success or failure of the deletion operation.
-//
-// If the provided bucketName is empty, the function returns an error indicating that the bucketName must be non-empty.
-// If the HTTP request to the server fails, the method returns an empty Response and an error explaining the issue.
-//
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
-//
-// Parameters:
-//   - ctx: Context for controlling the deletion operation's lifecycle. Possibly containing a logger created with logr.NewContext.
-//   - bucketName: The name of the bucket to be deleted.
-//
-// Returns:
-//   - Response: A Response containing the result of the HTTP call, including status code and data.
-//   - error: An error if the HTTP call fails or another error happened.
+// Delete sends a request to delete a bucket definition identified by bucketName.
 func (c Client) Delete(ctx context.Context, bucketName string) (api.Response, error) {
 	if bucketName == "" {
-		return api.Response{}, fmt.Errorf(errMsg, deleteOperation, ErrBucketEmpty)
+		return api.Response{}, idValidationErr
 	}
+
 	path, err := url.JoinPath(endpointPath, bucketName)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, deleteOperation, bucketName, err)
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: bucketName, Reason: "failed to construct URL", Wrapped: err}
 	}
 
-	resp, err := c.restClient.DELETE(ctx, path, defaultRequestOptions)
-
+	httpResp, err := c.restClient.DELETE(ctx, path, defaultRequestOptions)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, deleteOperation, bucketName, err)
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: bucketName, Operation: http.MethodDelete, Wrapped: err}
 	}
 
-	return api.NewResponseFromHTTPResponse(resp)
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: bucketName, Operation: http.MethodDelete, Wrapped: err}
+	}
+	return resp, nil
 }
 
-// Update attempts to update a bucket's data using the provided apiClient. It employs a retry mechanism
-// in case of transient errors. The function returns a Response along with an error indicating the
-// success or failure of its execution.
-//
-// The update process is retried up to a fixed maximum number of times. If the update fails
-// with certain HTTP status codes (401 Unauthorized, 403 Forbidden, 400 Bad Request), the function
-// returns an appropriate Response immediately. If the update is successful, the function returns
-// a Response indicating success, or if all retries fail, it returns a Response and the last
-// encountered error, if any.
-//
-// If the data to update the bucket fully matches what is already configured on the target environment,
-// Update will not make an HTTP call, as this would needlessly increase the buckets version.
-// This is transparent to callers and a normal StatusCode 200 Response is returned.
-//
-// If you wish to receive logs from this method supply a logger inside the context using logr.NewContext.
-//
-// Parameters:
-//   - ctx: Context for controlling the HTTP operation's lifecycle. Possibly containing a logger created with logr.NewContext.
-//   - bucketName: The name of the bucket to be updated.
-//   - data: The new data to be assigned to the bucket.
-//
-// Returns:
-//   - Response: A Response containing the result of the HTTP operation, including status code and data.
-//   - error: An error if the HTTP call fails or another error happened.
+// Update updates a bucket's data. If the data is unchanged compared to the existing bucket,
+// no HTTP call is made and a 200 response is returned directly.
 func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api.Response, error) {
-	// try to get existing bucket definition
-	apiResp, err := c.Get(ctx, bucketName)
-	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, updateOperation, bucketName, err)
+	if bucketName == "" {
+		return api.Response{}, idValidationErr
 	}
 
-	// try to unmarshal into internal struct
+	apiResp, err := c.Get(ctx, bucketName)
+	if err != nil {
+		return api.Response{}, err
+	}
+
 	res, err := unmarshalJSON(apiResp.Data)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, updateOperation, bucketName, err)
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: bucketName, Reason: "failed to unmarshal GET response", Wrapped: err}
 	}
 
 	if bucketsEqual(apiResp.Data, data) {
 		slog.DebugContext(ctx, "Configuration unmodified, no need to update bucket", slog.String("bucketName", bucketName))
-
 		return api.Response{
-			StatusCode: 200,
+			StatusCode: http.StatusOK,
 		}, nil
 	}
 
-	// convert data to be sent to JSON
 	var m map[string]interface{}
-	err = json.Unmarshal(data, &m)
-	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, updateOperation, bucketName, fmt.Errorf("unable to unmarshal data: %w", err))
+	if err = json.Unmarshal(data, &m); err != nil {
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: bucketName, Reason: "failed to unmarshal request payload", Wrapped: err}
 	}
 	m["bucketName"] = res.BucketName
 	m["version"] = res.Version
@@ -282,68 +189,67 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api
 
 	data, err = json.Marshal(m)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, updateOperation, bucketName, fmt.Errorf("unable to marshal data: %w", err))
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: bucketName, Reason: "failed to marshal payload", Wrapped: err}
 	}
 
 	path, err := url.JoinPath(endpointPath, bucketName)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, updateOperation, bucketName, err)
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: bucketName, Reason: "failed to construct URL", Wrapped: err}
 	}
 
-	resp, err := c.restClient.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{
+	httpResp, err := c.restClient.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{
 		QueryParams:           url.Values{"optimistic-locking-version": []string{strconv.Itoa(res.Version)}},
 		CustomShouldRetryFunc: defaultRequestOptions.CustomShouldRetryFunc,
 	})
-
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, updateOperation, bucketName, err)
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: bucketName, Operation: http.MethodPut, Wrapped: err}
 	}
 
-	return api.NewResponseFromHTTPResponse(resp)
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: bucketName, Operation: http.MethodPut, Wrapped: err}
+	}
+	return resp, nil
 }
 
-// bucketsEqual checks whether two bucket JSONs are equal in terms of update API calls
-// this means that like for an update bucketName, version and status are assumed to be
-// those of the existing object, ignoring what ever may be defined in the supplied data.
-func bucketsEqual(exists, new []byte) bool {
-	var existsMap map[string]interface{}
-	if err := json.Unmarshal(exists, &existsMap); err != nil {
+// bucketsEqual checks whether two bucket JSONs are equal in terms of update API calls.
+// bucketName, version and status are assumed to be those of the existing object.
+func bucketsEqual(existingBucket, newBucket []byte) bool {
+	var existingMap map[string]interface{}
+	if err := json.Unmarshal(existingBucket, &existingMap); err != nil {
 		return false
 	}
 
 	var newMap map[string]interface{}
-	if err := json.Unmarshal(new, &newMap); err != nil {
+	if err := json.Unmarshal(newBucket, &newMap); err != nil {
 		return false
 	}
-	// version and status are always taken from existing bucket on update
-	newMap["bucketName"] = existsMap["bucketName"]
-	newMap["version"] = existsMap["version"]
-	newMap["status"] = existsMap["status"]
 
-	return cmp.Equal(existsMap, newMap)
+	// version and status are always taken from existing bucket on update
+	newMap["bucketName"] = existingMap["bucketName"]
+	newMap["version"] = existingMap["version"]
+	newMap["status"] = existingMap["status"]
+
+	return reflect.DeepEqual(existingMap, newMap)
 }
 
 // setBucketName sets the bucket name in the provided JSON data.
 func setBucketName(bucketName string, data *[]byte) error {
 	var m map[string]interface{}
-	err := json.Unmarshal(*data, &m)
-	if err != nil {
-		return fmt.Errorf("unable to unmarshal data: %w", err)
+	if err := json.Unmarshal(*data, &m); err != nil {
+		return err
 	}
 	m["bucketName"] = bucketName
+	var err error
 	*data, err = json.Marshal(m)
-	if err != nil {
-		return fmt.Errorf("unable to marshal data: %w", err)
-	}
-	return nil
+	return err
 }
 
-// unmarshalJSON unmarshals JSON data into a response struct.
+// unmarshalJSON unmarshals JSON data into a bucketResponse struct.
 func unmarshalJSON(body []byte) (bucketResponse, error) {
 	r := bucketResponse{}
-	err := json.Unmarshal(body, &r)
-	if err != nil {
-		return bucketResponse{}, fmt.Errorf(errUnmarshalMsg, err)
+	if err := json.Unmarshal(body, &r); err != nil {
+		return bucketResponse{}, err
 	}
 	return r, nil
 }
