@@ -12,7 +12,11 @@ on:
 jobs:
   integration-test:
     name: 🌍 Integration tests
-    if: github.event.action != 'labeled' || github.event.label.name == 'run-e2e-test'
+    # Verify that either the workflow is executed as part of the main-branch or the scheduled test,
+    # OR that the PR is labeled using the `run-e2e-test` label and the PR author is a member of the organization.
+    if: |
+      github.event.action != 'labeled'
+      || (github.event.label.name == 'run-e2e-test' && github.event.pull_request.author_association == 'MEMBER')
     runs-on: ubuntu-latest
     permissions:
       contents: read
