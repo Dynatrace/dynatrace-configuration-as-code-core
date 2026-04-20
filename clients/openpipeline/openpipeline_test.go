@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
@@ -28,34 +29,63 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
 )
 
-func TestOpenPipelineClient_Get(t *testing.T) {
+func TestNewClient(t *testing.T) {
+	actual := openpipeline.NewClient(&rest.Client{})
+	require.IsType(t, openpipeline.Client{}, *actual)
+}
+
+func TestGet(t *testing.T) {
 	const payload = `{
 	"id": "bizevents",
 	"editable": true,
 	"version": "1716904550612-4770deb9105b4a5293c1edbcc6bf4412"
-}
-`
+}`
 
-	t.Run("Get - no ID given", func(t *testing.T) {
-		responses := []testutils.ResponseDef{}
+	t.Run("successfully returns configuration for requested ID", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/openpipeline/v1/configurations/bizevents", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: payload,
+						ContentType:  "application/json",
+					}
+				},
+			},
+		}
+
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.Get(t.Context(), "bizevents")
+
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp)
+		assert.Equal(t, payload, string(resp.Data))
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("errors if called without ID parameter", func(t *testing.T) {
+		client := openpipeline.NewClient(&rest.Client{})
 
 		resp, err := client.Get(t.Context(), "")
-		assert.Zero(t, resp)
-		assert.NotNil(t, err)
+
+		assert.Empty(t, resp)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "openpipeline", Field: "id", Reason: "is empty"})
 	})
-	t.Run("GET - OK", func(t *testing.T) {
+
+	t.Run("errors if configuration with ID doesn't exist on server", func(t *testing.T) {
+		errorResponse := `{"error":{"code":404,"message":"Not found"}}`
 
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: payload,
-						ContentType:  "application/json",
+						ResponseCode: http.StatusNotFound,
+						ResponseBody: errorResponse,
 					}
 				},
 			},
@@ -66,77 +96,52 @@ func TestOpenPipelineClient_Get(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Get(t.Context(), "bizevents")
-		assert.Nil(t, err)
-		assert.Equal(t, payload, string(resp.Data))
+		resp, err := client.Get(t.Context(), "false_ID")
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "openpipeline", clientErr.Resource)
+		assert.Equal(t, "false_ID", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
+		assert.Equal(t, errorResponse, string(apiErr.Body))
 	})
 
-	t.Run("GET - Unable to make HTTP call", func(t *testing.T) {
-
-		responses := []testutils.ResponseDef{}
-		server := testutils.NewHTTPTestServer(t, responses)
+	t.Run("errors if HTTP request fails", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
 		resp, err := client.Get(t.Context(), "bizevents")
-		assert.Zero(t, resp)
-		assert.Error(t, err)
-	})
 
-	t.Run("GET - API Call returned with != 2xx", func(t *testing.T) {
-		responses := []testutils.ResponseDef{
-			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusBadRequest,
-					}
-				},
-			},
-		}
+		assert.Empty(t, resp)
 
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		resp, err := client.Get(t.Context(), "bizevents")
-		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "openpipeline", clientErr.Resource)
+		assert.Equal(t, "bizevents", clientErr.Identifier)
 	})
 }
 
-func TestOpenPipelineClient_List(t *testing.T) {
+func TestList(t *testing.T) {
 	const payload = `[
-	{
-		"id": "logs",
-		"editable": true
-	},
-	{
-		"id": "events",
-		"editable": true
-	},
-	{
-		"id": "bizevents",
-		"editable": false
-	}
+	{"id": "logs", "editable": true},
+	{"id": "events", "editable": true},
+	{"id": "bizevents", "editable": false}
 ]`
 
-	t.Run("List - OK", func(t *testing.T) {
+	t.Run("successfully returns all configurations", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-						ResponseBody: payload,
-						ContentType:  "application/json",
-					}
-				},
-			},
-			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/openpipeline/v1/configurations", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payload,
@@ -152,30 +157,17 @@ func TestOpenPipelineClient_List(t *testing.T) {
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.List(t.Context())
-		assert.Nil(t, err)
-		assert.Len(t, resp, 3)
-		assert.Contains(t, resp, openpipeline.ListResponse{Id: "logs", Editable: true})
-		assert.Contains(t, resp, openpipeline.ListResponse{Id: "events", Editable: true})
-		assert.Contains(t, resp, openpipeline.ListResponse{Id: "bizevents", Editable: false})
+
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp)
+		assert.Equal(t, payload, string(resp.Data))
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
-	t.Run("List - Unable to make HTTP call", func(t *testing.T) {
-
-		responses := []testutils.ResponseDef{}
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-
-		resp, err := client.List(t.Context())
-		assert.Zero(t, resp)
-		assert.Error(t, err)
-	})
-
-	t.Run("List - API Call returned with != 2xx", func(t *testing.T) {
+	t.Run("errors if server returns an error", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusBadRequest,
 					}
@@ -189,76 +181,51 @@ func TestOpenPipelineClient_List(t *testing.T) {
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.List(t.Context())
-		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "openpipeline", clientErr.Resource)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
 	})
 
-	t.Run("List - API Call returned invalid data", func(t *testing.T) {
-		responses := []testutils.ResponseDef{
-			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusOK,
-					}
-				},
-			},
-		}
-
-		server := testutils.NewHTTPTestServer(t, responses)
+	t.Run("errors if HTTP request fails", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
 		defer server.Close()
 
-		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
+		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
-		_, err := client.List(t.Context())
-		wantErr := &json.SyntaxError{}
-		assert.ErrorAs(t, err, &wantErr)
+		resp, err := client.List(t.Context())
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "openpipeline", clientErr.Resource)
 	})
 }
 
-func TestOpenPipelineClient_GetAll(t *testing.T) {
-
+func TestGetAll(t *testing.T) {
 	const payloadList = `[
-	{
-		"id": "logs",
-		"editable": true
-	},
-	{
-		"id": "events",
-		"editable": true
-	},
-	{
-		"id": "bizevents",
-		"editable": false
-	}
+	{"id": "logs", "editable": true},
+	{"id": "events", "editable": true},
+	{"id": "bizevents", "editable": false}
 ]`
-	const payloadGet1 = `{
-	"id": "logs",
-	"editable": true,
-	"version": "1716904550612-4770deb9105b4a5293c1edbcc6bf4412"
-}
-`
+	const payloadGet1 = `{"id": "logs", "editable": true, "version": "ver1"}`
+	const payloadGet2 = `{"id": "events", "editable": true, "version": "ver2"}`
+	const payloadGet3 = `{"id": "bizevents", "editable": false, "version": "ver3"}`
 
-	const payloadGet2 = `{
-	"id": "events",
-	"editable": true,
-	"version": "1716904550612-4770deb9105b4a5293c1edbcc6bf4412"
-}
-`
-
-	const payloadGet3 = `{
-	"id": "bizevents",
-	"editable": false,
-	"version": "1716904550612-4770deb9105b4a5293c1edbcc6bf4412"
-}
-`
-
-	t.Run("GET - OK", func(t *testing.T) {
-
+	t.Run("successfully returns all configurations with full details", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/openpipeline/v1/configurations", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payloadList,
@@ -268,6 +235,7 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 			},
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/openpipeline/v1/configurations/logs", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payloadGet1,
@@ -277,6 +245,7 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 			},
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/openpipeline/v1/configurations/events", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payloadGet2,
@@ -286,6 +255,7 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 			},
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/openpipeline/v1/configurations/bizevents", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payloadGet3,
@@ -301,30 +271,18 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.GetAll(t.Context())
-		assert.Nil(t, err)
+
+		assert.NoError(t, err)
 		assert.Len(t, resp, 3)
 		assert.Equal(t, payloadGet1, string(resp[0].Data))
 		assert.Equal(t, payloadGet2, string(resp[1].Data))
 		assert.Equal(t, payloadGet3, string(resp[2].Data))
 	})
 
-	t.Run("GET - Unable to make HTTP call", func(t *testing.T) {
-
-		responses := []testutils.ResponseDef{}
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
-
-		resp, err := client.GetAll(t.Context())
-		assert.Zero(t, resp)
-		assert.Error(t, err)
-	})
-
-	t.Run("GET - API Call returned with != 2xx", func(t *testing.T) {
+	t.Run("errors if list call fails", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusBadRequest,
 					}
@@ -338,16 +296,69 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.GetAll(t.Context())
-		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "openpipeline", clientErr.Resource)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
 	})
 
-	t.Run("GET - individual GET via ID fails", func(t *testing.T) {
+	t.Run("errors if HTTP request fails", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
+		defer server.Close()
+
+		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
+
+		resp, err := client.GetAll(t.Context())
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "openpipeline", clientErr.Resource)
+	})
+
+	t.Run("errors if list response contains invalid JSON", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: "not valid json",
+						ContentType:  "application/json",
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.GetAll(t.Context())
+
+		assert.Empty(t, resp)
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "openpipeline", runtimeErr.Resource)
+		assert.Equal(t, "unmarshalling failed", runtimeErr.Reason)
+	})
+
+	t.Run("errors if individual GET call fails", func(t *testing.T) {
+		errorResponse := `{"error":{"code":400,"message":"Bad request"}}`
+
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusOK,
 						ResponseBody: payloadList,
@@ -356,9 +367,10 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 				},
 			},
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusBadRequest,
+						ResponseBody: errorResponse,
 					}
 				},
 			},
@@ -370,47 +382,41 @@ func TestOpenPipelineClient_GetAll(t *testing.T) {
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.GetAll(t.Context())
-		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "openpipeline", clientErr.Resource)
+		assert.Equal(t, "logs", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
 	})
 }
 
-func TestOpenPipelineClient_Update(t *testing.T) {
-
+func TestUpdate(t *testing.T) {
 	const getPayload = `{
-		"id": "bizevents",
-		"editable": true,
-		"version": "1716904550612-4770deb9105b4a5293c1edbcc6bf4412",
-		"updateToken": "my-update-token"
-	}
-	`
+	"id": "bizevents",
+	"editable": true,
+	"version": "1716904550612-4770deb9105b4a5293c1edbcc6bf4412",
+	"updateToken": "my-update-token"
+}`
 
 	const putPayload = `{
-		"id": "bizevents",
-		"editable": true
-	}
-	`
+	"id": "bizevents",
+	"editable": true
+}`
 
-	t.Run("PUT - no ID given", func(t *testing.T) {
-		responses := []testutils.ResponseDef{}
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		resp, err := client.Update(t.Context(), "", []byte(putPayload))
-		assert.Zero(t, resp)
-		assert.NotNil(t, err)
-	})
-
-	t.Run("PUT - OK", func(t *testing.T) {
+	t.Run("successfully updates configuration with given payload", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/openpipeline/v1/configurations/bizevents", req.URL.Path)
 					return testutils.Response{
-						ResponseCode: http.StatusAccepted,
+						ResponseCode: http.StatusOK,
 						ResponseBody: getPayload,
 						ContentType:  "application/json",
 					}
@@ -418,6 +424,7 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 			},
 			{
 				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/openpipeline/v1/configurations/bizevents", req.URL.Path)
 					return testutils.Response{
 						ResponseCode: http.StatusAccepted,
 						ResponseBody: "",
@@ -425,9 +432,9 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 				},
 				ValidateRequest: func(t *testing.T, request *http.Request) {
 					body, err := io.ReadAll(request.Body)
-					assert.Nil(t, err)
+					require.NoError(t, err)
 					var m map[string]interface{}
-					json.Unmarshal(body, &m)
+					require.NoError(t, json.Unmarshal(body, &m))
 					assert.Equal(t, "1716904550612-4770deb9105b4a5293c1edbcc6bf4412", m["version"])
 					assert.Equal(t, "my-update-token", m["updateToken"])
 				},
@@ -440,35 +447,143 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
-		assert.Nil(t, err)
+
+		assert.NoError(t, err)
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 	})
 
-	t.Run("PUT - Unable to make HTTP call", func(t *testing.T) {
+	t.Run("errors if called without ID parameter", func(t *testing.T) {
+		client := openpipeline.NewClient(&rest.Client{})
 
-		responses := []testutils.ResponseDef{}
-		server := testutils.NewHTTPTestServer(t, responses)
+		resp, err := client.Update(t.Context(), "", []byte(putPayload))
+
+		assert.Empty(t, resp)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "openpipeline", Field: "id", Reason: "is empty"})
+	})
+
+	t.Run("errors if HTTP request fails on GET", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
 		defer server.Close()
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
-		resp, err := client.Update(t.Context(), "", []byte(putPayload))
-		assert.Zero(t, resp)
-		assert.Error(t, err)
+		resp, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "openpipeline", clientErr.Resource)
+		assert.Equal(t, "bizevents", clientErr.Identifier)
 	})
 
-	t.Run("PUT - GET API Call returned with != 2xx", func(t *testing.T) {
+	t.Run("errors if GET returns server error", func(t *testing.T) {
+		errorResponse := `{"error":{"code":404,"message":"Not found"}}`
+
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusNotFound,
+						ResponseBody: errorResponse,
+						ContentType:  "application/json",
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "openpipeline", clientErr.Resource)
+		assert.Equal(t, "bizevents", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
+		assert.Equal(t, errorResponse, string(apiErr.Body))
+	})
+
+	t.Run("errors if GET response data is invalid JSON", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ContentType:  "application/json",
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
+
+		assert.Empty(t, resp)
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "openpipeline", runtimeErr.Resource)
+		assert.Equal(t, "bizevents", runtimeErr.Identifier)
+		assert.Equal(t, "failed to unmarshal GET response", runtimeErr.Reason)
+	})
+
+	t.Run("errors if request payload is invalid JSON", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: getPayload,
+						ContentType:  "application/json",
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.Update(t.Context(), "bizevents", []byte(""))
+
+		assert.Empty(t, resp)
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "openpipeline", runtimeErr.Resource)
+		assert.Equal(t, "bizevents", runtimeErr.Identifier)
+		assert.Equal(t, "failed to unmarshal request payload", runtimeErr.Reason)
+	})
+
+	t.Run("errors if server returns error on PUT", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: getPayload,
 						ContentType:  "application/json",
 					}
 				},
 			},
 			{
-				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+				PUT: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusBadRequest,
 					}
@@ -482,73 +597,49 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
-		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
+
+		assert.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPut, clientErr.Operation)
+		assert.Equal(t, "openpipeline", clientErr.Resource)
+		assert.Equal(t, "bizevents", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
 	})
 
-	t.Run("PUT - API Call returns Bad Request", func(t *testing.T) {
+	t.Run("retries on conflict and succeeds on second attempt", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
-						ResponseCode: http.StatusAccepted,
+						ResponseCode: http.StatusOK,
 						ResponseBody: getPayload,
 						ContentType:  "application/json",
 					}
 				},
 			},
 			{
-				PUT: func(t *testing.T, req *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusBadRequest,
-					}
-				},
-			},
-		}
-
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		resp, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
-		assert.Zero(t, resp)
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
-	})
-
-	t.Run("First PUT returns returns Conflict, second succeeds", func(t *testing.T) {
-		responses := []testutils.ResponseDef{
-			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusAccepted,
-						ResponseBody: getPayload,
-						ContentType:  "application/json",
-					}
-				},
-			},
-			{
-				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+				PUT: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusConflict,
 					}
 				},
 			},
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
-						ResponseCode: http.StatusAccepted,
+						ResponseCode: http.StatusOK,
 						ResponseBody: getPayload,
 						ContentType:  "application/json",
 					}
 				},
 			},
 			{
-				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+				PUT: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusAccepted,
 					}
@@ -562,32 +653,32 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
-		assert.Nil(t, err)
+
+		assert.NoError(t, err)
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 	})
 
-	t.Run("All update requests fail with conflict", func(t *testing.T) {
+	t.Run("errors after exhausting all retry attempts on conflict", func(t *testing.T) {
 		updateResponses := []testutils.ResponseDef{
 			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
-						ResponseCode: http.StatusAccepted,
+						ResponseCode: http.StatusOK,
 						ResponseBody: getPayload,
 						ContentType:  "application/json",
 					}
 				},
 			},
 			{
-				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+				PUT: func(t *testing.T, _ *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusConflict,
 					}
 				},
 			},
 		}
-		responses := make([]testutils.ResponseDef, 0)
-
-		for range 10 /*max retries*/ {
+		var responses []testutils.ResponseDef
+		for range 10 {
 			responses = append(responses, updateResponses...)
 		}
 
@@ -596,54 +687,18 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 
 		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		_, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
-		var apiError api.APIError
-		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusConflict, apiError.StatusCode)
-	})
+		resp, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
 
-	t.Run("Update fails if the GET response data is invalid", func(t *testing.T) {
-		responses := []testutils.ResponseDef{
-			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusAccepted,
-						ContentType:  "application/json",
-					}
-				},
-			},
-		}
+		assert.Empty(t, resp)
 
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPut, clientErr.Operation)
+		assert.Equal(t, "openpipeline", clientErr.Resource)
+		assert.Equal(t, "bizevents", clientErr.Identifier)
 
-		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		_, err := client.Update(t.Context(), "bizevents", []byte(putPayload))
-		wantErr := &json.SyntaxError{}
-		assert.ErrorAs(t, err, &wantErr)
-	})
-
-	t.Run("Update fails if the request data is invalid", func(t *testing.T) {
-		responses := []testutils.ResponseDef{
-			{
-				GET: func(t *testing.T, req *http.Request) testutils.Response {
-					return testutils.Response{
-						ResponseCode: http.StatusAccepted,
-						ResponseBody: getPayload,
-						ContentType:  "application/json",
-					}
-				},
-			},
-		}
-
-		server := testutils.NewHTTPTestServer(t, responses)
-		defer server.Close()
-
-		client := openpipeline.NewClient(rest.NewClient(server.URL(), server.Client()))
-
-		_, err := client.Update(t.Context(), "bizevents", []byte(""))
-		wantErr := &json.SyntaxError{}
-		assert.ErrorAs(t, err, &wantErr)
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusConflict, apiErr.StatusCode)
 	})
 }

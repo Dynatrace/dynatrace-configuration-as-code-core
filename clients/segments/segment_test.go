@@ -16,16 +16,14 @@ package segments_test
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/segments"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -57,17 +55,21 @@ func TestList(t *testing.T) {
     }
   ]`
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, http.MethodGet, r.Method)
-		require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments:lean", r.URL.Path)
-
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(apiResponse))
-	}))
+	responses := []testutils.ResponseDef{
+		{
+			GET: func(t *testing.T, req *http.Request) testutils.Response {
+				require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments:lean", req.URL.Path)
+				return testutils.Response{
+					ResponseCode: http.StatusOK,
+					ResponseBody: apiResponse,
+				}
+			},
+		},
+	}
+	server := testutils.NewHTTPTestServer(t, responses)
 	defer server.Close()
 
-	url, _ := url.Parse(server.URL)
-	client := segments.NewClient(rest.NewClient(url, server.Client()))
+	client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 	resp, err := client.List(t.Context())
 	require.NoError(t, err)
@@ -93,20 +95,23 @@ func TestGet(t *testing.T) {
     "errorDetails": []
   }
 }`
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, http.MethodGet, r.Method)
-			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/some-id", r.URL.Path)
-
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(apiResponse))
-		}))
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/some-id", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusNotFound,
+						ResponseBody: apiResponse,
+					}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		url, _ := url.Parse(server.URL)
-		client := segments.NewClient(rest.NewClient(url, server.Client()))
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		id := "some-id"
-		resp, err := client.Get(t.Context(), id)
+		resp, err := client.Get(t.Context(), "some-id")
 
 		assert.Empty(t, resp)
 
@@ -139,17 +144,21 @@ func TestGet(t *testing.T) {
   ],
   "version": 1
 }`
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, http.MethodGet, r.Method)
-			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
-
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(apiResponse))
-		}))
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: apiResponse,
+					}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		url, _ := url.Parse(server.URL)
-		client := segments.NewClient(rest.NewClient(url, server.Client()))
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Get(t.Context(), "uid")
 
@@ -163,74 +172,86 @@ func TestGet(t *testing.T) {
 func TestGetAll(t *testing.T) {
 	t.Run("getting list fails with error", func(t *testing.T) {
 		apiResponse := `{ "err" : "something went wrong" }`
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, http.MethodGet, r.Method)
-			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments:lean", r.URL.Path)
-
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(apiResponse))
-		}))
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments:lean", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusBadRequest,
+						ResponseBody: apiResponse,
+					}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		url, _ := url.Parse(server.URL)
-		client := segments.NewClient(rest.NewClient(url, server.Client()))
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.GetAll(t.Context())
 
 		assert.Empty(t, resp)
-		assert.ErrorAs(t, err, &api.APIError{})
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
 
 		var apiErr api.APIError
-		errors.As(err, &apiErr)
+		assert.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
 		assert.Equal(t, apiResponse, string(apiErr.Body))
 	})
 
 	t.Run("getting individual object from server fails and return error", func(t *testing.T) {
-		response := map[int]string{
-			0: `{"filterSegments": [{"uid": "pC7j2sEDzAQ"}]}`,
-			1: `{ "err" : "something went wrong" }`,
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments:lean", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: `{"filterSegments": [{"uid": "pC7j2sEDzAQ"}]}`,
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/pC7j2sEDzAQ", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusInternalServerError,
+						ResponseBody: `{ "err" : "something went wrong" }`,
+					}
+				},
+			},
 		}
-
-		i := 0
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, http.MethodGet, r.Method)
-			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments:lean", r.URL.Path)
-
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(response[i]))
-			i++
-		}))
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		url, _ := url.Parse(server.URL)
-		client := segments.NewClient(rest.NewClient(url, server.Client()))
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.GetAll(t.Context())
 
 		assert.Empty(t, resp)
-		assert.ErrorAs(t, err, &api.APIError{})
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
 
 		var apiErr api.APIError
-		errors.As(err, &apiErr)
+		assert.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
 	})
 
 	t.Run("successfully returned all configuration from server", func(t *testing.T) {
-		expectedEnding := map[int]string{
-			0: `:lean`,
-			1: `/qW5qn449RsG`,
-			2: `/pC7j2sEDzAQ`,
-		}
-		expectedResponse := map[int]string{
-			0: `{
+		listResponse := `{
   "filterSegments": [
     {"uid": "qW5qn449RsG"},
     {"uid": "pC7j2sEDzAQ"}
   ]
 }
-`,
-			1: `{
+`
+		getResponse1 := `{
       "uid": "qW5qn449RsG",
       "name": "dev_environment",
       "description": "only includes data of the dev environment",
@@ -239,8 +260,8 @@ func TestGetAll(t *testing.T) {
       "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
       "allowedOperations": ["READ", "WRITE", "DELETE"],
       "version": 2
-    }`,
-			2: `   {
+    }`
+		getResponse2 := `   {
       "uid": "pC7j2sEDzAQ",
       "name": "dev_environment",
       "description": "only includes data of the dev environment",
@@ -249,31 +270,49 @@ func TestGetAll(t *testing.T) {
       "owner": "2f321c04-566e-4779-b576-3c033b8cd9e9",
       "allowedOperations": ["READ", "WRITE", "DELETE"],
       "version": 1
-    }`,
-		}
-		i := 0
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, http.MethodGet, r.Method)
-			url := "/platform/storage/filter-segments/v1/filter-segments" + expectedEnding[i]
-			require.Equal(t, url, r.URL.Path)
+    }`
 
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(expectedResponse[i]))
-			i++
-		}))
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments:lean", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: listResponse,
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/qW5qn449RsG", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: getResponse1,
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/pC7j2sEDzAQ", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: getResponse2,
+					}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		url, _ := url.Parse(server.URL)
-		client := segments.NewClient(rest.NewClient(url, server.Client()))
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.GetAll(t.Context())
 
 		assert.NotEmpty(t, resp)
 		assert.NoError(t, err)
 		assert.Len(t, resp, 2)
-		for k := 1; k < len(expectedResponse); k++ {
-			assert.Equal(t, expectedResponse[k], string(resp[k-1].Data))
-		}
+		assert.Equal(t, getResponse1, string(resp[0].Data))
+		assert.Equal(t, getResponse2, string(resp[1].Data))
 	})
 }
 
@@ -294,24 +333,43 @@ func TestCreate(t *testing.T) {
   "includes": []
 }`
 	t.Run("error returned from response, expected error", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusBadGateway)
-		}))
+		responses := []testutils.ResponseDef{
+			{
+				POST: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusBadGateway,
+					}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		url, _ := url.Parse(server.URL)
-		client := segments.NewClient(rest.NewClient(url, server.Client()))
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		_, err := client.Create(t.Context(), []byte(payload))
-		assert.Error(t, err)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusBadGateway, apiErr.StatusCode)
 	})
 	t.Run("error returned from client, expected error", func(t *testing.T) {
-		httpClient := &http.Client{}
-		path := &url.URL{}
-		client := segments.NewClient(rest.NewClient(path, httpClient))
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
+		defer server.Close()
+
+		client := segments.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
 		_, err := client.Create(t.Context(), []byte(payload))
-		assert.Error(t, err)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodPost, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
 	})
 	t.Run("successfully created new entity on server", func(t *testing.T) {
 		apiResponse := `{
@@ -327,17 +385,21 @@ func TestCreate(t *testing.T) {
   "includes": [],
   "version": 1
 }`
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, http.MethodPost, r.Method)
-			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments", r.URL.Path)
-
-			w.WriteHeader(http.StatusCreated)
-			w.Write([]byte(apiResponse))
-		}))
+		responses := []testutils.ResponseDef{
+			{
+				POST: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusCreated,
+						ResponseBody: apiResponse,
+					}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		url, _ := url.Parse(server.URL)
-		client := segments.NewClient(rest.NewClient(url, server.Client()))
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Create(t.Context(), []byte(payload))
 
@@ -350,24 +412,23 @@ func TestCreate(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	t.Run("error returned from client, expected error", func(t *testing.T) {
-		httpClient := &http.Client{}
-		path := &url.URL{}
-		client := segments.NewClient(rest.NewClient(path, httpClient))
-
-		_, err := client.Update(t.Context(), "id", []byte(``))
-		assert.Error(t, err)
-	})
-	t.Run("id not provided, expecting validation error", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			t.Errorf("should failt at id validation")
-		}))
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
 		defer server.Close()
 
-		url, _ := url.Parse(server.URL)
-		client := segments.NewClient(rest.NewClient(url, server.Client()))
+		client := segments.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
+
+		_, err := client.Update(t.Context(), "id", []byte(``))
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
+	})
+	t.Run("id not provided, expecting validation error", func(t *testing.T) {
+		client := segments.NewClient(&rest.Client{})
 
 		_, err := client.Update(t.Context(), "", []byte(``))
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "segments", Field: "id", Reason: "is empty"})
 	})
 	t.Run("unexpected error while checking for status on server", func(t *testing.T) {
 		payload := `{
@@ -388,22 +449,35 @@ func TestUpdate(t *testing.T) {
   "includes": []
 }`
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, http.MethodGet, r.Method)
-			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
-
-			w.WriteHeader(http.StatusBadGateway)
-			w.Write([]byte(``))
-		}))
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusBadGateway,
+					}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		url, _ := url.Parse(server.URL)
-		client := segments.NewClient(rest.NewClient(url, server.Client()))
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Update(t.Context(), "uid", []byte(payload))
 
 		require.Error(t, err)
 		require.Empty(t, resp)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodGet, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
+		assert.Equal(t, "uid", clientErr.Identifier)
+
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusBadGateway, apiErr.StatusCode)
 	})
 	t.Run("successfully updated existing entity on server, uid in provided payload not matching and gets overwritten", func(t *testing.T) {
 		uid := "D82a1jdA23a"
@@ -444,22 +518,29 @@ func TestUpdate(t *testing.T) {
 		  "version": 2
 		}`
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, r.URL.Path)
-			switch r.Method {
-			case http.MethodGet:
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(apiExistingResource))
-				break
-			case http.MethodPut:
-				w.WriteHeader(http.StatusNoContent)
-				break
-			}
-		}))
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: apiExistingResource,
+					}
+				},
+			},
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusNoContent,
+					}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		url, _ := url.Parse(server.URL)
-		client := segments.NewClient(rest.NewClient(url, server.Client()))
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Update(t.Context(), uid, []byte(payload))
 
@@ -505,23 +586,32 @@ func TestUpdate(t *testing.T) {
 			  "version": 2
 			}`
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, r.URL.Path)
-			switch r.Method {
-			case http.MethodGet:
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(apiExistingResource))
-				break
-			case http.MethodPut:
-				assertRequestPayload(t, r, uid, "2f321c04-566e-4779-b576-3c033b8cd9e9")
-				w.WriteHeader(http.StatusNoContent)
-				break
-			}
-		}))
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: apiExistingResource,
+					}
+				},
+			},
+			{
+				PUT: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusNoContent,
+					}
+				},
+				ValidateRequest: func(t *testing.T, req *http.Request) {
+					assertRequestPayload(t, req, uid, "2f321c04-566e-4779-b576-3c033b8cd9e9")
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		url, _ := url.Parse(server.URL)
-		client := segments.NewClient(rest.NewClient(url, server.Client()))
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Update(t.Context(), uid, []byte(payload))
 
@@ -566,28 +656,86 @@ func TestUpdate(t *testing.T) {
 			  "version": 2
 			}`
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, r.URL.Path)
-			switch r.Method {
-			case http.MethodGet:
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(apiExistingResource))
-				break
-			case http.MethodPut:
-				t.Errorf("should failt at owner validation")
-				break
-			}
-		}))
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: apiExistingResource,
+					}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		url, _ := url.Parse(server.URL)
-		client := segments.NewClient(rest.NewClient(url, server.Client()))
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Update(t.Context(), uid, []byte(payload))
 
 		assert.Empty(t, resp)
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "segments", Field: "owner", Reason: "is empty"})
 	})
+
+	t.Run("error test case, return a get response with an invalid version", func(t *testing.T) {
+		uid := "D82a1jdA23a"
+		payload := `{
+			  "allowedOperations" : [ "READ", "WRITE", "DELETE" ],
+			  "description" : "only includes data of the dev environment",
+			  "includes" : [ ],
+			  "isPublic" : false,
+			  "name" : "dev_environment",
+			  "variables" : {
+			    "type" : "query",
+			    "value" : "fetch logs | limit 1"
+			  }
+			}`
+
+		apiExistingResource := `{
+			  "uid": "D82a1jdA23a",
+			  "name": "dev_environment",
+			  "description": "only includes data of the dev environment",
+			  "variables": {
+			    "type": "query",
+			    "value": "fetch logs | limit 1"
+			  },
+			  "isPublic": false,
+			  "includes": [
+			    {
+			      "filter": "here goes the filter",
+			      "dataObject": "logs"
+			    },
+			    {
+			      "filter": "here goes another filter",
+			      "dataObject": "events"
+			    }
+			  ],
+			  "version": 0
+			}`
+
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: apiExistingResource,
+					}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.Update(t.Context(), uid, []byte(payload))
+
+		assert.Empty(t, resp)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "segments", Field: "version", Reason: "is invalid"})
+	})
+
 	t.Run("error test case, malformed payload provided to update", func(t *testing.T) {
 		uid := "D82a1jdA23a"
 		payload := `{///---....}`
@@ -615,47 +763,54 @@ func TestUpdate(t *testing.T) {
 			  "version": 2
 			}`
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, r.URL.Path)
-			switch r.Method {
-			case http.MethodGet:
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(apiExistingResource))
-				break
-			case http.MethodPut:
-				t.Errorf("should failt at unmarshall payload")
-				break
-			}
-		}))
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/"+uid, req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: apiExistingResource,
+					}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		url, _ := url.Parse(server.URL)
-		client := segments.NewClient(rest.NewClient(url, server.Client()))
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Update(t.Context(), uid, []byte(payload))
 
 		assert.Empty(t, resp)
-		assert.Error(t, err)
+
+		var runtimeErr api.RuntimeError
+		assert.ErrorAs(t, err, &runtimeErr)
+		assert.Equal(t, "segments", runtimeErr.Resource)
+		assert.Equal(t, uid, runtimeErr.Identifier)
+		assert.Equal(t, "failed to add owner and UID", runtimeErr.Reason)
 	})
 }
 
 func TestDelete(t *testing.T) {
 	t.Run("error returned from client, expected error", func(t *testing.T) {
-		httpClient := &http.Client{}
-		path := &url.URL{}
-		client := segments.NewClient(rest.NewClient(path, httpClient))
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
+		defer server.Close()
+
+		client := segments.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
 		_, err := client.Delete(t.Context(), "id")
-		assert.Error(t, err)
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodDelete, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
+		assert.Equal(t, "id", clientErr.Identifier)
 	})
 	t.Run("error empty id provided, expected error", func(t *testing.T) {
-		httpClient := &http.Client{}
-		path := &url.URL{}
-		client := segments.NewClient(rest.NewClient(path, httpClient))
+		client := segments.NewClient(&rest.Client{})
 
 		_, err := client.Delete(t.Context(), "")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "id")
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "segments", Field: "id", Reason: "is empty"})
 	})
 	t.Run("ID doesn't exists on server returns error", func(t *testing.T) {
 		apiResponse := `{
@@ -665,41 +820,53 @@ func TestDelete(t *testing.T) {
 	   "errorDetails": []
 	 }
 	}`
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, http.MethodDelete, r.Method)
-			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
-
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(apiResponse))
-		}))
+		responses := []testutils.ResponseDef{
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusNotFound,
+						ResponseBody: apiResponse,
+					}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		url, _ := url.Parse(server.URL)
-		client := segments.NewClient(rest.NewClient(url, server.Client()))
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Delete(t.Context(), "uid")
 
 		assert.Empty(t, resp)
-		assert.ErrorAs(t, err, &api.APIError{})
+
+		var clientErr api.ClientError
+		assert.ErrorAs(t, err, &clientErr)
+		assert.Equal(t, http.MethodDelete, clientErr.Operation)
+		assert.Equal(t, "segments", clientErr.Resource)
+		assert.Equal(t, "uid", clientErr.Identifier)
 
 		var apiErr api.APIError
-		errors.As(err, &apiErr)
+		assert.ErrorAs(t, err, &apiErr)
 		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
 		assert.Equal(t, apiResponse, string(apiErr.Body))
 	})
 
 	t.Run("successfully deleted entity with ID from server", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, http.MethodDelete, r.Method)
-			require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", r.URL.Path)
-
-			w.WriteHeader(http.StatusNoContent)
-			w.Write([]byte(``))
-		}))
+		responses := []testutils.ResponseDef{
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/storage/filter-segments/v1/filter-segments/uid", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusNoContent,
+					}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		url, _ := url.Parse(server.URL)
-		client := segments.NewClient(rest.NewClient(url, server.Client()))
+		client := segments.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Delete(t.Context(), "uid")
 
