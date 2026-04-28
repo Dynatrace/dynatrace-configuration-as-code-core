@@ -99,46 +99,11 @@ func (c Client) ListExtensionVersions(ctx context.Context, extensionName string)
 		return nil, extensionNameValidationErr
 	}
 
-	var pagedListResponse api.PagedListResponse
-
-	nextPageKey := ""
-	for {
-		var listResponse api.ListResponse
-		var err error
-
-		nextPageKey, listResponse, err = c.listExtensionVersionsPage(ctx, extensionName, nextPageKey)
-		if err != nil {
-			return nil, err
-		}
-
-		pagedListResponse = append(pagedListResponse, listResponse)
-		if nextPageKey == "" {
-			break
-		}
-	}
-
-	return pagedListResponse, nil
-}
-
-func (c Client) listExtensionVersionsPage(ctx context.Context, extensionName string, pageKey string) (string, api.ListResponse, error) {
 	path, err := url.JoinPath(extensionsResourcePath, extensionName)
 	if err != nil {
-		return "", api.ListResponse{}, api.RuntimeError{Resource: extensionsResource, Identifier: extensionName, Reason: urlCreationErrMsg, Wrapped: err}
+		return nil, api.RuntimeError{Resource: extensionsResource, Identifier: extensionName, Reason: urlCreationErrMsg, Wrapped: err}
 	}
-
-	var ro rest.RequestOptions
-	if pageKey != "" {
-		ro.QueryParams = url.Values{"next-page-key": {pageKey}}
-	} else {
-		ro.QueryParams = url.Values{"page-size": {strconv.Itoa(extensionVersionsPageSize)}}
-	}
-
-	httpResp, err := c.restClient.GET(ctx, path, ro)
-	if err != nil {
-		return "", api.ListResponse{}, api.ClientError{Resource: extensionsResource, Identifier: extensionName, Operation: http.MethodGet, Wrapped: err}
-	}
-
-	return processListResponse(httpResp, extensionsResource)
+	return c.listAll(ctx, extensionName, path, extensionsResource, extensionVersionsPageSize)
 }
 
 // ListMonitoringConfigurations returns all monitoring configurations for a given extension.
@@ -147,14 +112,38 @@ func (c Client) ListMonitoringConfigurations(ctx context.Context, extensionName 
 		return nil, extensionNameValidationErr
 	}
 
-	var pagedListResponse api.PagedListResponse
+	path, err := url.JoinPath(extensionsResourcePath, extensionName, monitoringResourcePath)
+	if err != nil {
+		return nil, api.RuntimeError{Resource: monitoringConfigurationsResource, Identifier: extensionName, Reason: urlCreationErrMsg, Wrapped: err}
+	}
 
-	nextPageKey := ""
+	return c.listAll(ctx, extensionName, path, monitoringConfigurationsResource, monitoringConfigurationsPageSize)
+}
+
+// listAll is a helper method to list paged resources.
+// It takes care of paging through results until all pages have been retrieved and returns a combined PagedListResponse.
+func (c Client) listAll(ctx context.Context, extensionName string, path string, resourceName string, pageSize int) (api.PagedListResponse, error) {
+	var pagedListResponse api.PagedListResponse
+	var nextPageKey string
+
 	for {
 		var listResponse api.ListResponse
 		var err error
 
-		nextPageKey, listResponse, err = c.listMonitoringConfigurationsPage(ctx, extensionName, nextPageKey)
+		var ro rest.RequestOptions
+		if nextPageKey != "" {
+			ro.QueryParams = url.Values{"next-page-key": {nextPageKey}}
+		} else {
+			ro.QueryParams = url.Values{"page-size": {strconv.Itoa(pageSize)}}
+		}
+
+		httpResp, err := c.restClient.GET(ctx, path, ro)
+		if err != nil {
+			return nil, api.ClientError{Resource: resourceName, Identifier: extensionName, Operation: http.MethodGet, Wrapped: err}
+		}
+
+		nextPageKey, listResponse, err = processListResponse(httpResp, resourceName)
+
 		if err != nil {
 			return nil, err
 		}
@@ -164,29 +153,7 @@ func (c Client) ListMonitoringConfigurations(ctx context.Context, extensionName 
 			break
 		}
 	}
-
 	return pagedListResponse, nil
-}
-
-func (c Client) listMonitoringConfigurationsPage(ctx context.Context, extensionName string, pageKey string) (string, api.ListResponse, error) {
-	path, err := url.JoinPath(extensionsResourcePath, extensionName, monitoringResourcePath)
-	if err != nil {
-		return "", api.ListResponse{}, api.RuntimeError{Resource: monitoringConfigurationsResource, Identifier: extensionName, Reason: urlCreationErrMsg, Wrapped: err}
-	}
-
-	var ro rest.RequestOptions
-	if pageKey != "" {
-		ro.QueryParams = url.Values{"next-page-key": {pageKey}}
-	} else {
-		ro.QueryParams = url.Values{"page-size": {strconv.Itoa(monitoringConfigurationsPageSize)}}
-	}
-
-	httpResp, err := c.restClient.GET(ctx, path, ro)
-	if err != nil {
-		return "", api.ListResponse{}, api.ClientError{Resource: monitoringConfigurationsResource, Identifier: extensionName, Operation: http.MethodGet, Wrapped: err}
-	}
-
-	return processListResponse(httpResp, monitoringConfigurationsResource)
 }
 
 // processListResponse is shared by both list endpoints. It unmarshals the "nextPageKey" and "items" fields.
