@@ -29,10 +29,13 @@ import (
 const (
 	extensionsResourcePath           = "/platform/extensions/v2/extensions"
 	monitoringResourcePath           = "monitoring-configurations"
+	environmentConfigurationPath     = "environment-configuration"
 	extensionsResource               = "extensions"
 	monitoringConfigurationsResource = "monitoring-configurations"
+	environmentConfigurationResource = "environment-configuration"
 	urlCreationErrMsg                = "failed to construct URL"
 	extensionsPageSize               = 100
+	extensionVersionsPageSize        = 100
 	monitoringConfigurationsPageSize = 500
 )
 
@@ -88,6 +91,54 @@ func (c Client) listExtensionsPage(ctx context.Context, pageKey string) (string,
 	}
 
 	return processListResponse(resp, extensionsResource)
+}
+
+// ListExtensionVersions returns all installed versions of a given extension.
+func (c Client) ListExtensionVersions(ctx context.Context, extensionName string) (api.PagedListResponse, error) {
+	if extensionName == "" {
+		return nil, extensionNameValidationErr
+	}
+
+	var pagedListResponse api.PagedListResponse
+
+	nextPageKey := ""
+	for {
+		var listResponse api.ListResponse
+		var err error
+
+		nextPageKey, listResponse, err = c.listExtensionVersionsPage(ctx, extensionName, nextPageKey)
+		if err != nil {
+			return nil, err
+		}
+
+		pagedListResponse = append(pagedListResponse, listResponse)
+		if nextPageKey == "" {
+			break
+		}
+	}
+
+	return pagedListResponse, nil
+}
+
+func (c Client) listExtensionVersionsPage(ctx context.Context, extensionName string, pageKey string) (string, api.ListResponse, error) {
+	path, err := url.JoinPath(extensionsResourcePath, extensionName)
+	if err != nil {
+		return "", api.ListResponse{}, api.RuntimeError{Resource: extensionsResource, Identifier: extensionName, Reason: urlCreationErrMsg, Wrapped: err}
+	}
+
+	var ro rest.RequestOptions
+	if pageKey != "" {
+		ro.QueryParams = url.Values{"next-page-key": {pageKey}}
+	} else {
+		ro.QueryParams = url.Values{"page-size": {strconv.Itoa(extensionVersionsPageSize)}}
+	}
+
+	httpResp, err := c.restClient.GET(ctx, path, ro)
+	if err != nil {
+		return "", api.ListResponse{}, api.ClientError{Resource: extensionsResource, Identifier: extensionName, Operation: http.MethodGet, Wrapped: err}
+	}
+
+	return processListResponse(httpResp, extensionsResource)
 }
 
 // ListMonitoringConfigurations returns all monitoring configurations for a given extension.
@@ -170,6 +221,29 @@ func processListResponse(httpResponse *http.Response, resource string) (string, 
 			Objects: objects,
 		},
 		nil
+}
+
+// GetEnvironmentConfiguration returns the environment configuration for a given extension.
+func (c Client) GetEnvironmentConfiguration(ctx context.Context, extensionName string) (api.Response, error) {
+	if extensionName == "" {
+		return api.Response{}, extensionNameValidationErr
+	}
+
+	path, err := url.JoinPath(extensionsResourcePath, extensionName, environmentConfigurationPath)
+	if err != nil {
+		return api.Response{}, api.RuntimeError{Resource: environmentConfigurationResource, Identifier: extensionName, Reason: urlCreationErrMsg, Wrapped: err}
+	}
+
+	httpResp, err := c.restClient.GET(ctx, path, rest.RequestOptions{})
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: environmentConfigurationResource, Identifier: extensionName, Operation: http.MethodGet, Wrapped: err}
+	}
+
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
+	if err != nil {
+		return api.Response{}, api.ClientError{Resource: environmentConfigurationResource, Identifier: extensionName, Operation: http.MethodGet, Wrapped: err}
+	}
+	return resp, nil
 }
 
 // GetMonitoringConfiguration returns a specific monitoring configuration by extension name and configuration ID.

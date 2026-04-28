@@ -149,6 +149,131 @@ func TestListExtensions(t *testing.T) {
 	})
 }
 
+func TestListExtensionVersions(t *testing.T) {
+	t.Run("successfully returns all versions across multiple pages", func(t *testing.T) {
+		apiResponse1 := `{
+  "totalCount": 2,
+  "nextPageKey": "key_for_next_page",
+  "pageSize": 100,
+  "items": [
+    {"extensionName": "com.dynatrace.extension.foo", "version": "1.0.0"}
+  ]
+}`
+		apiResponse2 := `{
+  "totalCount": 2,
+  "pageSize": 100,
+  "items": [
+    {"extensionName": "com.dynatrace.extension.foo", "version": "1.1.0"}
+  ]
+}`
+
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/extensions/v2/extensions/com.dynatrace.extension.foo", req.URL.Path)
+					require.Equal(t, "100", req.URL.Query().Get(pageSizeParam))
+					require.Equal(t, "", req.URL.Query().Get(nextPageKeyParam))
+					return testutils.Response{ResponseCode: http.StatusOK, ResponseBody: apiResponse1}
+				},
+			},
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/extensions/v2/extensions/com.dynatrace.extension.foo", req.URL.Path)
+					require.Equal(t, "key_for_next_page", req.URL.Query().Get(nextPageKeyParam))
+					require.Equal(t, "", req.URL.Query().Get(pageSizeParam))
+					return testutils.Response{ResponseCode: http.StatusOK, ResponseBody: apiResponse2}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := extensions.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.ListExtensionVersions(t.Context(), "com.dynatrace.extension.foo")
+
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp)
+		assert.Len(t, resp, 2, "for each call one listResponse should be present")
+		assert.Len(t, resp.All(), 2, "two version objects in total should be downloaded")
+	})
+
+	t.Run("errors if called without extension name", func(t *testing.T) {
+		client := extensions.NewClient(&rest.Client{})
+
+		resp, err := client.ListExtensionVersions(t.Context(), "")
+
+		assert.Empty(t, resp)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "extensions", Field: "extension-name", Reason: "is empty"})
+	})
+
+	t.Run("errors if can't execute all calls successfully", func(t *testing.T) {
+		apiResponse1 := `{
+  "totalCount": 2,
+  "nextPageKey": "key_for_next_page",
+  "pageSize": 100,
+  "items": [
+    {"extensionName": "com.dynatrace.extension.foo", "version": "1.0.0"}
+  ]
+}`
+
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
+					return testutils.Response{ResponseCode: http.StatusOK, ResponseBody: apiResponse1}
+				},
+			},
+			{
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
+					return testutils.Response{ResponseCode: http.StatusInternalServerError, ResponseBody: "Some error message from the server"}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := extensions.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.ListExtensionVersions(t.Context(), "com.dynatrace.extension.foo")
+
+		assert.Empty(t, resp)
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	})
+
+	t.Run("errors if HTTP request fails", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
+		defer server.Close()
+
+		client := extensions.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
+
+		resp, err := client.ListExtensionVersions(t.Context(), "com.dynatrace.extension.foo")
+
+		assert.Empty(t, resp)
+		assert.ErrorAs(t, err, &api.ClientError{})
+	})
+
+	t.Run("errors if JSON unmarshalling fails", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
+					return testutils.Response{ResponseCode: http.StatusOK, ResponseBody: `invalid json`}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := extensions.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.ListExtensionVersions(t.Context(), "com.dynatrace.extension.foo")
+
+		assert.Empty(t, resp)
+		assert.ErrorAs(t, err, &api.RuntimeError{})
+	})
+}
+
 func TestListMonitoringConfigurations(t *testing.T) {
 	t.Run("successfully returns all monitoring configurations across multiple pages", func(t *testing.T) {
 		apiResponse1 := `{
@@ -268,6 +393,82 @@ func TestListMonitoringConfigurations(t *testing.T) {
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.RuntimeError{})
+	})
+}
+
+func TestGetEnvironmentConfiguration(t *testing.T) {
+	t.Run("successfully returns environment configuration", func(t *testing.T) {
+		getResponse := `{"version": "1.2.3"}`
+
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/extensions/v2/extensions/com.dynatrace.extension.foo/environment-configuration", req.URL.Path)
+					return testutils.Response{ResponseCode: http.StatusOK, ResponseBody: getResponse}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := extensions.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.GetEnvironmentConfiguration(t.Context(), "com.dynatrace.extension.foo")
+
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp)
+		assert.Equal(t, getResponse, string(resp.Data))
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("errors if called without extension name", func(t *testing.T) {
+		client := extensions.NewClient(&rest.Client{})
+
+		resp, err := client.GetEnvironmentConfiguration(t.Context(), "")
+
+		assert.Empty(t, resp)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "extensions", Field: "extension-name", Reason: "is empty"})
+	})
+
+	t.Run("errors if extension doesn't exist on server", func(t *testing.T) {
+		errorResponse := `{
+  "error": {
+    "code": 404,
+    "message": "Extension 'com.dynatrace.extension.unknown' not found."
+  }
+}`
+
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
+					return testutils.Response{ResponseCode: http.StatusNotFound, ResponseBody: errorResponse}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := extensions.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.GetEnvironmentConfiguration(t.Context(), "com.dynatrace.extension.unknown")
+
+		assert.Empty(t, resp)
+		var apiErr api.APIError
+		assert.ErrorAs(t, err, &apiErr)
+		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
+		assert.Equal(t, errorResponse, string(apiErr.Body))
+	})
+
+	t.Run("errors if HTTP request fails", func(t *testing.T) {
+		server := testutils.NewHTTPTestServer(t, []testutils.ResponseDef{})
+		defer server.Close()
+
+		client := extensions.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
+
+		resp, err := client.GetEnvironmentConfiguration(t.Context(), "com.dynatrace.extension.foo")
+
+		assert.Empty(t, resp)
+		assert.ErrorAs(t, err, &api.ClientError{})
 	})
 }
 
