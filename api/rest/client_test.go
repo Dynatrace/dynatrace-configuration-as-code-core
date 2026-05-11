@@ -29,8 +29,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/internal/pointer"
 )
 
 func TestNewClient(t *testing.T) {
@@ -340,7 +338,7 @@ func TestClient_WithCustomRetriesOnRequest(t *testing.T) {
 	}))
 
 	startTime := time.Now()
-	resp, err := client.GET(t.Context(), "", RequestOptions{MaxRetries: new(1), DelayAfterRetry: pointer.Pointer(time.Millisecond * 100)})
+	resp, err := client.GET(t.Context(), "", RequestOptions{MaxRetries: new(1), DelayAfterRetry: new(time.Millisecond * 100)})
 	elapsedTime := time.Since(startTime)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, elapsedTime, time.Millisecond*100)
