@@ -14,6 +14,7 @@
 
 package pointer
 
+//go:fix inline
 func Pointer[T any](t T) *T {
-	return &t
+	return new(t)
 }

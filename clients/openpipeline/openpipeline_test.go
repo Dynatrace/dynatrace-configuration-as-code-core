@@ -426,7 +426,7 @@ func TestOpenPipelineClient_Update(t *testing.T) {
 				ValidateRequest: func(t *testing.T, request *http.Request) {
 					body, err := io.ReadAll(request.Body)
 					assert.Nil(t, err)
-					var m map[string]interface{}
+					var m map[string]any
 					json.Unmarshal(body, &m)
 					assert.Equal(t, "1716904550612-4770deb9105b4a5293c1edbcc6bf4412", m["version"])
 					assert.Equal(t, "my-update-token", m["updateToken"])

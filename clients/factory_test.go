@@ -48,7 +48,7 @@ func TestClientCreation(t *testing.T) {
 		WithAccountURL("https://example.com/accountapi").
 		WithUserAgent("MyUserAgent")
 
-	var clientInstance interface{}
+	var clientInstance any
 	clientInstance, err := f.BucketClient(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
@@ -105,7 +105,7 @@ func TestClientMissingPlatformURL(t *testing.T) {
 		WithAccountURL("https://example.com/accountapi").
 		WithUserAgent("MyUserAgent")
 
-	var clientInstance interface{}
+	var clientInstance any
 	clientInstance, err := f.BucketClient(t.Context())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrPlatformURLMissing)
@@ -156,7 +156,7 @@ func TestClientMissingOAuthCredentials(t *testing.T) {
 		WithAccountURL("https://example.com/accountapi").
 		WithUserAgent("MyUserAgent")
 
-	var clientInstance interface{}
+	var clientInstance any
 	clientInstance, err := f.BucketClient(t.Context())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
@@ -212,7 +212,7 @@ func TestClientPlatformURLParsingError(t *testing.T) {
 		WithAccountURL("https://example.com/accountapi").
 		WithUserAgent("MyUserAgent")
 
-	var clientInstance interface{}
+	var clientInstance any
 
 	clientInstance, err := f.BucketClient(t.Context())
 	assert.Nil(t, clientInstance)
@@ -268,7 +268,7 @@ func TestClientMissingAccountURL(t *testing.T) {
 		WithClassicURL("https://example.com/classicapi").
 		WithUserAgent("MyUserAgent")
 
-	var clientInstance interface{}
+	var clientInstance any
 	clientInstance, err := f.BucketClient(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
@@ -329,7 +329,7 @@ func TestClientAccountURLParsingError(t *testing.T) {
 		WithAccountURL(":invalid-url").
 		WithUserAgent("MyUserAgent")
 
-	var clientInstance interface{}
+	var clientInstance any
 	clientInstance, err := f.BucketClient(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
@@ -389,7 +389,7 @@ func TestClientMissingClassicURL(t *testing.T) {
 		WithAccountURL("https://example.com/accountapi").
 		WithUserAgent("MyUserAgent")
 
-	var clientInstance interface{}
+	var clientInstance any
 	clientInstance, err := f.BucketClient(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
@@ -450,7 +450,7 @@ func TestClientMissingAccessToken(t *testing.T) {
 		WithAccountURL("https://example.com/accountapi").
 		WithUserAgent("MyUserAgent")
 
-	var clientInstance interface{}
+	var clientInstance any
 	clientInstance, err := f.BucketClient(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
@@ -512,7 +512,7 @@ func TestClientClassicURLParsingError(t *testing.T) {
 		WithAccountURL("https://example.com/accountapi").
 		WithUserAgent("MyUserAgent")
 
-	var clientInstance interface{}
+	var clientInstance any
 	clientInstance, err := f.BucketClient(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)

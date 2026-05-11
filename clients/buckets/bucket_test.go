@@ -551,7 +551,7 @@ func TestUpdate(t *testing.T) {
 
 		responses := []testutils.ResponseDef{}
 
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			get := testutils.ResponseDef{
 				GET: func(t *testing.T, request *http.Request) testutils.Response {
 					return testutils.Response{

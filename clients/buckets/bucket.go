@@ -271,7 +271,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api
 	}
 
 	// convert data to be sent to JSON
-	var m map[string]interface{}
+	var m map[string]any
 	err = json.Unmarshal(data, &m)
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithName, updateOperation, bucketName, fmt.Errorf("unable to unmarshal data: %w", err))
@@ -306,12 +306,12 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api
 // this means that like for an update bucketName, version and status are assumed to be
 // those of the existing object, ignoring what ever may be defined in the supplied data.
 func bucketsEqual(exists, new []byte) bool {
-	var existsMap map[string]interface{}
+	var existsMap map[string]any
 	if err := json.Unmarshal(exists, &existsMap); err != nil {
 		return false
 	}
 
-	var newMap map[string]interface{}
+	var newMap map[string]any
 	if err := json.Unmarshal(new, &newMap); err != nil {
 		return false
 	}
@@ -325,7 +325,7 @@ func bucketsEqual(exists, new []byte) bool {
 
 // setBucketName sets the bucket name in the provided JSON data.
 func setBucketName(bucketName string, data *[]byte) error {
-	var m map[string]interface{}
+	var m map[string]any
 	err := json.Unmarshal(*data, &m)
 	if err != nil {
 		return fmt.Errorf("unable to unmarshal data: %w", err)
