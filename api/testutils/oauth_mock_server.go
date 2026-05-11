@@ -32,7 +32,7 @@ func OAuthMockServer(t *testing.T, accessToken string) *httptest.Server {
 		assert.NoError(t, err)
 		assert.Equal(t, "client_credentials", r.FormValue("grant_type"))
 
-		resp := map[string]interface{}{
+		resp := map[string]any{
 			"access_token": accessToken,
 			"token_type":   "Bearer",
 			"expires_in":   3600, // seconds

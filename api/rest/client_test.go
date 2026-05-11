@@ -340,7 +340,7 @@ func TestClient_WithCustomRetriesOnRequest(t *testing.T) {
 	}))
 
 	startTime := time.Now()
-	resp, err := client.GET(t.Context(), "", RequestOptions{MaxRetries: pointer.Pointer(1), DelayAfterRetry: pointer.Pointer(time.Millisecond * 100)})
+	resp, err := client.GET(t.Context(), "", RequestOptions{MaxRetries: new(1), DelayAfterRetry: pointer.Pointer(time.Millisecond * 100)})
 	elapsedTime := time.Since(startTime)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, elapsedTime, time.Millisecond*100)
@@ -610,7 +610,7 @@ func TestClient_WithRateLimiting_SoftLimitCanBeUpdated(t *testing.T) {
 	_, _ = client.GET(t.Context(), "", RequestOptions{}) // first call initializes rate limiter
 
 	before := time.Now()
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		_, _ = client.GET(t.Context(), "", RequestOptions{})
 	}
 

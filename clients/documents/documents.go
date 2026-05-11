@@ -257,7 +257,7 @@ func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 func (c Client) patchWithRetry(ctx context.Context, id string, version int, d Document) (resp api.Response, err error) {
 	const maxRetries = 5
 	const retryDelay = 200 * time.Millisecond
-	for r := 0; r < maxRetries; r++ {
+	for range maxRetries {
 		if resp, err = c.patch(ctx, id, version, d); api.IsNotFoundError(err) {
 			time.Sleep(retryDelay)
 			continue

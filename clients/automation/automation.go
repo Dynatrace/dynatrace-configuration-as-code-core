@@ -378,7 +378,7 @@ func unmarshalJSONList(body []byte) (listResponse, error) {
 }
 
 func rmIDField(data *[]byte) error {
-	var m map[string]interface{}
+	var m map[string]any
 	err := json.Unmarshal(*data, &m)
 	if err != nil {
 		return err

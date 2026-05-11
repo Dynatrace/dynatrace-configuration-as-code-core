@@ -116,7 +116,7 @@ func (c Client) Update(ctx context.Context, id string, payload []byte) (api.Resp
 	var resp api.Response
 	var err error
 
-	for i := 0; i < maxUpdateAttempts; i++ {
+	for range maxUpdateAttempts {
 		resp, err = c.update(ctx, id, payload)
 		if err == nil {
 			return resp, nil

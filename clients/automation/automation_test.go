@@ -688,10 +688,10 @@ func TestAutomationClient_List_PaginationLogic(t *testing.T) {
 
 	// prepare test data
 	workflows := make([][]byte, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		u, err := uuid.NewRandom()
 		assert.NoError(t, err)
-		workflows[i] = []byte(fmt.Sprintf(`{"id": "%s","title": "Workflow%d"}`, u, i))
+		workflows[i] = fmt.Appendf(nil, `{"id": "%s","title": "Workflow%d"}`, u, i)
 	}
 
 	responseTmpl := `{ "count": %d,"results": [ %s ] }`
@@ -707,10 +707,7 @@ func TestAutomationClient_List_PaginationLogic(t *testing.T) {
 			}
 		}
 
-		end := offset + pageSize
-		if end > len(serverData) {
-			end = len(serverData)
-		}
+		end := min(offset+pageSize, len(serverData))
 
 		var s []string
 		for _, b := range serverData[offset:end] {
@@ -735,7 +732,7 @@ func TestAutomationClient_List_PaginationLogic(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Len(t, resp, 7) // expect 7 pages - 6x full size 15, 1x size 10
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		assert.Len(t, resp[i].Objects, 15)
 	}
 	assert.Len(t, resp[6].Objects, 10)

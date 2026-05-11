@@ -443,7 +443,7 @@ func TestDocumentClient_Create(t *testing.T) {
 				},
 			},
 		}
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			responses = append(responses, testutils.ResponseDef{
 				PATCH: func(t *testing.T, req *http.Request) testutils.Response {
 					return testutils.Response{
