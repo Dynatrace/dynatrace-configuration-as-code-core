@@ -1,6 +1,6 @@
 /*
  * @license
- * Copyright 2023 Dynatrace LLC
+ * Copyright 2026 Dynatrace LLC
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -300,7 +300,7 @@ func (c Client) patch(ctx context.Context, id string, version int, d Document) (
 	return resp, nil
 }
 
-func (c Client) get(ctx context.Context, id string, readContent bool) (Response, error) {
+func (c Client) get(ctx context.Context, id string, readContent bool) (retResp Response, retErr error) {
 	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsg, getOperation, err)
@@ -327,6 +327,9 @@ func (c Client) get(ctx context.Context, id string, readContent bool) (Response,
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsgWithID, getOperation, id, fmt.Errorf("unable to read multipart form: %w", err))
 	}
+	defer func() {
+		retErr = errors.Join(retErr, form.RemoveAll())
+	}()
 
 	metadata, err := readMetadata(form)
 	if err != nil {
