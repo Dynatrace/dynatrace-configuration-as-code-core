@@ -1,5 +1,5 @@
 // @license
-// Copyright 2023 Dynatrace LLC
+// Copyright 2026 Dynatrace LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 
@@ -99,7 +100,10 @@ This is the document content`
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
+		multipartTempFileBeforeCount := getTemporaryMultipartFileCount(t)
 		resp, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+		multipartTempFileAfterCount := getTemporaryMultipartFileCount(t)
+
 		assert.NotZero(t, resp)
 		assert.Equal(t, "b17ec54b-07ac-4c73-9c4d-232e1b2e2420", resp.ID)
 		assert.Equal(t, "my-test-db", resp.Name)
@@ -114,6 +118,7 @@ This is the document content`
 		assert.Equal(t, "This is the document content", string(resp.Data))
 		assert.NotZero(t, resp.Request)
 		assert.Nil(t, err)
+		assert.Equal(t, multipartTempFileBeforeCount, multipartTempFileAfterCount, "temporary multipart files should be cleaned up")
 
 	})
 
@@ -179,8 +184,12 @@ This is the document content`
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
+		multipartTempFileBeforeCount := getTemporaryMultipartFileCount(t)
 		_, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+		multipartTempFileAfterCount := getTemporaryMultipartFileCount(t)
+
 		assert.ErrorIs(t, err, documents.ErrNoMetadata)
+		assert.Equal(t, multipartTempFileBeforeCount, multipartTempFileAfterCount, "temporary multipart files should be cleaned up")
 	})
 
 	t.Run("GET - no content given", func(t *testing.T) {
@@ -201,8 +210,12 @@ This is the document content`
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
+		multipartTempFileBeforeCount := getTemporaryMultipartFileCount(t)
 		_, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+		multipartTempFileAfterCount := getTemporaryMultipartFileCount(t)
+
 		assert.ErrorIs(t, err, documents.ErrNoContent)
+		assert.Equal(t, multipartTempFileBeforeCount, multipartTempFileAfterCount, "temporary multipart files should be cleaned up")
 	})
 
 	t.Run("GET - Unable to make HTTP call", func(t *testing.T) {
@@ -240,6 +253,23 @@ This is the document content`
 		assert.ErrorAs(t, err, &apiError)
 		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
 	})
+}
+
+// getTemporaryMultipartFileCount counts the number of temporary files with the prefix "multipart-".
+// These are typically created by multipart reader in the system's temp directory.
+// This function is used to ensure that such files are properly cleaned up after processing multipart responses.
+func getTemporaryMultipartFileCount(t *testing.T) int {
+	entries, err := os.ReadDir(os.TempDir())
+	if err != nil {
+		t.Fatalf("failed to read temp dir: %v", err)
+	}
+	count := 0
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), "multipart-") {
+			count++
+		}
+	}
+	return count
 }
 
 func TestDocumentClient_Create(t *testing.T) {
