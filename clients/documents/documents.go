@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -300,7 +301,7 @@ func (c Client) patch(ctx context.Context, id string, version int, d Document) (
 	return resp, nil
 }
 
-func (c Client) get(ctx context.Context, id string, readContent bool) (retResp Response, retErr error) {
+func (c Client) get(ctx context.Context, id string, readContent bool) (Response, error) {
 	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
 		return Response{}, fmt.Errorf(errMsg, getOperation, err)
@@ -328,7 +329,10 @@ func (c Client) get(ctx context.Context, id string, readContent bool) (retResp R
 		return Response{}, fmt.Errorf(errMsgWithID, getOperation, id, fmt.Errorf("unable to read multipart form: %w", err))
 	}
 	defer func() {
-		retErr = errors.Join(retErr, form.RemoveAll())
+		err := form.RemoveAll()
+		if err != nil {
+			slog.WarnContext(ctx, "Failed to remove multipart form temporary files", slog.String("error", err.Error()))
+		}
 	}()
 
 	metadata, err := readMetadata(form)
