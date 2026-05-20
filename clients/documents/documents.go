@@ -372,8 +372,7 @@ func (c Client) delete(ctx context.Context, id string, version int) (api.Respons
 	}
 
 	r, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{
-		QueryParams:           map[string][]string{optimisticLockingHeader: {strconv.Itoa(version)}},
-		CustomShouldRetryFunc: rest.RetryOnFailureExcept404,
+		QueryParams: map[string][]string{optimisticLockingHeader: {strconv.Itoa(version)}},
 	})
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithID, deleteOperation, id, err)

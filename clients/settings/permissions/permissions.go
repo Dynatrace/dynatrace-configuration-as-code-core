@@ -165,7 +165,6 @@ func (c *Client) delete(ctx context.Context, objectID string, accessorType strin
 
 func getRequestOptions(adminAccess bool) rest.RequestOptions {
 	return rest.RequestOptions{
-		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
-		QueryParams:           url.Values{"adminAccess": []string{strconv.FormatBool(adminAccess)}},
+		QueryParams: url.Values{"adminAccess": []string{strconv.FormatBool(adminAccess)}},
 	}
 }

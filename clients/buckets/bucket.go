@@ -42,8 +42,7 @@ const (
 )
 
 var (
-	ErrBucketEmpty        = fmt.Errorf("bucketName must be non-empty")
-	defaultRequestOptions = rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests}
+	ErrBucketEmpty = fmt.Errorf("bucketName must be non-empty")
 )
 
 type bucketResponse struct {
@@ -111,7 +110,7 @@ func (c Client) Get(ctx context.Context, bucketName string) (api.Response, error
 		return api.Response{}, fmt.Errorf(errMsgWithName, getOperation, bucketName, err)
 	}
 
-	resp, err := c.restClient.GET(ctx, path, defaultRequestOptions)
+	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{})
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithName, getOperation, bucketName, err)
 	}
@@ -134,7 +133,7 @@ func (c Client) Get(ctx context.Context, bucketName string) (api.Response, error
 //   - []Response: A slice of bucket Response containing the individual buckets resulting from the HTTP call, including status code and data.
 //   - error: An error if the HTTP call fails or another error happened.
 func (c Client) List(ctx context.Context) (ListResponse, error) {
-	resp, err := c.restClient.GET(ctx, endpointPath, defaultRequestOptions)
+	resp, err := c.restClient.GET(ctx, endpointPath, rest.RequestOptions{})
 	if err != nil {
 		return ListResponse{}, fmt.Errorf(errMsg, listOperation, err)
 	}
@@ -184,7 +183,7 @@ func (c Client) Create(ctx context.Context, bucketName string, data []byte) (api
 	if err := setBucketName(bucketName, &data); err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, bucketName, fmt.Errorf("unable to set bucket name: %w", err))
 	}
-	r, err := c.restClient.POST(ctx, endpointPath, bytes.NewReader(data), defaultRequestOptions)
+	r, err := c.restClient.POST(ctx, endpointPath, bytes.NewReader(data), rest.RequestOptions{})
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, bucketName, err)
 	}
@@ -216,7 +215,7 @@ func (c Client) Delete(ctx context.Context, bucketName string) (api.Response, er
 		return api.Response{}, fmt.Errorf(errMsgWithName, deleteOperation, bucketName, err)
 	}
 
-	resp, err := c.restClient.DELETE(ctx, path, defaultRequestOptions)
+	resp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{})
 
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithName, deleteOperation, bucketName, err)
@@ -291,8 +290,7 @@ func (c Client) Update(ctx context.Context, bucketName string, data []byte) (api
 	}
 
 	resp, err := c.restClient.PUT(ctx, path, bytes.NewReader(data), rest.RequestOptions{
-		QueryParams:           url.Values{"optimistic-locking-version": []string{strconv.Itoa(res.Version)}},
-		CustomShouldRetryFunc: defaultRequestOptions.CustomShouldRetryFunc,
+		QueryParams: url.Values{"optimistic-locking-version": []string{strconv.Itoa(res.Version)}},
 	})
 
 	if err != nil {

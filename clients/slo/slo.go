@@ -62,7 +62,7 @@ func (c *Client) List(ctx context.Context) (api.PagedListResponse, error) {
 }
 
 func listPage(ctx context.Context, c *Client, pageKey string) (string, api.ListResponse, error) {
-	ro := rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests}
+	ro := rest.RequestOptions{}
 	if pageKey != "" {
 		ro.QueryParams = url.Values{"page-key": {pageKey}}
 	}
@@ -85,7 +85,7 @@ func (c *Client) Get(ctx context.Context, id string) (api.Response, error) {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
 	}
 
-	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{})
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "get", id, err)
 	}
@@ -94,7 +94,7 @@ func (c *Client) Get(ctx context.Context, id string) (api.Response, error) {
 }
 
 func (c *Client) Create(ctx context.Context, body []byte) (api.Response, error) {
-	resp, err := c.restClient.POST(ctx, endpointPath, bytes.NewReader(body), rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	resp, err := c.restClient.POST(ctx, endpointPath, bytes.NewReader(body), rest.RequestOptions{})
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsg, "create", err)
 	}
@@ -123,8 +123,7 @@ func (c *Client) Update(ctx context.Context, id string, body []byte) (api.Respon
 	}
 
 	resp, err := c.restClient.PUT(ctx, path, bytes.NewReader(body), rest.RequestOptions{
-		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
-		QueryParams:           url.Values{"optimistic-locking-version": []string{version}},
+		QueryParams: url.Values{"optimistic-locking-version": []string{version}},
 	})
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "update", id, err)
@@ -154,8 +153,7 @@ func (c *Client) Delete(ctx context.Context, id string) (api.Response, error) {
 	}
 
 	resp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{
-		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
-		QueryParams:           url.Values{"optimistic-locking-version": []string{version}},
+		QueryParams: url.Values{"optimistic-locking-version": []string{version}},
 	})
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithId, "delete", id, err)

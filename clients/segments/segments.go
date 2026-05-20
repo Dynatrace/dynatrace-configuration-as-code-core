@@ -45,8 +45,7 @@ type Client struct {
 func (c Client) List(ctx context.Context) (api.Response, error) {
 	path := basePath.String() + ":lean"
 	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{
-		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
-		QueryParams:           url.Values{"add-fields": []string{"EXTERNALID"}},
+		QueryParams: url.Values{"add-fields": []string{"EXTERNALID"}},
 	})
 
 	if err != nil {
@@ -85,8 +84,7 @@ func (c Client) Get(ctx context.Context, id string) (api.Response, error) {
 
 	path := basePath.JoinPath(id).String()
 	resp, err := c.restClient.GET(ctx, path, rest.RequestOptions{
-		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
-		QueryParams:           url.Values{"add-fields": []string{"INCLUDES", "VARIABLES", "EXTERNALID", "RESOURCECONTEXT"}},
+		QueryParams: url.Values{"add-fields": []string{"INCLUDES", "VARIABLES", "EXTERNALID", "RESOURCECONTEXT"}},
 	})
 	if err != nil {
 		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodGet, Wrapped: err}
@@ -96,7 +94,7 @@ func (c Client) Get(ctx context.Context, id string) (api.Response, error) {
 }
 
 func (c Client) Create(ctx context.Context, body []byte) (api.Response, error) {
-	resp, err := c.restClient.POST(ctx, endpointPath, bytes.NewReader(body), rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	resp, err := c.restClient.POST(ctx, endpointPath, bytes.NewReader(body), rest.RequestOptions{})
 	if err != nil {
 		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodPost, Wrapped: err}
 	}
@@ -136,8 +134,7 @@ func (c Client) Update(ctx context.Context, id string, body []byte) (api.Respons
 
 	path := basePath.JoinPath(id).String()
 	resp, err := c.restClient.PUT(ctx, path, bytes.NewReader(body), rest.RequestOptions{
-		CustomShouldRetryFunc: rest.RetryIfTooManyRequests,
-		QueryParams:           map[string][]string{"optimistic-locking-version": {strconv.Itoa(getResponse.Version)}}})
+		QueryParams: map[string][]string{"optimistic-locking-version": {strconv.Itoa(getResponse.Version)}}})
 	if err != nil {
 		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodPut, Identifier: id, Wrapped: err}
 	}
@@ -151,7 +148,7 @@ func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 	}
 
 	path := basePath.JoinPath(id).String()
-	resp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{CustomShouldRetryFunc: rest.RetryIfTooManyRequests})
+	resp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{})
 	if err != nil {
 		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodDelete, Identifier: id, Wrapped: err}
 	}
