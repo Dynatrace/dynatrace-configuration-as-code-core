@@ -306,9 +306,6 @@ func (a Client) makeRequestWithAdminAccess(resourceType ResourceType, request fu
 	if resourceType == Workflows {
 		opts := rest.RequestOptions{
 			QueryParams: url.Values{"adminAccess": []string{"true"}},
-			CustomShouldRetryFunc: func(resp *http.Response) bool {
-				return rest.RetryIfNotSuccess(resp) && (resp.StatusCode != http.StatusForbidden)
-			},
 		}
 		resp, err := request(opts)
 		if err != nil {
@@ -348,17 +345,7 @@ func (a Client) Delete(ctx context.Context, resourceType ResourceType, id string
 	}
 
 	resp, err := a.makeRequestWithAdminAccess(resourceType, func(options rest.RequestOptions) (*http.Response, error) {
-		opts := rest.RequestOptions{
-			QueryParams: options.QueryParams,
-			CustomShouldRetryFunc: func(resp *http.Response) bool {
-				if options.CustomShouldRetryFunc == nil {
-					return rest.RetryOnFailureExcept404(resp)
-				}
-
-				return options.CustomShouldRetryFunc(resp) && rest.RetryOnFailureExcept404(resp)
-			},
-		}
-		return a.restClient.DELETE(ctx, path, opts)
+		return a.restClient.DELETE(ctx, path, options)
 	})
 
 	if err != nil {

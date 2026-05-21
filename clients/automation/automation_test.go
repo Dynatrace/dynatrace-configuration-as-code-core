@@ -76,6 +76,29 @@ func TestAutomationClient_Get(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("GET - Invalid ID does not retry", func(t *testing.T) {
+
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusBadRequest,
+						ResponseBody: payload,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := automation.NewClient(rest.NewClient(server.URL(), server.Client(), rest.WithRetryOptions(&rest.RetryOptions{MaxRetries: 10, ShouldRetryFunc: rest.RetryIfTooManyRequests})))
+
+		resp, err := client.Get(t.Context(), automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
+		assert.Zero(t, resp)
+		assert.Error(t, err)
+	})
+
 	t.Run("GET - Unable to make HTTP call", func(t *testing.T) {
 
 		responses := []testutils.ResponseDef{}
