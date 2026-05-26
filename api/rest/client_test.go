@@ -538,7 +538,7 @@ func TestClient_WithRateLimiting_HardLimitActuallyBlocks(t *testing.T) {
 	baseURL, _ := url.Parse(server.URL)
 	client := NewClient(baseURL, nil,
 		WithRateLimiter(), // default rate limiter with real clock
-		WithRetryOptions(&RetryOptions{MaxRetries: 1, ShouldRetryFunc: RetryIfTooManyRequests}),
+		WithRetryOptions(&RetryOptions{MaxRetries: 1, ShouldRetryFunc: RetryIfTooManyRequestsOrServiceUnavailable}),
 	)
 
 	before := time.Now()

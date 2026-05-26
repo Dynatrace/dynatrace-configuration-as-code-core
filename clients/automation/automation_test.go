@@ -92,7 +92,7 @@ func TestAutomationClient_Get(t *testing.T) {
 		server := testutils.NewHTTPTestServer(t, responses)
 		defer server.Close()
 
-		client := automation.NewClient(rest.NewClient(server.URL(), server.Client(), rest.WithRetryOptions(&rest.RetryOptions{MaxRetries: 10, ShouldRetryFunc: rest.RetryIfTooManyRequests})))
+		client := automation.NewClient(rest.NewClient(server.URL(), server.Client(), rest.WithRetryOptions(&rest.RetryOptions{MaxRetries: 10, ShouldRetryFunc: rest.RetryIfTooManyRequestsOrServiceUnavailable})))
 
 		resp, err := client.Get(t.Context(), automation.Workflows, "91cc8988-2223-404a-a3f5-5f1a839ecd45")
 		assert.Zero(t, resp)

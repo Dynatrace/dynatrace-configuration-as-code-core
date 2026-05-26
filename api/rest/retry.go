@@ -33,9 +33,9 @@ func RetryIfNotSuccess(resp *http.Response) bool {
 	return !(isStatusSuccess(resp.StatusCode))
 }
 
-// RetryIfTooManyRequests return true for responses with status code Too Many Requests (429).
-func RetryIfTooManyRequests(resp *http.Response) bool {
-	return resp.StatusCode == http.StatusTooManyRequests
+// RetryIfTooManyRequestsOrServiceUnavailable returns true for responses with status code Too Many Requests (429) or Service Unavailable (503).
+func RetryIfTooManyRequestsOrServiceUnavailable(resp *http.Response) bool {
+	return resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable
 }
 
 // RetryOnFailureExcept404 returns true for all failed responses except those with status not found.
