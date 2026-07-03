@@ -151,6 +151,15 @@ func (f factory) WithCustomHeaders(headers map[string]string) factory {
 
 // AccountClient creates and returns a new instance of accounts.Client for interacting with the accounts API.
 func (f factory) AccountClient(ctx context.Context) (*accounts.Client, error) {
+	restClient, err := f.AccountRestClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return accounts.NewClient(restClient), nil
+}
+
+// AccountRestClient creates and returns a new instance of rest.Client for interacting with the accounts API.
+func (f factory) AccountRestClient(ctx context.Context) (*rest.Client, error) {
 	if f.oauthConfig == nil {
 		return nil, ErrOAuthCredentialsMissing
 	}
@@ -159,11 +168,7 @@ func (f factory) AccountClient(ctx context.Context) (*accounts.Client, error) {
 		return nil, ErrAccountURLMissing
 	}
 
-	restClient, err := f.createRestClient(f.accountURL, auth.NewOAuthClient(ctx, f.oauthConfig))
-	if err != nil {
-		return nil, err
-	}
-	return accounts.NewClient(restClient), nil
+	return f.createRestClient(f.accountURL, auth.NewOAuthClient(ctx, f.oauthConfig))
 }
 
 // AutomationClient creates and returns a new instance of automation.Client for interacting with the automation API.
