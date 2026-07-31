@@ -19,17 +19,37 @@ package documents
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
+// Metadata mirrors the document metadata returned by the API. It is also the
+// input to Client.Create and Client.Update; on write only a subset of fields is
+// settable (see writeDocument), while the remaining fields are read-only and
+// populated by the API on read.
 type Metadata struct {
-	ID                string  `json:"id"`
-	Owner             string  `json:"owner"`
-	Name              string  `json:"name"`
-	Type              string  `json:"type"`
-	Version           int     `json:"version"`
-	IsPrivate         bool    `json:"isPrivate"`
-	OriginAppID       *string `json:"originAppId,omitempty"`
-	OriginExtensionID *string `json:"originExtensionId,omitempty"`
+	ID                string            `json:"id"`
+	Name              string            `json:"name"`
+	Type              string            `json:"type"`
+	IsPrivate         bool              `json:"isPrivate"`
+	Description       *string           `json:"description,omitempty"`
+	IsReshareable     *bool             `json:"isReshareable,omitempty"`
+	Labels            []string          `json:"labels,omitempty"`
+	ModificationInfo  *ModificationInfo `json:"modificationInfo,omitempty"`
+	Version           int               `json:"version"`
+	Owner             string            `json:"owner"`
+	OriginAppID       *string           `json:"originAppId,omitempty"`
+	OriginExtensionID *string           `json:"originExtensionId,omitempty"`
+	Access            []string          `json:"access,omitempty"`
+}
+
+// ModificationInfo captures the read-only audit information the API returns for
+// a document.
+type ModificationInfo struct {
+	CreatedBy          string    `json:"createdBy"`
+	CreatedTime        time.Time `json:"createdTime"`
+	LastModifiedBy     string    `json:"lastModifiedBy"`
+	LastModifiedTime   time.Time `json:"lastModifiedTime"`
+	LastModifyingAppID *string   `json:"lastModifyingAppId"`
 }
 
 func UnmarshallMetadata(b []byte) (Metadata, error) {

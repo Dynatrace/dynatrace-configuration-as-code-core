@@ -319,7 +319,7 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		res, err := client.Create(t.Context(), documents.Metadata{Name: "name", ID: "extID", Type: documents.Notebook}, []byte("this is the content"))
 
 		require.NoError(t, err)
 		assert.JSONEq(t, expected, string(res.Data))
@@ -342,7 +342,7 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		_, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		_, err := client.Create(t.Context(), documents.Metadata{Name: "name", ID: "extID", Type: documents.Notebook}, []byte("this is the content"))
 
 		jsonErr := &json.SyntaxError{}
 		assert.ErrorAs(t, err, &jsonErr)
@@ -365,7 +365,7 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		res, err := client.Create(t.Context(), documents.Metadata{Name: "name", ID: "extID", Type: documents.Notebook}, []byte("this is the content"))
 
 		require.Empty(t, res)
 		require.Error(t, err)
@@ -412,7 +412,7 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		res, err := client.Create(t.Context(), documents.Metadata{Name: "name", ID: "extID", Type: documents.Notebook}, []byte("this is the content"))
 
 		assert.Empty(t, res)
 		assert.Error(t, err)
@@ -455,7 +455,7 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		res, err := client.Create(t.Context(), documents.Metadata{Name: "name", ID: "extID", Type: documents.Notebook}, []byte("this is the content"))
 
 		require.NoError(t, err)
 		assert.JSONEq(t, expected, string(res.Data))
@@ -488,7 +488,7 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		res, err := client.Create(t.Context(), documents.Metadata{Name: "name", ID: "extID", Type: documents.Notebook}, []byte("this is the content"))
 
 		assert.Empty(t, res)
 		assert.Error(t, err)
@@ -531,7 +531,7 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		res, err := client.Create(t.Context(), "name", false, "extID", []byte("this is the content"), documents.Notebook)
+		res, err := client.Create(t.Context(), documents.Metadata{Name: "name", ID: "extID", Type: documents.Notebook}, []byte("this is the content"))
 
 		assert.Empty(t, res)
 		assert.Error(t, err)
@@ -595,7 +595,7 @@ This is the document content
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Update(t.Context(), "", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+		resp, err := client.Update(t.Context(), documents.Metadata{ID: "", Name: "my-dashboard", IsPrivate: true, Type: documents.Dashboard}, []byte(documentContent))
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -616,7 +616,7 @@ This is the document content
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+		resp, err := client.Update(t.Context(), documents.Metadata{ID: "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", Name: "my-dashboard", IsPrivate: true, Type: documents.Dashboard}, []byte(documentContent))
 		assert.Zero(t, resp)
 		assert.Error(t, err)
 	})
@@ -637,7 +637,7 @@ This is the document content
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+		resp, err := client.Update(t.Context(), documents.Metadata{ID: "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", Name: "my-dashboard", IsPrivate: true, Type: documents.Dashboard}, []byte(documentContent))
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -672,7 +672,7 @@ This is the document content
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+		resp, err := client.Update(t.Context(), documents.Metadata{ID: "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", Name: "my-dashboard", IsPrivate: true, Type: documents.Dashboard}, []byte(documentContent))
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.JSONEq(t, expected, string(resp.Data))
@@ -719,7 +719,7 @@ This is the document content
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", false, []byte(documentContent), someArbitraryDocumentType)
+		resp, err := client.Update(t.Context(), documents.Metadata{ID: "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", Name: "my-dashboard", Type: someArbitraryDocumentType}, []byte(documentContent))
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -753,7 +753,7 @@ This is the document content
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+		resp, err := client.Update(t.Context(), documents.Metadata{ID: "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", Name: "my-dashboard", IsPrivate: true, Type: documents.Dashboard}, []byte(documentContent))
 
 		assert.Zero(t, resp)
 		var apiError api.APIError
@@ -786,7 +786,7 @@ This is the document content
 
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		_, err := client.Update(t.Context(), "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", "my-dashboard", true, []byte(documentContent), documents.Dashboard)
+		_, err := client.Update(t.Context(), documents.Metadata{ID: "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", Name: "my-dashboard", IsPrivate: true, Type: documents.Dashboard}, []byte(documentContent))
 
 		jsonErr := &json.SyntaxError{}
 		assert.ErrorAs(t, err, &jsonErr)

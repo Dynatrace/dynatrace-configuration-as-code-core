@@ -22,37 +22,58 @@ import (
 	"strconv"
 )
 
-type Document struct {
-	Kind    string
-	Name    string
-	ID      string
-	Public  bool
-	Content []byte
-}
-
-func (d *Document) write(w io.Writer) (*multipart.Writer, error) {
+// writeDocument serializes the settable fields of meta plus content into a
+// multipart body. The following server-managed Metadata fields are read-only
+// and are ignored here: Owner, Version, ModificationInfo, Access, OriginAppID,
+// and OriginExtensionID.
+func writeDocument(w io.Writer, meta Metadata, content []byte) (*multipart.Writer, error) {
 	writer := multipart.NewWriter(w)
 
-	if err := writer.WriteField("type", d.Kind); err != nil {
+	if err := writer.WriteField("type", meta.Type); err != nil {
 		return nil, err
 	}
-	if err := writer.WriteField("name", d.Name); err != nil {
+	if err := writer.WriteField("name", meta.Name); err != nil {
 		return nil, err
 	}
-	if err := writer.WriteField("isPrivate", strconv.FormatBool(!d.Public)); err != nil {
+	if err := writer.WriteField("isPrivate", strconv.FormatBool(meta.IsPrivate)); err != nil {
 		return nil, err
 	}
-	if d.ID != "" {
-		if err := writer.WriteField("id", d.ID); err != nil {
+	if meta.ID != "" {
+		if err := writer.WriteField("id", meta.ID); err != nil {
 			return nil, err
 		}
 	}
-	if d.Content != nil {
-		part, err := writer.CreateFormFile("content", d.Name)
+	if meta.Description != nil {
+		if err := writer.WriteField("description", *meta.Description); err != nil {
+			return nil, err
+		}
+	}
+	// Labels are sent as one repeated "labels" field per value. A nil slice
+	// leaves the existing labels untouched; a non-nil but empty slice clears
+	// them by sending a single empty "labels" field.
+	if meta.Labels != nil {
+		if len(meta.Labels) == 0 {
+			if err := writer.WriteField("labels", ""); err != nil {
+				return nil, err
+			}
+		}
+		for _, label := range meta.Labels {
+			if err := writer.WriteField("labels", label); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if meta.IsReshareable != nil {
+		if err := writer.WriteField("isReshareable", strconv.FormatBool(*meta.IsReshareable)); err != nil {
+			return nil, err
+		}
+	}
+	if content != nil {
+		part, err := writer.CreateFormFile("content", meta.Name)
 		if err != nil {
 			return nil, err
 		}
-		if _, err := part.Write(d.Content); err != nil {
+		if _, err := part.Write(content); err != nil {
 			return nil, err
 		}
 	}
