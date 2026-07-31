@@ -177,68 +177,62 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 	return retVal, nil
 }
 
-func (c Client) Create(ctx context.Context, name string, isPrivate bool, id string, data []byte, documentType DocumentType) (api.Response, error) {
-	d := Document{
-		Kind:    documentType,
-		Name:    name,
-		Public:  !isPrivate,
-		ID:      id,
-		Content: data,
-	}
-
+// Create creates a new document from meta and content. Only the settable
+// Metadata fields are sent (Type, Name, IsPrivate, ID, Description, Labels,
+// IsReshareable); leave ID empty to let the API generate one. Server-managed
+// fields on meta are ignored (see writeDocument).
+func (c Client) Create(ctx context.Context, meta Metadata, content []byte) (api.Response, error) {
 	body := &bytes.Buffer{}
-	writer, err := d.write(body)
+	writer, err := writeDocument(body, meta, content)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, name, err)
+		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, meta.Name, err)
 	}
 
 	httpResp, err := c.restClient.POST(ctx, documentResourcePath, body, rest.RequestOptions{
 		ContentType: writer.FormDataContentType(),
 	})
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, name, err)
+		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, meta.Name, err)
 	}
 	resp, err := api.NewResponseFromHTTPResponse(httpResp)
 
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, name, err)
+		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, meta.Name, err)
 	}
 
 	var md Metadata
 	if md, err = UnmarshallMetadata(resp.Data); err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, name, err)
+		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, meta.Name, err)
 	}
 
-	r, err := c.patchWithRetry(ctx, md.ID, md.Version, d)
+	r, err := c.patchWithRetry(ctx, md.ID, md.Version, meta, content)
 	if err != nil {
 		if !api.IsNotFoundError(err) {
 			if _, err1 := c.delete(ctx, md.ID, md.Version); err1 != nil {
-				return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, name, errors.Join(err, err1))
+				return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, meta.Name, errors.Join(err, err1))
 			}
 		}
-		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, name, err)
+		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, meta.Name, err)
 	}
 	return r, nil
 }
 
-func (c Client) Update(ctx context.Context, id string, name string, isPrivate bool, data []byte, documentType DocumentType) (api.Response, error) {
-	if id == "" {
+// Update replaces the document identified by meta.ID with meta and content. Only
+// the settable Metadata fields are sent (Type, Name, IsPrivate, ID, Description,
+// Labels, IsReshareable). The current server version is fetched and used as the
+// optimistic-locking version (last-write-wins); a caller-supplied meta.Version
+// is ignored.
+func (c Client) Update(ctx context.Context, meta Metadata, content []byte) (api.Response, error) {
+	if meta.ID == "" {
 		return api.Response{}, fmt.Errorf(errMsg, updateOperation, ErrIDEmpty)
 	}
 
-	resp, err := c.get(ctx, id, false)
+	resp, err := c.get(ctx, meta.ID, false)
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsg, updateOperation, err)
 	}
 
-	d := Document{
-		Kind:    documentType,
-		Name:    name,
-		Public:  !isPrivate,
-		Content: data,
-	}
-
-	return c.patch(ctx, id, resp.Version, d)
+	return c.patch(ctx, meta.ID, resp.Version, meta, content)
 }
 
 func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
@@ -255,11 +249,11 @@ func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 	return c.delete(ctx, id, resp.Version)
 }
 
-func (c Client) patchWithRetry(ctx context.Context, id string, version int, d Document) (resp api.Response, err error) {
+func (c Client) patchWithRetry(ctx context.Context, id string, version int, meta Metadata, content []byte) (resp api.Response, err error) {
 	const maxRetries = 5
 	const retryDelay = 200 * time.Millisecond
 	for range maxRetries {
-		if resp, err = c.patch(ctx, id, version, d); api.IsNotFoundError(err) {
+		if resp, err = c.patch(ctx, id, version, meta, content); api.IsNotFoundError(err) {
 			time.Sleep(retryDelay)
 			continue
 		}
@@ -268,14 +262,14 @@ func (c Client) patchWithRetry(ctx context.Context, id string, version int, d Do
 	return
 }
 
-func (c Client) patch(ctx context.Context, id string, version int, d Document) (api.Response, error) {
+func (c Client) patch(ctx context.Context, id string, version int, meta Metadata, content []byte) (api.Response, error) {
 	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithID, updateOperation, id, err)
 	}
 
 	body := &bytes.Buffer{}
-	writer, err := d.write(body)
+	writer, err := writeDocument(body, meta, content)
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithID, updateOperation, id, err)
 	}
