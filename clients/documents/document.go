@@ -22,6 +22,11 @@ import (
 	"strconv"
 )
 
+// formField is a single multipart form field to be written.
+type formField struct {
+	key, value string
+}
+
 // writeDocument serializes the settable fields of meta plus content into a
 // multipart body. The following server-managed Metadata fields are read-only
 // and are ignored here: Owner, Version, ModificationInfo, Access, OriginAppID,
@@ -29,51 +34,14 @@ import (
 func writeDocument(w io.Writer, meta Metadata, content []byte) (*multipart.Writer, error) {
 	writer := multipart.NewWriter(w)
 
-	if err := writer.WriteField("type", meta.Type); err != nil {
-		return nil, err
-	}
-	if err := writer.WriteField("name", meta.Name); err != nil {
-		return nil, err
-	}
-	if err := writer.WriteField("isPrivate", strconv.FormatBool(meta.IsPrivate)); err != nil {
-		return nil, err
-	}
-	if meta.ID != "" {
-		if err := writer.WriteField("id", meta.ID); err != nil {
+	for _, f := range metadataFields(meta) {
+		if err := writer.WriteField(f.key, f.value); err != nil {
 			return nil, err
 		}
 	}
-	if meta.Description != nil {
-		if err := writer.WriteField("description", *meta.Description); err != nil {
-			return nil, err
-		}
-	}
-	// Labels are sent as one repeated "labels" field per value. A nil slice
-	// leaves the existing labels untouched; a non-nil but empty slice clears
-	// them by sending a single empty "labels" field.
-	if meta.Labels != nil {
-		if len(meta.Labels) == 0 {
-			if err := writer.WriteField("labels", ""); err != nil {
-				return nil, err
-			}
-		}
-		for _, label := range meta.Labels {
-			if err := writer.WriteField("labels", label); err != nil {
-				return nil, err
-			}
-		}
-	}
-	if meta.IsReshareable != nil {
-		if err := writer.WriteField("isReshareable", strconv.FormatBool(*meta.IsReshareable)); err != nil {
-			return nil, err
-		}
-	}
+
 	if content != nil {
-		part, err := writer.CreateFormFile("content", meta.Name)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := part.Write(content); err != nil {
+		if err := writeContent(writer, meta.Name, content); err != nil {
 			return nil, err
 		}
 	}
@@ -83,4 +51,51 @@ func writeDocument(w io.Writer, meta Metadata, content []byte) (*multipart.Write
 	}
 
 	return writer, nil
+}
+
+// metadataFields returns the multipart form fields for the settable metadata.
+func metadataFields(meta Metadata) []formField {
+	fields := []formField{
+		{"type", meta.Type},
+		{"name", meta.Name},
+		{"isPrivate", strconv.FormatBool(meta.IsPrivate)},
+	}
+	if meta.ID != "" {
+		fields = append(fields, formField{"id", meta.ID})
+	}
+	if meta.Description != nil {
+		fields = append(fields, formField{"description", *meta.Description})
+	}
+	fields = append(fields, labelFields(meta.Labels)...)
+	if meta.IsReshareable != nil {
+		fields = append(fields, formField{"isReshareable", strconv.FormatBool(*meta.IsReshareable)})
+	}
+	return fields
+}
+
+// labelFields returns the "labels" form fields. A nil slice yields no fields,
+// leaving existing labels untouched; a non-nil but empty slice yields a single
+// empty field, which clears them; otherwise one field per label value.
+func labelFields(labels []string) []formField {
+	if labels == nil {
+		return nil
+	}
+	if len(labels) == 0 {
+		return []formField{{"labels", ""}}
+	}
+	fields := make([]formField, 0, len(labels))
+	for _, label := range labels {
+		fields = append(fields, formField{"labels", label})
+	}
+	return fields
+}
+
+// writeContent writes the document content as a multipart file part.
+func writeContent(writer *multipart.Writer, name string, content []byte) error {
+	part, err := writer.CreateFormFile("content", name)
+	if err != nil {
+		return err
+	}
+	_, err = part.Write(content)
+	return err
 }
