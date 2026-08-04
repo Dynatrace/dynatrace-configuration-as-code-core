@@ -83,10 +83,10 @@ func TestWriteDocument(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			body := &bytes.Buffer{}
-			writer, err := writeDocument(body, tt.meta, tt.content)
+			_, boundary, err := writeDocument(body, tt.meta, tt.content)
 			require.NoError(t, err)
 
-			form, err := multipart.NewReader(body, writer.Boundary()).ReadForm(1 << 20)
+			form, err := multipart.NewReader(body, boundary).ReadForm(1 << 20)
 			require.NoError(t, err)
 			t.Cleanup(func() { _ = form.RemoveAll() })
 
@@ -118,6 +118,6 @@ type failingWriter struct{}
 func (failingWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
 
 func TestWriteDocument_WriteError(t *testing.T) {
-	_, err := writeDocument(failingWriter{}, Metadata{Type: Dashboard, Name: "n"}, nil)
+	_, _, err := writeDocument(failingWriter{}, Metadata{Type: Dashboard, Name: "n"}, nil)
 	assert.Error(t, err)
 }
