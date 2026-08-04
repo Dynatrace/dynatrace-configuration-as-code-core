@@ -23,17 +23,24 @@ import (
 )
 
 // Metadata mirrors the document metadata returned by the API. It is also the
-// input to Client.Create and Client.Update; on write only a subset of fields is
-// settable (see writeDocument), while the remaining fields are read-only and
-// populated by the API on read.
+// input to Client.Create and Client.Update.
+//
+// Settable fields (accepted by the API on create and update):
+// ID, Name, Type, IsPrivate, Description, IsReshareable, Labels.
+//
+// Read-only fields (populated by the API; ignored on create and update):
+// Owner, Version, ModificationInfo, Access, OriginAppID, OriginExtensionID.
 type Metadata struct {
-	ID                string            `json:"id"`
-	Name              string            `json:"name"`
-	Type              string            `json:"type"`
-	IsPrivate         bool              `json:"isPrivate"`
-	Description       *string           `json:"description,omitempty"`
-	IsReshareable     *bool             `json:"isReshareable,omitempty"`
-	Labels            []string          `json:"labels,omitempty"`
+	// Settable fields.
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Type          string   `json:"type"`
+	IsPrivate     bool     `json:"isPrivate"`
+	Description   *string  `json:"description,omitempty"`
+	IsReshareable *bool    `json:"isReshareable,omitempty"`
+	Labels        []string `json:"labels,omitempty"`
+
+	// Read-only fields — populated by the API, ignored on create and update.
 	ModificationInfo  *ModificationInfo `json:"modificationInfo,omitempty"`
 	Version           int               `json:"version"`
 	Owner             string            `json:"owner"`
