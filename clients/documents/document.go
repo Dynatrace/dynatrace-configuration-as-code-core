@@ -32,20 +32,16 @@ type formField struct {
 // full list.
 func writeDocument(w io.Writer, meta Metadata, content []byte) (contentType, boundary string, err error) {
 	writer := multipart.NewWriter(w)
-	defer func() {
-		if closeErr := writer.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer func() { _ = writer.Close() }()
 
 	for _, f := range metadataFields(meta) {
-		if err := writer.WriteField(f.key, f.value); err != nil {
+		if err = writer.WriteField(f.key, f.value); err != nil {
 			return "", "", err
 		}
 	}
 
 	if content != nil {
-		if err := writeContent(writer, meta.Name, content); err != nil {
+		if err = writeContent(writer, meta.Name, content); err != nil {
 			return "", "", err
 		}
 	}
