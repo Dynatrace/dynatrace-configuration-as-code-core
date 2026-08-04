@@ -28,29 +28,29 @@ type formField struct {
 }
 
 // writeDocument serializes the settable fields of meta plus content into a
-// multipart body. The following server-managed Metadata fields are read-only
-// and are ignored here: Owner, Version, ModificationInfo, Access, OriginAppID,
-// and OriginExtensionID.
-func writeDocument(w io.Writer, meta Metadata, content []byte) (*multipart.Writer, error) {
+// multipart body. Read-only Metadata fields are ignored; see Metadata for the
+// full list.
+func writeDocument(w io.Writer, meta Metadata, content []byte) (contentType, boundary string, err error) {
 	writer := multipart.NewWriter(w)
+	defer func() {
+		if closeErr := writer.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	for _, f := range metadataFields(meta) {
 		if err := writer.WriteField(f.key, f.value); err != nil {
-			return nil, err
+			return "", "", err
 		}
 	}
 
 	if content != nil {
 		if err := writeContent(writer, meta.Name, content); err != nil {
-			return nil, err
+			return "", "", err
 		}
 	}
 
-	if err := writer.Close(); err != nil {
-		return writer, err
-	}
-
-	return writer, nil
+	return writer.FormDataContentType(), writer.Boundary(), nil
 }
 
 // metadataFields returns the multipart form fields for the settable metadata.

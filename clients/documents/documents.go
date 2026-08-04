@@ -183,13 +183,13 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 // fields on meta are ignored (see writeDocument).
 func (c Client) Create(ctx context.Context, meta Metadata, content []byte) (api.Response, error) {
 	body := &bytes.Buffer{}
-	writer, err := writeDocument(body, meta, content)
+	contentType, _, err := writeDocument(body, meta, content)
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, meta.Name, err)
 	}
 
 	httpResp, err := c.restClient.POST(ctx, documentResourcePath, body, rest.RequestOptions{
-		ContentType: writer.FormDataContentType(),
+		ContentType: contentType,
 	})
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, meta.Name, err)
@@ -269,13 +269,13 @@ func (c Client) patch(ctx context.Context, id string, version int, meta Metadata
 	}
 
 	body := &bytes.Buffer{}
-	writer, err := writeDocument(body, meta, content)
+	contentType, _, err := writeDocument(body, meta, content)
 	if err != nil {
 		return api.Response{}, fmt.Errorf(errMsgWithID, updateOperation, id, err)
 	}
 
 	httpResp, err := c.restClient.PATCH(ctx, path, body, rest.RequestOptions{
-		ContentType: writer.FormDataContentType(),
+		ContentType: contentType,
 		QueryParams: url.Values{optimisticLockingHeader: []string{strconv.Itoa(version)}},
 	})
 	if err != nil {
