@@ -125,23 +125,33 @@ func readFileContent(form *multipart.Form) ([]byte, error) {
 	return fileContent.Bytes(), nil
 }
 
+// listAddFields are the Metadata fields the list endpoint omits from its reduced
+// metadata object unless they are requested explicitly. isReshareable is missing
+// from this list because the endpoint does not accept it as an add-field value.
+var listAddFields = []string{"description", "labels", "originExtensionId"}
+
+// List returns every document matching filter with its complete Metadata.
+//
+// The list endpoint returns a reduced metadata object and only extends it with
+// the fields named in listAddFields, which leaves isReshareable unobtainable.
+// Until the endpoint supports it, each listed document is additionally fetched
+// on its own to get the complete metadata — so expect one extra request per
+// document. Once isReshareable can be requested through add-field, that per
+// document GET can be dropped.
 func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 	type listResponse struct {
-		TotalCount  int        `json:"totalCount"`
 		Documents   []Metadata `json:"documents"`
 		NextPageKey *string    `json:"nextPageKey"`
 	}
 
 	var retVal ListResponse
-	var result listResponse
-	var initialPage = ""
-	result.NextPageKey = &initialPage
+	nextPageKey := new("")
 
-	for result.NextPageKey != nil {
+	for nextPageKey != nil {
 
-		queryParams := url.Values{"filter": {filter}, "add-field": {"originExtensionId"}}
-		if *result.NextPageKey != "" {
-			queryParams["page-key"] = []string{*result.NextPageKey}
+		queryParams := url.Values{"filter": {filter}, "add-field": listAddFields}
+		if *nextPageKey != "" {
+			queryParams["page-key"] = []string{*nextPageKey}
 		}
 
 		ro := rest.RequestOptions{QueryParams: queryParams}
@@ -156,18 +166,25 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 			return ListResponse{}, fmt.Errorf(errMsg, listOperation, err)
 		}
 
-		err = json.Unmarshal(res.Data, &result)
-		if err != nil {
+		var result listResponse
+		if err := json.Unmarshal(res.Data, &result); err != nil {
 			return ListResponse{}, err
 		}
+		nextPageKey = result.NextPageKey
 
-		for _, metadata := range result.Documents {
+		for _, doc := range result.Documents {
+			//in order to get all metadata fields needed (when IsReshareable is supported as param this can be removed)
+			full, err := c.get(ctx, doc.ID, false)
+			if err != nil {
+				return ListResponse{}, fmt.Errorf(errMsg, listOperation, err)
+			}
+
 			retVal.Responses = append(retVal.Responses, Response{
 				Response: api.Response{
 					Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
 					StatusCode: resp.StatusCode,
 				},
-				Metadata: metadata,
+				Metadata: full.Metadata,
 			})
 		}
 

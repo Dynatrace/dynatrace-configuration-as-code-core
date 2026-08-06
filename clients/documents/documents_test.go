@@ -794,28 +794,22 @@ This is the document content
 }
 
 func TestDocumentClient_List(t *testing.T) {
+	// The list endpoint returns a reduced metadata object. These payloads are what
+	// it returns for the add-field values List asks for, so they carry description,
+	// labels and originExtensionId — but not isReshareable, which cannot be
+	// requested and is the reason List still reads each document individually.
 	const listPayloadPage1 = `{
     "documents": [
         {
-            "modificationInfo": {
-                "createdBy": "12341234-1234-1234-1234-12341234",
-                "createdTime": "2024-04-10T17:21:06.797Z",
-                "lastModifiedBy": "2f321c04-566e-4779-b576-3c033b8cd9e9",
-                "lastModifiedTime": "2024-04-10T17:21:06.797Z"
-            },
-            "access": [
-                "read",
-                "write",
-                "delete"
-            ],
             "id": "id1",
             "name": "name1",
 			"isPrivate": true,
             "type": "dashboard",
             "version": 1,
             "owner": "owner1",
-			"originAppId": "app1",
-      		"originExtensionId": null
+			"originExtensionId": null,
+			"description": "description1",
+			"labels": ["alpha", "beta"]
         }
     ],
     "nextPageKey": "next",
@@ -825,32 +819,91 @@ func TestDocumentClient_List(t *testing.T) {
 	const listPayloadPage2 = `{
     "documents": [
         {
-            "modificationInfo": {
-                "createdBy": "12341234-1234-1234-1234-12341234",
-                "createdTime": "2024-04-10T17:21:06.797Z",
-                "lastModifiedBy": "2f321c04-566e-4779-b576-3c033b8cd9e9",
-                "lastModifiedTime": "2024-04-10T17:21:06.797Z"
-            },
-            "access": [
-                "read",
-                "write",
-                "delete"
-            ],
             "id": "id2",
             "name": "name2",
 			"isPrivate": false,
             "type": "dashboard",
             "version": 1,
             "owner": "owner2",
-			"originAppId": null,
-      		"originExtensionId": "extension1"
+			"originExtensionId": "extension1",
+			"labels": []
         }
     ],
     "nextPageKey": null,
     "totalCount": 2
 }`
 
+	// wantAddFields is the add-field set List must request; without it the list
+	// payloads above would come back without description, labels or
+	// originExtensionId.
+	const wantAddFields = "add-field=description&add-field=labels&add-field=originExtensionId"
+
+	// metadataPayload wraps a metadata JSON object in the multipart body that the
+	// single-document GET returns.
+	metadataPayload := func(metadataJSON string) string {
+		part := "Content-Disposition: form-data; name=\"metadata\"\nContent-Type: application/json\n\n" + metadataJSON
+		return fmt.Sprintf("--%s\n%s\n--%s--", boundary, part, boundary)
+	}
+
+	metadataID1 := metadataPayload(`{
+    "modificationInfo": {
+        "createdBy": "12341234-1234-1234-1234-12341234",
+        "createdTime": "2024-04-10T17:21:06.797Z",
+        "lastModifiedBy": "2f321c04-566e-4779-b576-3c033b8cd9e9",
+        "lastModifiedTime": "2024-04-10T17:21:06.797Z"
+    },
+    "access": ["read", "write", "delete"],
+    "id": "id1",
+    "name": "name1",
+	"isPrivate": true,
+    "type": "dashboard",
+    "version": 1,
+    "owner": "owner1",
+	"originAppId": "app1",
+	"originExtensionId": null,
+	"description": "description1",
+	"isReshareable": false,
+	"labels": ["alpha", "beta"]
+}`)
+
+	metadataID2 := metadataPayload(`{
+    "modificationInfo": {
+        "createdBy": "12341234-1234-1234-1234-12341234",
+        "createdTime": "2024-04-10T17:21:06.797Z",
+        "lastModifiedBy": "2f321c04-566e-4779-b576-3c033b8cd9e9",
+        "lastModifiedTime": "2024-04-10T17:21:06.797Z"
+    },
+    "access": ["read", "write", "delete"],
+    "id": "id2",
+    "name": "name2",
+	"isPrivate": false,
+    "type": "dashboard",
+    "version": 1,
+    "owner": "owner2",
+	"originAppId": null,
+	"originExtensionId": "extension1",
+	"labels": []
+}`)
+
+	// documentGET is the response def for the single-document GET of wantID.
+	documentGET := func(wantID, body string) testutils.ResponseDef {
+		return testutils.ResponseDef{
+			GET: func(t *testing.T, req *http.Request) testutils.Response {
+				return testutils.Response{
+					ResponseCode: http.StatusOK,
+					ResponseBody: body,
+					ContentType:  contentType,
+				}
+			},
+			ValidateRequest: func(t *testing.T, request *http.Request) {
+				assert.True(t, strings.HasSuffix(request.URL.Path, "/documents/"+wantID),
+					"expected a single-document GET for %s, got %s", wantID, request.URL.Path)
+			},
+		}
+	}
+
 	t.Run("List - OK", func(t *testing.T) {
+		// One document GET per listed id, interleaved with the paged list requests.
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
@@ -860,9 +913,10 @@ func TestDocumentClient_List(t *testing.T) {
 					}
 				},
 				ValidateRequest: func(t *testing.T, request *http.Request) {
-					assert.Equal(t, "add-field=originExtensionId&filter=type+%3D%3D+%27dashboard%27", request.URL.RawQuery)
+					assert.Equal(t, wantAddFields+"&filter=type+%3D%3D+%27dashboard%27", request.URL.RawQuery)
 				},
 			},
+			documentGET("id1", metadataID1),
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
 					return testutils.Response{
@@ -871,9 +925,10 @@ func TestDocumentClient_List(t *testing.T) {
 					}
 				},
 				ValidateRequest: func(t *testing.T, request *http.Request) {
-					assert.Equal(t, "add-field=originExtensionId&filter=type+%3D%3D+%27dashboard%27&page-key=next", request.URL.RawQuery)
+					assert.Equal(t, wantAddFields+"&filter=type+%3D%3D+%27dashboard%27&page-key=next", request.URL.RawQuery)
 				},
 			},
+			documentGET("id2", metadataID2),
 		}
 
 		server := testutils.NewHTTPTestServer(t, responses)
@@ -882,9 +937,9 @@ func TestDocumentClient_List(t *testing.T) {
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.List(t.Context(), "type == 'dashboard'")
+		assert.NoError(t, err)
 		assert.Len(t, resp.Responses, 2)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-		assert.NoError(t, err)
 
 		assert.Equal(t, "id1", resp.Responses[0].ID)
 		assert.Equal(t, "name1", resp.Responses[0].Name)
@@ -895,6 +950,14 @@ func TestDocumentClient_List(t *testing.T) {
 		assert.NotNil(t, resp.Responses[0].OriginAppID)
 		assert.Equal(t, "app1", *resp.Responses[0].OriginAppID)
 		assert.Nil(t, resp.Responses[0].OriginExtensionID)
+		require.NotNil(t, resp.Responses[0].Description)
+		assert.Equal(t, "description1", *resp.Responses[0].Description)
+		assert.Equal(t, []string{"alpha", "beta"}, resp.Responses[0].Labels)
+		require.NotNil(t, resp.Responses[0].IsReshareable)
+		assert.False(t, *resp.Responses[0].IsReshareable)
+		assert.Equal(t, []string{"read", "write", "delete"}, resp.Responses[0].Access)
+		require.NotNil(t, resp.Responses[0].ModificationInfo)
+		assert.Equal(t, "12341234-1234-1234-1234-12341234", resp.Responses[0].ModificationInfo.CreatedBy)
 		assert.Equal(t, http.StatusOK, resp.Responses[0].StatusCode)
 
 		assert.Equal(t, "id2", resp.Responses[1].ID)
@@ -906,8 +969,95 @@ func TestDocumentClient_List(t *testing.T) {
 		assert.Nil(t, resp.Responses[1].OriginAppID)
 		assert.NotNil(t, resp.Responses[1].OriginExtensionID)
 		assert.EqualValues(t, "extension1", *resp.Responses[1].OriginExtensionID)
+		assert.Nil(t, resp.Responses[1].Description)
+		assert.Nil(t, resp.Responses[1].IsReshareable)
+		assert.Empty(t, resp.Responses[1].Labels)
+		require.NotNil(t, resp.Responses[1].ModificationInfo)
 		assert.Equal(t, http.StatusOK, resp.Responses[1].StatusCode)
 
+	})
+
+	t.Run("List - the per document GET wins over the listed metadata", func(t *testing.T) {
+		// Both sources can carry labels: the list payload because List asks for them
+		// via add-field, and the per document GET because it always returns them.
+		// While the GET workaround is in place it is the authoritative one. When
+		// isReshareable becomes an add-field value and the GET is dropped, this
+		// expectation flips to the listed labels.
+		getMetadataWithOtherLabels := metadataPayload(`{
+    "id": "id1",
+    "name": "name1",
+	"isPrivate": true,
+    "type": "dashboard",
+    "version": 1,
+    "owner": "owner1",
+	"labels": ["gamma"]
+}`)
+
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: listPayloadPage1,
+					}
+				},
+				ValidateRequest: func(t *testing.T, request *http.Request) {
+					assert.Contains(t, request.URL.RawQuery, "add-field=labels",
+						"labels must be requested explicitly, the list endpoint omits them otherwise")
+				},
+			},
+			documentGET("id1", getMetadataWithOtherLabels),
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: listPayloadPage2,
+					}
+				},
+			},
+			documentGET("id2", metadataID2),
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.List(t.Context(), "type == 'dashboard'")
+		require.NoError(t, err)
+		require.Len(t, resp.Responses, 2)
+
+		assert.Equal(t, []string{"gamma"}, resp.Responses[0].Labels)
+	})
+
+	t.Run("List - Reading a document's metadata fails", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: listPayloadPage1,
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{ResponseCode: http.StatusInternalServerError}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.List(t.Context(), "")
+
+		assert.Zero(t, resp)
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
 	})
 
 	t.Run("List - Loading Page Fails", func(t *testing.T) {
@@ -920,6 +1070,8 @@ func TestDocumentClient_List(t *testing.T) {
 					}
 				},
 			},
+			documentGET("id1", metadataID1),
+			// The request for the second page fails.
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
 					return testutils.Response{
