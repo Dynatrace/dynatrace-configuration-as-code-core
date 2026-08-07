@@ -125,19 +125,11 @@ func readFileContent(form *multipart.Form) ([]byte, error) {
 	return fileContent.Bytes(), nil
 }
 
-// listAddFields are the Metadata fields the list endpoint omits from its reduced
-// metadata object unless they are requested explicitly. isReshareable is missing
-// from this list because the endpoint does not accept it as an add-field value.
+// listAddFields are the fields the list endpoint omits from its reduced metadata
 var listAddFields = []string{"description", "labels", "originExtensionId"}
 
-// List returns every document matching filter with its complete Metadata.
-//
-// The list endpoint returns a reduced metadata object and only extends it with
-// the fields named in listAddFields, which leaves isReshareable unobtainable.
-// Until the endpoint supports it, each listed document is additionally fetched
-// on its own to get the complete metadata — so expect one extra request per
-// document. Once isReshareable can be requested through add-field, that per
-// document GET can be dropped.
+// List returns every document matching filter. The list endpoint returns a
+// reduced metadata object
 func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 	type listResponse struct {
 		Documents   []Metadata `json:"documents"`
@@ -173,18 +165,12 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 		nextPageKey = result.NextPageKey
 
 		for _, doc := range result.Documents {
-			//in order to get all metadata fields needed (when IsReshareable is supported as param this can be removed)
-			full, err := c.get(ctx, doc.ID, false)
-			if err != nil {
-				return ListResponse{}, fmt.Errorf(errMsg, listOperation, err)
-			}
-
 			retVal.Responses = append(retVal.Responses, Response{
 				Response: api.Response{
 					Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
 					StatusCode: resp.StatusCode,
 				},
-				Metadata: full.Metadata,
+				Metadata: doc,
 			})
 		}
 
