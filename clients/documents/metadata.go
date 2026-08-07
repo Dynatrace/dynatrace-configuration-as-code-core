@@ -32,11 +32,12 @@ import (
 // Owner, Version, ModificationInfo, Access, OriginAppID, OriginExtensionID.
 type Metadata struct {
 	// Settable fields.
-	ID            string   `json:"id"`
-	Name          string   `json:"name"`
-	Type          string   `json:"type"`
-	IsPrivate     bool     `json:"isPrivate"`
-	Description   *string  `json:"description,omitempty"`
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Type        string  `json:"type"`
+	IsPrivate   bool    `json:"isPrivate"`
+	Description *string `json:"description,omitempty"`
+	// IsReshareable is not populated by Client.List
 	IsReshareable *bool    `json:"isReshareable,omitempty"`
 	Labels        []string `json:"labels,omitempty"`
 
