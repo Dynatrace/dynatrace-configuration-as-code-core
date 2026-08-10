@@ -795,7 +795,7 @@ This is the document content
 
 func TestDocumentClient_List(t *testing.T) {
 	// The list endpoint returns a reduced metadata object. These payloads are what
-	// it returns for the add-field values List asks for: description, labels and
+	// it returns for the add-fields values List asks for: description, labels and
 	// originExtensionId on top of the defaults. isReshareable is absent because it
 	// cannot be requested — see Metadata.IsReshareable.
 	const listPayloadPage1 = `{
@@ -860,7 +860,7 @@ func TestDocumentClient_List(t *testing.T) {
 	// wantAddFields is the add-field set List must request; without it the list
 	// payloads above would come back without description, labels or
 	// originExtensionId.
-	const wantAddFields = "add-field=description&add-field=labels&add-field=originExtensionId"
+	const wantAddFields = "add-fields=description&add-fields=labels&add-fields=originExtensionId"
 
 	t.Run("List - OK", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
