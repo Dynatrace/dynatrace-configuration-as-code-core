@@ -32,7 +32,7 @@ To instantiate a client, it's recommended to create an instance via the provided
 Platform clients are designed to interact with Dynatrace platform APIs.
 
 Ensure that you are using the correct environment URL, which must include `.apps.dynatrace.com`.
-Authentication can be handled using either OAuth or a platform token`.
+Authentication can be handled using OAuth, a platform token, or a source of platform tokens.
 ```go
 // create the factory
 ctx := context.TODO()
@@ -61,6 +61,22 @@ if err != nil {
 	// handle error
 }
 ```
+
+##### Platform tokens that expire
+
+`WithPlatformToken` is meant for a token that stays valid for as long as the process runs. For a token that
+expires and has to be replaced while the client is in use, provide a source instead and let it produce
+replacements:
+
+```go
+factory := clients.Factory().
+    WithEnvironmentURL("https://<dt-environment>.apps.dynatrace.com").
+    WithPlatformTokenSource(tokenSource)
+```
+
+A token is reused until shortly before the `Expiry` the source returned it with, so the source controls
+through that field how early it is asked for a replacement. Beware that a token with a zero `Expiry` is
+reused forever and never replaced.
 
 #### Classic rest client
 Unlike [Platform clients](#platform-clients), classic clients do not include dedicated resource clients.

@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
@@ -666,7 +667,6 @@ func TestCreateClassicClientWithContext(t *testing.T) {
 }
 
 func TestCreatePlatformClient_PlatformTokenBased(t *testing.T) {
-
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
 		assert.Equal(t, "Bearer mocked-token", auth)
@@ -685,8 +685,26 @@ func TestCreatePlatformClient_PlatformTokenBased(t *testing.T) {
 	defer resp.Body.Close()
 }
 
-func TestCreatePlatformClient_BothPlatformAndOAuthTokenSet(t *testing.T) {
+func TestCreatePlatformClient_PlatformTokenSourceBased(t *testing.T) {
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		assert.Equal(t, "Bearer token-from-source", auth)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
 
+	client, err := Factory().
+		WithPlatformURL(apiServer.URL).
+		WithPlatformTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "token-from-source"})).
+		CreatePlatformClient(t.Context())
+	assert.NoError(t, err)
+
+	resp, err := client.GET(t.Context(), "", rest.RequestOptions{})
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+}
+
+func TestCreatePlatformClient_PlatformTokenTakesPrecedenceOverOAuth(t *testing.T) {
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
 		assert.Equal(t, "Bearer mocked-token", auth)
@@ -698,6 +716,26 @@ func TestCreatePlatformClient_BothPlatformAndOAuthTokenSet(t *testing.T) {
 		WithPlatformURL(apiServer.URL).
 		WithOAuthCredentials(clientcredentials.Config{}).
 		WithPlatformToken("mocked-token").
+		CreatePlatformClient(t.Context())
+	assert.NoError(t, err)
+
+	resp, err := client.GET(t.Context(), "", rest.RequestOptions{})
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+}
+
+func TestCreatePlatformClient_PlatformTokenSourceTakesPrecedenceOverPlatformToken(t *testing.T) {
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		assert.Equal(t, "Bearer token-from-source", auth)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
+
+	client, err := Factory().
+		WithPlatformURL(apiServer.URL).
+		WithPlatformToken("mocked-token").
+		WithPlatformTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "token-from-source"})).
 		CreatePlatformClient(t.Context())
 	assert.NoError(t, err)
 
