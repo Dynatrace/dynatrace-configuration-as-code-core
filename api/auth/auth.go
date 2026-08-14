@@ -37,7 +37,12 @@ func NewAPITokenClient(ctx context.Context, apiToken string) *http.Client {
 //
 // [Dynatrace platform tokens]: https://docs.dynatrace.com/docs/manage/identity-access-management/access-tokens-and-oauth-clients/platform-tokens
 func NewPlatformTokenClient(ctx context.Context, platformToken string) *http.Client {
-	return oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: platformToken}))
+	return NewTokenSourceClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: platformToken}))
+}
+
+// NewTokenSourceClient creates a new [http.Client] using the given [oauth2.TokenSource].
+func NewTokenSourceClient(ctx context.Context, tokenSource oauth2.TokenSource) *http.Client {
+	return oauth2.NewClient(ctx, tokenSource)
 }
 
 // NewOAuthClient creates a new [http.Client] with OAuth2 client credentials authentication.

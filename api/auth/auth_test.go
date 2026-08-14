@@ -17,11 +17,13 @@
 package auth
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/testutils"
@@ -69,6 +71,51 @@ func TestNewPlatformTokenClient(t *testing.T) {
 	resp, err := client.Get(apiServer.URL)
 	assert.NoError(t, err)
 	defer resp.Body.Close()
+}
+
+func TestNewTokenSourceClient(t *testing.T) {
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		assert.Equal(t, "Bearer token-from-source", auth)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
+
+	client := NewTokenSourceClient(t.Context(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "token-from-source"}))
+
+	// Make a request to the mock API server
+	resp, err := client.Get(apiServer.URL)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+}
+
+// recordingTransport counts the requests it forwards to its base transport.
+type recordingTransport struct {
+	base  http.RoundTripper
+	calls int
+}
+
+func (t *recordingTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	t.calls++
+	return t.base.RoundTrip(request)
+}
+
+func TestNewTokenSourceClient_UsesTransportOfContextClient(t *testing.T) {
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
+
+	transport := &recordingTransport{base: http.DefaultTransport}
+	ctx := context.WithValue(t.Context(), oauth2.HTTPClient, &http.Client{Transport: transport})
+
+	client := NewTokenSourceClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "token-from-source"}))
+
+	resp, err := client.Get(apiServer.URL)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, 1, transport.calls)
 }
 
 func TestNewTokenBasedClient(t *testing.T) {
