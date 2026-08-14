@@ -40,7 +40,7 @@ factory := clients.Factory().
     WithEnvironmentURL("https://<dt-environment>.apps.dynatrace.com").
 	WithOAuthCredentials(credentials)
     // or if you want to use a platform token
-    WithPlatformToken("<YOUR_PLATFORM_TOKEN>")
+    WithPlatformTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "<YOUR_PLATFORM_TOKEN>"}))
 
 // request any client from the factory, e.g. bucket client
 bucketClient, err := factory.BucketClient(ctx)

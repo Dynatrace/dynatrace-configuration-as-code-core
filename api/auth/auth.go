@@ -33,11 +33,24 @@ func NewAPITokenClient(ctx context.Context, apiToken string) *http.Client {
 	return oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{TokenType: "Api-Token", AccessToken: apiToken}))
 }
 
-// NewPlatformTokenClient creates a new [http.Client] that sets the Authentication header to use [Dynatrace platform tokens].
-//
-// [Dynatrace platform tokens]: https://docs.dynatrace.com/docs/manage/identity-access-management/access-tokens-and-oauth-clients/platform-tokens
-func NewPlatformTokenClient(ctx context.Context, platformToken string) *http.Client {
-	return oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: platformToken}))
+// NewPlatformTokenSourceClient creates a new [http.Client] that sets the Authentication header to the
+// bearer token produced by the given [oauth2.TokenSource].
+// The token source is consulted on every single request. Caching a token and deciding when to replace
+// it are therefore entirely the responsibility of the token source.
+// This deliberately does not use [oauth2.NewClient], which wraps the source in an  [oauth2.ReuseTokenSource], which
+// serves a cached token until 10 seconds before its expiry and would silently override the refresh margin of the given source.
+func NewPlatformTokenSourceClient(ctx context.Context, tokenSource oauth2.TokenSource) *http.Client {
+	contextClient := http.DefaultClient
+	if client, ok := ctx.Value(oauth2.HTTPClient).(*http.Client); ok {
+		contextClient = client
+	}
+
+	client := *contextClient
+	client.Transport = &oauth2.Transport{
+		Base:   contextClient.Transport,
+		Source: tokenSource,
+	}
+	return &client
 }
 
 // NewOAuthClient creates a new [http.Client] with OAuth2 client credentials authentication.

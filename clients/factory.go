@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/auth"
@@ -37,8 +38,8 @@ import (
 // ErrOAuthCredentialsMissing indicates that no OAuth2 client credentials were provided.
 var ErrOAuthCredentialsMissing = errors.New("no OAuth2 client credentials provided")
 
-// ErrNoPlatformCredentialsProvided indicates that neither OAuth2 client credentials nor a platform token was provided.
-var ErrNoPlatformCredentialsProvided = errors.New("no OAuth2 client credentials or platform token provided")
+// ErrNoPlatformCredentialsProvided indicates that neither OAuth2 client credentials, nor a platform token source was provided.
+var ErrNoPlatformCredentialsProvided = errors.New("no OAuth2 client credentials or platform token source provided")
 
 // ErrPlatformURLMissing indicates that no platform API URL was provided.
 var ErrPlatformURLMissing = errors.New("no platform API URL provided")
@@ -70,7 +71,7 @@ type factory struct {
 	rateLimiterEnabled     bool                      // Enables rate limiter for clients
 	retryOptions           *rest.RetryOptions        // The retry strategy
 	customHeaders          map[string]string         // Custom HTTP headers
-	platformToken          string
+	platformTokenSource    oauth2.TokenSource        // Source of bearer tokens for platform APIs
 }
 
 // WithOAuthCredentials sets the OAuth2 client credentials configuration for the factory.
@@ -85,9 +86,9 @@ func (f factory) WithAccessToken(accessToken string) factory {
 	return f
 }
 
-// WithPlatformToken sets the platform token for the factory
-func (f factory) WithPlatformToken(platformToken string) factory {
-	f.platformToken = platformToken
+// WithPlatformTokenSource sets the source of bearer tokens for the platform API.
+func (f factory) WithPlatformTokenSource(tokenSource oauth2.TokenSource) factory {
+	f.platformTokenSource = tokenSource
 	return f
 }
 
@@ -226,9 +227,9 @@ func (f factory) OpenPipelineClient(ctx context.Context) (*openpipeline.Client, 
 }
 
 // CreatePlatformClient creates a REST client configured for accessing platform APIs.
-// If both oAuth and platform token are configured, the platform token takes precedence
+// If several platform credentials are configured, the platform token source takes precedence over oAuth.
 func (f factory) CreatePlatformClient(ctx context.Context) (*rest.Client, error) {
-	if f.oauthConfig == nil && f.platformToken == "" {
+	if f.oauthConfig == nil && f.platformTokenSource == nil {
 		return nil, ErrNoPlatformCredentialsProvided
 	}
 
@@ -237,8 +238,8 @@ func (f factory) CreatePlatformClient(ctx context.Context) (*rest.Client, error)
 	}
 
 	var client *http.Client
-	if f.platformToken != "" {
-		client = auth.NewPlatformTokenClient(ctx, f.platformToken)
+	if f.platformTokenSource != nil {
+		client = auth.NewPlatformTokenSourceClient(ctx, f.platformTokenSource)
 	} else {
 		client = auth.NewOAuthClient(ctx, f.oauthConfig)
 	}
