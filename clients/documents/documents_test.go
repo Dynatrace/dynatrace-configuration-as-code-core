@@ -78,7 +78,7 @@ This is the document content`
 
 		resp, err := client.Get(t.Context(), "")
 		assert.Zero(t, resp)
-		assert.NotNil(t, err)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "documents", Field: "id", Reason: "is empty"})
 	})
 
 	t.Run("GET - OK", func(t *testing.T) {
@@ -141,6 +141,7 @@ This is the document content`
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		_, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+		assert.ErrorAs(t, err, &api.RuntimeError{})
 		assert.ErrorIs(t, err, http.ErrNotMultipart)
 	})
 
@@ -163,6 +164,7 @@ This is the document content`
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		_, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
+		assert.ErrorAs(t, err, &api.RuntimeError{})
 		assert.ErrorContains(t, err, "unable to read multipart")
 	})
 
@@ -188,7 +190,8 @@ This is the document content`
 		_, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
 		multipartTempFileAfterCount := getTemporaryMultipartFileCount(t)
 
-		assert.ErrorIs(t, err, documents.ErrNoMetadata)
+		assert.ErrorAs(t, err, &api.RuntimeError{})
+		assert.ErrorContains(t, err, "metadata field not found in response")
 		assert.Equal(t, multipartTempFileBeforeCount, multipartTempFileAfterCount, "temporary multipart files should be cleaned up")
 	})
 
@@ -214,7 +217,8 @@ This is the document content`
 		_, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
 		multipartTempFileAfterCount := getTemporaryMultipartFileCount(t)
 
-		assert.ErrorIs(t, err, documents.ErrNoContent)
+		assert.ErrorAs(t, err, &api.RuntimeError{})
+		assert.ErrorContains(t, err, "content field not found in response")
 		assert.Equal(t, multipartTempFileBeforeCount, multipartTempFileAfterCount, "temporary multipart files should be cleaned up")
 	})
 
@@ -249,6 +253,7 @@ This is the document content`
 
 		resp, err := client.Get(t.Context(), "b17ec54b-07ac-4c73-9c4d-232e1b2e2420")
 		assert.Zero(t, resp)
+		assert.ErrorAs(t, err, &api.ClientError{})
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
 		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
@@ -344,6 +349,7 @@ func TestDocumentClient_Create(t *testing.T) {
 
 		_, err := client.Create(t.Context(), documents.Metadata{Name: "name", ID: "extID", Type: documents.Notebook}, []byte("this is the content"))
 
+		assert.ErrorAs(t, err, &api.RuntimeError{})
 		jsonErr := &json.SyntaxError{}
 		assert.ErrorAs(t, err, &jsonErr)
 	})
@@ -597,7 +603,7 @@ This is the document content
 
 		resp, err := client.Update(t.Context(), documents.Metadata{ID: "", Name: "my-dashboard", IsPrivate: true, Type: documents.Dashboard}, []byte(documentContent))
 		assert.Zero(t, resp)
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "documents", Field: "id", Reason: "is empty"})
 	})
 
 	t.Run("Update - Document not found", func(t *testing.T) {
@@ -640,10 +646,10 @@ This is the document content
 		resp, err := client.Update(t.Context(), documents.Metadata{ID: "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", Name: "my-dashboard", IsPrivate: true, Type: documents.Dashboard}, []byte(documentContent))
 
 		assert.Zero(t, resp)
+		assert.ErrorAs(t, err, &api.ClientError{})
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
 		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
-
 	})
 
 	t.Run("Update - Existing document found", func(t *testing.T) {
@@ -788,6 +794,7 @@ This is the document content
 
 		_, err := client.Update(t.Context(), documents.Metadata{ID: "038ab74f-0a3a-4bf8-9068-85e2d633a1e6", Name: "my-dashboard", IsPrivate: true, Type: documents.Dashboard}, []byte(documentContent))
 
+		assert.ErrorAs(t, err, &api.RuntimeError{})
 		jsonErr := &json.SyntaxError{}
 		assert.ErrorAs(t, err, &jsonErr)
 	})
@@ -961,6 +968,7 @@ func TestDocumentClient_List(t *testing.T) {
 		resp, err := client.List(t.Context(), "")
 
 		assert.Zero(t, resp)
+		assert.ErrorAs(t, err, &api.ClientError{})
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
 		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
@@ -999,6 +1007,7 @@ func TestDocumentClient_List(t *testing.T) {
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		_, err := client.List(t.Context(), "type == 'dashboard'")
+		assert.ErrorAs(t, err, &api.RuntimeError{})
 		jsonErr := &json.SyntaxError{}
 		assert.ErrorAs(t, err, &jsonErr)
 	})
@@ -1047,7 +1056,7 @@ This is the document content
 
 		resp, err := client.Delete(t.Context(), "")
 		assert.Zero(t, resp)
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, api.ValidationError{Resource: "documents", Field: "id", Reason: "is empty"})
 
 	})
 
@@ -1111,6 +1120,7 @@ This is the document content
 		resp, err := client.Delete(t.Context(), "id-of-document")
 
 		assert.Zero(t, resp)
+		assert.ErrorAs(t, err, &api.ClientError{})
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
 		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)

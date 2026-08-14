@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"mime"
 	"mime/multipart"
@@ -40,22 +39,13 @@ const (
 	trashResourcePath       = "/platform/document/v1/trash/documents"
 	optimisticLockingHeader = "optimistic-locking-version"
 
-	errMsg         = "failed to %s document: %w"
-	errMsgWithName = "failed to %s document with name %s: %w"
-	errMsgWithID   = "failed to %s document with ID %s: %w"
-
-	getOperation    = "get"
-	listOperation   = "list"
-	createOperation = "create"
-	deleteOperation = "delete"
-	trashOperation  = "trash"
-	updateOperation = "update"
+	resource = "documents"
 )
 
 var (
-	ErrIDEmpty    = fmt.Errorf("id must be non-empty")
-	ErrNoMetadata = fmt.Errorf("metadata field not found in response")
-	ErrNoContent  = fmt.Errorf("content field not found in response")
+	idValidationErr = api.ValidationError{Resource: resource, Field: "id", Reason: "is empty"}
+	errNoMetadata   = errors.New("metadata field not found in response")
+	errNoContent    = errors.New("content field not found in response")
 )
 
 // DocumentType defines the *known* types of documents. It is possible to pass an arbitrary string in consumers
@@ -93,34 +83,38 @@ type ListResponse struct {
 
 func (c Client) Get(ctx context.Context, id string) (Response, error) {
 	if id == "" {
-		return Response{}, fmt.Errorf(errMsg, getOperation, ErrIDEmpty)
+		return Response{}, idValidationErr
 	}
 
 	return c.get(ctx, id, true)
 }
 
-func readMetadata(form *multipart.Form) (Metadata, error) {
+func readMetadata(id string, form *multipart.Form) (Metadata, error) {
 	if len(form.Value["metadata"]) == 0 {
-		return Metadata{}, ErrNoMetadata
+		return Metadata{}, api.RuntimeError{Resource: resource, Identifier: id, Wrapped: errNoMetadata}
 	}
 
-	return UnmarshallMetadata([]byte(form.Value["metadata"][0]))
+	md, err := UnmarshallMetadata([]byte(form.Value["metadata"][0]))
+	if err != nil {
+		return Metadata{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "unmarshalling metadata failed", Wrapped: err}
+	}
+	return md, nil
 }
 
-func readFileContent(form *multipart.Form) ([]byte, error) {
+func readFileContent(id string, form *multipart.Form) ([]byte, error) {
 	if len(form.File["content"]) == 0 {
-		return nil, ErrNoContent
+		return nil, api.RuntimeError{Resource: resource, Identifier: id, Wrapped: errNoContent}
 	}
 	file, err := form.File["content"][0].Open()
 	if err != nil {
-		return nil, fmt.Errorf("unable to open file: %w", err)
+		return nil, api.RuntimeError{Resource: resource, Identifier: id, Reason: "unable to open file", Wrapped: err}
 	}
 	defer file.Close()
 
 	fileContent := new(bytes.Buffer)
 	_, err = fileContent.ReadFrom(file)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read file: %w", err)
+		return nil, api.RuntimeError{Resource: resource, Identifier: id, Reason: "unable to read file", Wrapped: err}
 	}
 	return fileContent.Bytes(), nil
 }
@@ -150,17 +144,17 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 
 		resp, err := c.restClient.GET(ctx, documentResourcePath, ro)
 		if err != nil {
-			return ListResponse{}, fmt.Errorf(errMsg, listOperation, err)
+			return ListResponse{}, api.ClientError{Resource: resource, Operation: http.MethodGet, Wrapped: err}
 		}
 		res, err := api.NewResponseFromHTTPResponse(resp)
 
 		if err != nil {
-			return ListResponse{}, fmt.Errorf(errMsg, listOperation, err)
+			return ListResponse{}, api.ClientError{Resource: resource, Operation: http.MethodGet, Wrapped: err}
 		}
 
 		var result listResponse
 		if err := json.Unmarshal(res.Data, &result); err != nil {
-			return ListResponse{}, err
+			return ListResponse{}, api.RuntimeError{Resource: resource, Reason: "unmarshalling failed", Wrapped: err}
 		}
 		nextPageKey = result.NextPageKey
 
@@ -188,34 +182,34 @@ func (c Client) Create(ctx context.Context, meta Metadata, content []byte) (api.
 	body := &bytes.Buffer{}
 	contentType, _, err := writeDocument(body, meta, content)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, meta.Name, err)
+		return api.Response{}, api.RuntimeError{Resource: resource, Reason: "failed to write document body", Wrapped: err}
 	}
 
 	httpResp, err := c.restClient.POST(ctx, documentResourcePath, body, rest.RequestOptions{
 		ContentType: contentType,
 	})
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, meta.Name, err)
+		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodPost, Wrapped: err}
 	}
 	resp, err := api.NewResponseFromHTTPResponse(httpResp)
 
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, meta.Name, err)
+		return api.Response{}, api.ClientError{Resource: resource, Operation: http.MethodPost, Wrapped: err}
 	}
 
 	var md Metadata
 	if md, err = UnmarshallMetadata(resp.Data); err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, meta.Name, err)
+		return api.Response{}, api.RuntimeError{Resource: resource, Reason: "unmarshalling failed", Wrapped: err}
 	}
 
 	r, err := c.patchWithRetry(ctx, md.ID, md.Version, meta, content)
 	if err != nil {
 		if !api.IsNotFoundError(err) {
 			if _, err1 := c.delete(ctx, md.ID, md.Version); err1 != nil {
-				return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, meta.Name, errors.Join(err, err1))
+				return api.Response{}, errors.Join(err, err1)
 			}
 		}
-		return api.Response{}, fmt.Errorf(errMsgWithName, createOperation, meta.Name, err)
+		return api.Response{}, err
 	}
 	return r, nil
 }
@@ -227,12 +221,12 @@ func (c Client) Create(ctx context.Context, meta Metadata, content []byte) (api.
 // is ignored.
 func (c Client) Update(ctx context.Context, meta Metadata, content []byte) (api.Response, error) {
 	if meta.ID == "" {
-		return api.Response{}, fmt.Errorf(errMsg, updateOperation, ErrIDEmpty)
+		return api.Response{}, idValidationErr
 	}
 
 	resp, err := c.get(ctx, meta.ID, false)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsg, updateOperation, err)
+		return api.Response{}, err
 	}
 
 	return c.patch(ctx, meta.ID, resp.Version, meta, content)
@@ -240,7 +234,7 @@ func (c Client) Update(ctx context.Context, meta Metadata, content []byte) (api.
 
 func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 	if id == "" {
-		return api.Response{}, fmt.Errorf(errMsg, deleteOperation, ErrIDEmpty)
+		return api.Response{}, idValidationErr
 	}
 
 	resp, err := c.get(ctx, id, false)
@@ -268,13 +262,13 @@ func (c Client) patchWithRetry(ctx context.Context, id string, version int, meta
 func (c Client) patch(ctx context.Context, id string, version int, meta Metadata, content []byte) (api.Response, error) {
 	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithID, updateOperation, id, err)
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to construct URL", Wrapped: err}
 	}
 
 	body := &bytes.Buffer{}
 	contentType, _, err := writeDocument(body, meta, content)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithID, updateOperation, id, err)
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to write document body", Wrapped: err}
 	}
 
 	httpResp, err := c.restClient.PATCH(ctx, path, body, rest.RequestOptions{
@@ -282,16 +276,16 @@ func (c Client) patch(ctx context.Context, id string, version int, meta Metadata
 		QueryParams: url.Values{optimisticLockingHeader: []string{strconv.Itoa(version)}},
 	})
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithID, updateOperation, id, err)
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodPatch, Wrapped: err}
 	}
 	resp, err := api.NewResponseFromHTTPResponse(httpResp)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithID, updateOperation, id, err)
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodPatch, Wrapped: err}
 	}
 
 	tmp, err := extractMetadata(resp.Data)
 	if err != nil {
-		return resp, fmt.Errorf(errMsgWithID, updateOperation, id, fmt.Errorf("extracting metadata failed: %w", err))
+		return resp, api.RuntimeError{Resource: resource, Identifier: id, Reason: "extracting metadata failed", Wrapped: err}
 	}
 	resp.Data = tmp
 
@@ -301,29 +295,29 @@ func (c Client) patch(ctx context.Context, id string, version int, meta Metadata
 func (c Client) get(ctx context.Context, id string, readContent bool) (Response, error) {
 	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
-		return Response{}, fmt.Errorf(errMsg, getOperation, err)
+		return Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to construct URL", Wrapped: err}
 	}
 
 	httpResp, err := c.restClient.GET(ctx, path, rest.RequestOptions{})
 	if err != nil {
-		return Response{}, fmt.Errorf(errMsgWithID, getOperation, id, err)
+		return Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodGet, Wrapped: err}
 	}
 	resp, err := api.NewResponseFromHTTPResponse(httpResp)
 
 	if err != nil {
-		return Response{}, fmt.Errorf(errMsgWithID, getOperation, id, err)
+		return Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodGet, Wrapped: err}
 	}
 
 	boundary, err := extractBoundary(resp)
 	if err != nil {
-		return Response{}, fmt.Errorf(errMsgWithID, getOperation, id, err)
+		return Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to read response content type", Wrapped: err}
 	}
 
 	reader := multipart.NewReader(bytes.NewReader(resp.Data), boundary)
 
 	form, err := reader.ReadForm(0)
 	if err != nil {
-		return Response{}, fmt.Errorf(errMsgWithID, getOperation, id, fmt.Errorf("unable to read multipart form: %w", err))
+		return Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "unable to read multipart form", Wrapped: err}
 	}
 	defer func() {
 		err := form.RemoveAll()
@@ -332,15 +326,15 @@ func (c Client) get(ctx context.Context, id string, readContent bool) (Response,
 		}
 	}()
 
-	metadata, err := readMetadata(form)
+	metadata, err := readMetadata(id, form)
 	if err != nil {
-		return Response{}, fmt.Errorf(errMsgWithID, getOperation, id, err)
+		return Response{}, err
 	}
 
 	if readContent {
-		fileContent, err := readFileContent(form)
+		fileContent, err := readFileContent(id, form)
 		if err != nil {
-			return Response{}, fmt.Errorf(errMsgWithID, getOperation, id, err)
+			return Response{}, err
 		}
 		resp.Data = fileContent
 	}
@@ -365,18 +359,18 @@ func extractBoundary(resp api.Response) (string, error) {
 func (c Client) delete(ctx context.Context, id string, version int) (api.Response, error) {
 	path, err := url.JoinPath(documentResourcePath, id)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithID, deleteOperation, id, err)
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to construct URL", Wrapped: err}
 	}
 
 	r, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{
 		QueryParams: map[string][]string{optimisticLockingHeader: {strconv.Itoa(version)}},
 	})
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithID, deleteOperation, id, err)
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodDelete, Wrapped: err}
 	}
 	_, err = api.NewResponseFromHTTPResponse(r)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithID, deleteOperation, id, err)
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodDelete, Wrapped: err}
 	}
 
 	return c.trash(ctx, id)
@@ -385,12 +379,12 @@ func (c Client) delete(ctx context.Context, id string, version int) (api.Respons
 func (c Client) trash(ctx context.Context, id string) (api.Response, error) {
 	path, err := url.JoinPath(trashResourcePath, id)
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithID, trashOperation, id, err)
+		return api.Response{}, api.RuntimeError{Resource: resource, Identifier: id, Reason: "failed to construct URL", Wrapped: err}
 	}
 
 	resp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{})
 	if err != nil {
-		return api.Response{}, fmt.Errorf(errMsgWithID, trashOperation, id, err)
+		return api.Response{}, api.ClientError{Resource: resource, Identifier: id, Operation: http.MethodDelete, Wrapped: err}
 	}
 	return api.NewResponseFromHTTPResponse(resp)
 }
