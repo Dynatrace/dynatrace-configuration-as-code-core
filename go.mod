@@ -1,4 +1,4 @@
-go 1.26.4
+go 1.26.6
 
 module github.com/dynatrace/dynatrace-configuration-as-code-core
 
