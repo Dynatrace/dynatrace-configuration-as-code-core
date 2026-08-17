@@ -106,6 +106,7 @@ func readFileContent(id string, form *multipart.Form) ([]byte, error) {
 	if len(form.File["content"]) == 0 {
 		return nil, api.RuntimeError{Resource: documentsResource, Identifier: id, Wrapped: errNoContent}
 	}
+
 	file, err := form.File["content"][0].Open()
 	if err != nil {
 		return nil, api.RuntimeError{Resource: documentsResource, Identifier: id, Reason: "unable to open file", Wrapped: err}
@@ -147,8 +148,8 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 		if err != nil {
 			return ListResponse{}, api.ClientError{Resource: documentsResource, Operation: http.MethodGet, Wrapped: err}
 		}
-		res, err := api.NewResponseFromHTTPResponse(resp)
 
+		res, err := api.NewResponseFromHTTPResponse(resp)
 		if err != nil {
 			return ListResponse{}, api.ClientError{Resource: documentsResource, Operation: http.MethodGet, Wrapped: err}
 		}
@@ -192,8 +193,8 @@ func (c Client) Create(ctx context.Context, meta Metadata, content []byte) (api.
 	if err != nil {
 		return api.Response{}, api.ClientError{Resource: documentsResource, Operation: http.MethodPost, Wrapped: err}
 	}
-	resp, err := api.NewResponseFromHTTPResponse(httpResp)
 
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
 	if err != nil {
 		return api.Response{}, api.ClientError{Resource: documentsResource, Operation: http.MethodPost, Wrapped: err}
 	}
@@ -206,7 +207,7 @@ func (c Client) Create(ctx context.Context, meta Metadata, content []byte) (api.
 	r, err := c.patchWithRetry(ctx, md.ID, md.Version, meta, content)
 	if err != nil {
 		if !api.IsNotFoundError(err) {
-			if _, err1 := c.delete(ctx, md.ID, md.Version); err1 != nil {
+			if err1 := c.deleteAndTrash(ctx, md.ID); err1 != nil {
 				return api.Response{}, errors.Join(err, err1)
 			}
 		}
@@ -238,13 +239,7 @@ func (c Client) Delete(ctx context.Context, id string) (api.Response, error) {
 		return api.Response{}, idValidationErr
 	}
 
-	resp, err := c.get(ctx, id, false)
-
-	if err != nil {
-		return api.Response{}, err
-	}
-
-	return c.delete(ctx, id, resp.Version)
+	return api.Response{}, c.deleteAndTrash(ctx, id)
 }
 
 func (c Client) patchWithRetry(ctx context.Context, id string, version int, meta Metadata, content []byte) (resp api.Response, err error) {
@@ -279,6 +274,7 @@ func (c Client) patch(ctx context.Context, id string, version int, meta Metadata
 	if err != nil {
 		return api.Response{}, api.ClientError{Resource: documentsResource, Identifier: id, Operation: http.MethodPatch, Wrapped: err}
 	}
+
 	resp, err := api.NewResponseFromHTTPResponse(httpResp)
 	if err != nil {
 		return api.Response{}, api.ClientError{Resource: documentsResource, Identifier: id, Operation: http.MethodPatch, Wrapped: err}
@@ -303,8 +299,8 @@ func (c Client) get(ctx context.Context, id string, readContent bool) (Response,
 	if err != nil {
 		return Response{}, api.ClientError{Resource: documentsResource, Identifier: id, Operation: http.MethodGet, Wrapped: err}
 	}
-	resp, err := api.NewResponseFromHTTPResponse(httpResp)
 
+	resp, err := api.NewResponseFromHTTPResponse(httpResp)
 	if err != nil {
 		return Response{}, api.ClientError{Resource: documentsResource, Identifier: id, Operation: http.MethodGet, Wrapped: err}
 	}
@@ -357,43 +353,56 @@ func extractBoundary(resp api.Response) (string, error) {
 	return ps["boundary"], nil
 }
 
-func (c Client) delete(ctx context.Context, id string, version int) (api.Response, error) {
-	path, err := url.JoinPath(documentResourcePath, id)
-	if err != nil {
-		return api.Response{}, api.RuntimeError{Resource: documentsResource, Identifier: id, Reason: "failed to construct URL", Wrapped: err}
+func (c Client) deleteAndTrash(ctx context.Context, id string) error {
+	if err := c.delete(ctx, id); err != nil && !api.IsNotFoundError(err) {
+		return err
 	}
-
-	r, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{
-		QueryParams: map[string][]string{optimisticLockingHeader: {strconv.Itoa(version)}},
-	})
-	if err != nil {
-		return api.Response{}, api.ClientError{Resource: documentsResource, Identifier: id, Operation: http.MethodDelete, Wrapped: err}
-	}
-	_, err = api.NewResponseFromHTTPResponse(r)
-	if err != nil {
-		return api.Response{}, api.ClientError{Resource: documentsResource, Identifier: id, Operation: http.MethodDelete, Wrapped: err}
-	}
-
 	return c.trash(ctx, id)
 }
 
-func (c Client) trash(ctx context.Context, id string) (api.Response, error) {
+func (c Client) delete(ctx context.Context, id string) error {
+	resp, err := c.get(ctx, id, false)
+	if err != nil {
+		return err
+	}
+
+	path, err := url.JoinPath(documentResourcePath, id)
+	if err != nil {
+		return api.RuntimeError{Resource: documentsResource, Identifier: id, Reason: "failed to construct URL", Wrapped: err}
+	}
+
+	r, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{
+		QueryParams: map[string][]string{optimisticLockingHeader: {strconv.Itoa(resp.Version)}},
+	})
+	if err != nil {
+		return api.ClientError{Resource: documentsResource, Identifier: id, Operation: http.MethodDelete, Wrapped: err}
+	}
+
+	_, err = api.NewResponseFromHTTPResponse(r)
+	if err != nil {
+		return api.ClientError{Resource: documentsResource, Identifier: id, Operation: http.MethodDelete, Wrapped: err}
+	}
+
+	return nil
+}
+
+func (c Client) trash(ctx context.Context, id string) error {
 	path, err := url.JoinPath(trashResourcePath, id)
 	if err != nil {
-		return api.Response{}, api.RuntimeError{Resource: trashResource, Identifier: id, Reason: "failed to construct URL", Wrapped: err}
+		return api.RuntimeError{Resource: trashResource, Identifier: id, Reason: "failed to construct URL", Wrapped: err}
 	}
 
 	resp, err := c.restClient.DELETE(ctx, path, rest.RequestOptions{})
 	if err != nil {
-		return api.Response{}, api.ClientError{Resource: trashResource, Identifier: id, Operation: http.MethodDelete, Wrapped: err}
+		return api.ClientError{Resource: trashResource, Identifier: id, Operation: http.MethodDelete, Wrapped: err}
 	}
 
 	_, err = api.NewResponseFromHTTPResponse(resp)
 	if err != nil {
-		return api.Response{}, api.ClientError{Resource: trashResource, Identifier: id, Operation: http.MethodDelete, Wrapped: err}
+		return api.ClientError{Resource: trashResource, Identifier: id, Operation: http.MethodDelete, Wrapped: err}
 	}
 
-	return api.Response{}, nil
+	return nil
 }
 
 func extractMetadata(in []byte) (out []byte, err error) {
