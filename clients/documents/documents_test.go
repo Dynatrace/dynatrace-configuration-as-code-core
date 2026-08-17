@@ -15,6 +15,7 @@
 package documents_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -1096,8 +1097,7 @@ This is the document content
 		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
 
 		resp, err := client.Delete(t.Context(), "id-of-document")
-		assert.NotZero(t, resp)
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Zero(t, resp)
 		assert.NoError(t, err)
 	})
 
@@ -1124,6 +1124,93 @@ This is the document content
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
 		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
+	})
+
+	t.Run("Delete - Trash call returns non-successful response", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: getPayload,
+						ContentType:  contentType,
+					}
+				},
+			},
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, "/platform/document/v1/documents/id-of-document", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+					}
+				},
+			},
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, "/platform/document/v1/trash/documents/id-of-document", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusInternalServerError,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.Delete(t.Context(), "id-of-document")
+
+		assert.Zero(t, resp)
+		assert.ErrorAs(t, err, &api.ClientError{})
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
+	})
+
+	t.Run("Delete - Trash call fails to execute", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: getPayload,
+						ContentType:  contentType,
+					}
+				},
+			},
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, "/platform/document/v1/documents/id-of-document", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+					}
+				},
+			},
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, "/platform/document/v1/trash/documents/id-of-document", req.URL.Path)
+					cancel() // cancel the context to simulate a request failure
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.Delete(ctx, "id-of-document")
+
+		assert.Zero(t, resp)
+		assert.ErrorAs(t, err, &api.ClientError{})
 	})
 
 	t.Run("Delete - Failed to execute Request", func(t *testing.T) {
