@@ -299,6 +299,9 @@ func TestDocumentClient_Create(t *testing.T) {
 		respPatch = `{"documentMetadata":` + expected + `}`
 	)
 
+	// payload returned by get call prior to delete. Here we reuse respCreate since the delete call only needs the version number from the metadata.
+	deleteGetPayload := fmt.Sprintf("--%s\nContent-Disposition: form-data; name=\"metadata\"\nContent-Type: application/json\n\n%s\n--%s--", boundary, respCreate, boundary)
+
 	t.Run("simple case", func(t *testing.T) {
 
 		responses := []testutils.ResponseDef{
@@ -394,6 +397,15 @@ func TestDocumentClient_Create(t *testing.T) {
 					return testutils.Response{
 						ResponseCode: http.StatusInternalServerError,
 						ResponseBody: "some internal error",
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: deleteGetPayload,
+						ContentType:  contentType,
 					}
 				},
 			},
@@ -521,6 +533,15 @@ func TestDocumentClient_Create(t *testing.T) {
 					return testutils.Response{
 						ResponseCode: http.StatusInternalServerError,
 						ResponseBody: "some internal error",
+					}
+				},
+			},
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+						ResponseBody: deleteGetPayload,
+						ContentType:  contentType,
 					}
 				},
 			},
@@ -1101,12 +1122,51 @@ This is the document content
 		assert.NoError(t, err)
 	})
 
-	t.Run("Delete - Fails finding existing document", func(t *testing.T) {
+	t.Run("Delete - Document not found - still purges trash", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, "/platform/document/v1/documents/id-of-document", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusNotFound,
+					}
+				},
+			},
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, "/platform/document/v1/trash/documents/id-of-document", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusOK,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.Delete(t.Context(), "id-of-document")
+
+		assert.Zero(t, resp)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Delete - Document not found - trash call also fails", func(t *testing.T) {
 		responses := []testutils.ResponseDef{
 			{
 				GET: func(t *testing.T, req *http.Request) testutils.Response {
 					return testutils.Response{
 						ResponseCode: http.StatusNotFound,
+					}
+				},
+			},
+			{
+				DELETE: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, "/platform/document/v1/trash/documents/id-of-document", req.URL.Path)
+					return testutils.Response{
+						ResponseCode: http.StatusInternalServerError,
 					}
 				},
 			},
@@ -1123,7 +1183,32 @@ This is the document content
 		assert.ErrorAs(t, err, &api.ClientError{})
 		var apiError api.APIError
 		assert.ErrorAs(t, err, &apiError)
-		assert.Equal(t, http.StatusNotFound, apiError.StatusCode)
+		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
+	})
+
+	t.Run("Delete - Fails to fetch existing document", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					return testutils.Response{
+						ResponseCode: http.StatusInternalServerError,
+					}
+				},
+			},
+		}
+
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := documents.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.Delete(t.Context(), "id-of-document")
+
+		assert.Zero(t, resp)
+		assert.ErrorAs(t, err, &api.ClientError{})
+		var apiError api.APIError
+		assert.ErrorAs(t, err, &apiError)
+		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
 	})
 
 	t.Run("Delete - Trash call returns non-successful response", func(t *testing.T) {
