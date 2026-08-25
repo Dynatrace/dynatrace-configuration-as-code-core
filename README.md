@@ -1,5 +1,5 @@
 # Dynatrace Configuration as Code - Core
-[![stability-wip](https://img.shields.io/badge/stability-wip-lightgrey.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#work-in-progress)
+[![stability-wip](https://img.shields.io/badge/stability-wip-lightgrey.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#work-in-progress) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Dynatrace/dynatrace-configuration-as-code/badge)](https://scorecard.dev/viewer/?uri=github.com/Dynatrace/dynatrace-configuration-as-code)
 
 **Dynatrace Configuration as Code Core** provides libraries simplifying development of configuration as code tooling for Dynatrace.
 
