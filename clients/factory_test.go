@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/api/rest"
@@ -665,18 +666,18 @@ func TestCreateClassicClientWithContext(t *testing.T) {
 	defer resp.Body.Close()
 }
 
-func TestCreatePlatformClient_PlatformTokenBased(t *testing.T) {
+func TestCreatePlatformClient_PlatformTokenSourceBased(t *testing.T) {
 
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
-		assert.Equal(t, "Bearer mocked-token", auth)
+		assert.Equal(t, "Bearer token-from-source", auth)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer apiServer.Close()
 
 	client, err := Factory().
 		WithPlatformURL(apiServer.URL).
-		WithPlatformToken("mocked-token").
+		WithPlatformTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "token-from-source"})).
 		CreatePlatformClient(t.Context())
 	assert.NoError(t, err)
 
@@ -685,11 +686,11 @@ func TestCreatePlatformClient_PlatformTokenBased(t *testing.T) {
 	defer resp.Body.Close()
 }
 
-func TestCreatePlatformClient_BothPlatformAndOAuthTokenSet(t *testing.T) {
+func TestCreatePlatformClient_PlatformTokenSourceTakesPrecedenceOverOAuth(t *testing.T) {
 
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
-		assert.Equal(t, "Bearer mocked-token", auth)
+		assert.Equal(t, "Bearer token-from-source", auth)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer apiServer.Close()
@@ -697,7 +698,7 @@ func TestCreatePlatformClient_BothPlatformAndOAuthTokenSet(t *testing.T) {
 	client, err := Factory().
 		WithPlatformURL(apiServer.URL).
 		WithOAuthCredentials(clientcredentials.Config{}).
-		WithPlatformToken("mocked-token").
+		WithPlatformTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "token-from-source"})).
 		CreatePlatformClient(t.Context())
 	assert.NoError(t, err)
 

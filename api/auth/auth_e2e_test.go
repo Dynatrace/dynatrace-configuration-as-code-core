@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
 
@@ -64,13 +65,13 @@ func TestNewApiTokenBasedClient_InvalidToken(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
-func TestNewPlatformTokenClient_ValidToken(t *testing.T) {
+func TestNewPlatformTokenSourceClient_ValidToken(t *testing.T) {
 	t.Parallel()
 
 	platformToken := os.Getenv("PLATFORM_TOKEN")
 	platformUrl := os.Getenv("PLATFORM_URL")
 
-	client := NewPlatformTokenClient(t.Context(), platformToken)
+	client := NewPlatformTokenSourceClient(t.Context(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: platformToken}))
 
 	targetUrl, err := url.JoinPath(platformUrl, "/platform/management/v1/environment")
 	require.NoError(t, err)
@@ -82,13 +83,13 @@ func TestNewPlatformTokenClient_ValidToken(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
-func TestNewPlatformTokenClient_InvalidToken(t *testing.T) {
+func TestNewPlatformTokenSourceClient_InvalidToken(t *testing.T) {
 	t.Parallel()
 
 	platformToken := "some-invalid-token"
 	platformUrl := os.Getenv("PLATFORM_URL")
 
-	client := NewPlatformTokenClient(t.Context(), platformToken)
+	client := NewPlatformTokenSourceClient(t.Context(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: platformToken}))
 
 	targetUrl, err := url.JoinPath(platformUrl, "/platform/management/v1/environment")
 	require.NoError(t, err)
