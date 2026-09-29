@@ -313,7 +313,7 @@ func TestListMonitoringConfigurations(t *testing.T) {
 
 		client := extensions.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.ListMonitoringConfigurations(t.Context(), "com.dynatrace.extension.foo")
+		resp, err := client.ListMonitoringConfigurations(t.Context(), "com.dynatrace.extension.foo", "")
 
 		assert.NoError(t, err)
 		assert.NotEmpty(t, resp)
@@ -321,10 +321,67 @@ func TestListMonitoringConfigurations(t *testing.T) {
 		assert.Len(t, resp.All(), 2, "two monitoring configuration objects in total should be downloaded")
 	})
 
+	t.Run("forwards the set filter", func(t *testing.T) {
+		filter := "version='a.b.c'"
+		apiResponse := `{
+		  "totalCount": 1,
+		  "items": [
+			{"objectId": "config-id-1", "value": {"enabled": true}}
+		  ]
+		}`
+
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/extensions/v2/extensions/com.dynatrace.extension.foo/monitoring-configurations", req.URL.Path)
+					require.Equal(t, filter, req.URL.Query().Get("filter"))
+					return testutils.Response{ResponseCode: http.StatusOK, ResponseBody: apiResponse}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := extensions.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.ListMonitoringConfigurations(t.Context(), "com.dynatrace.extension.foo", filter)
+
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	})
+
+	t.Run("doesn't forward the set filter if empty", func(t *testing.T) {
+		apiResponse := `{
+		  "totalCount": 1,
+		  "items": [
+			{"objectId": "config-id-1", "value": {"enabled": true}}
+		  ]
+		}`
+
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					require.Equal(t, "/platform/extensions/v2/extensions/com.dynatrace.extension.foo/monitoring-configurations", req.URL.Path)
+					require.False(t, req.URL.Query().Has("filter"))
+					return testutils.Response{ResponseCode: http.StatusOK, ResponseBody: apiResponse}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := extensions.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		resp, err := client.ListMonitoringConfigurations(t.Context(), "com.dynatrace.extension.foo", "")
+
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	})
+
 	t.Run("errors if called without extension name", func(t *testing.T) {
 		client := extensions.NewClient(&rest.Client{})
 
-		resp, err := client.ListMonitoringConfigurations(t.Context(), "")
+		resp, err := client.ListMonitoringConfigurations(t.Context(), "", "")
 
 		assert.Empty(t, resp)
 		assert.ErrorIs(t, err, api.ValidationError{Resource: "extensions", Field: "extension-name", Reason: "is empty"})
@@ -356,7 +413,7 @@ func TestListMonitoringConfigurations(t *testing.T) {
 
 		client := extensions.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.ListMonitoringConfigurations(t.Context(), "com.dynatrace.extension.foo")
+		resp, err := client.ListMonitoringConfigurations(t.Context(), "com.dynatrace.extension.foo", "")
 
 		assert.Empty(t, resp)
 		var apiErr api.APIError
@@ -370,7 +427,7 @@ func TestListMonitoringConfigurations(t *testing.T) {
 
 		client := extensions.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
-		resp, err := client.ListMonitoringConfigurations(t.Context(), "com.dynatrace.extension.foo")
+		resp, err := client.ListMonitoringConfigurations(t.Context(), "com.dynatrace.extension.foo", "")
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.ClientError{})
@@ -389,7 +446,7 @@ func TestListMonitoringConfigurations(t *testing.T) {
 
 		client := extensions.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.ListMonitoringConfigurations(t.Context(), "com.dynatrace.extension.foo")
+		resp, err := client.ListMonitoringConfigurations(t.Context(), "com.dynatrace.extension.foo", "")
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.RuntimeError{})
