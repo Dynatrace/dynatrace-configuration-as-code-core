@@ -103,11 +103,12 @@ func (c Client) ListExtensionVersions(ctx context.Context, extensionName string)
 	if err != nil {
 		return nil, api.RuntimeError{Resource: extensionsResource, Identifier: extensionName, Reason: urlCreationErrMsg, Wrapped: err}
 	}
-	return c.listAll(ctx, extensionName, path, extensionsResource, extensionVersionsPageSize)
+	queryParams := url.Values{"page-size": {strconv.Itoa(extensionVersionsPageSize)}}
+	return c.listAll(ctx, extensionName, path, queryParams, extensionsResource)
 }
 
 // ListMonitoringConfigurations returns all monitoring configurations for a given extension.
-func (c Client) ListMonitoringConfigurations(ctx context.Context, extensionName string) (api.PagedListResponse, error) {
+func (c Client) ListMonitoringConfigurations(ctx context.Context, extensionName string, filter string) (api.PagedListResponse, error) {
 	if extensionName == "" {
 		return nil, extensionNameValidationErr
 	}
@@ -117,12 +118,16 @@ func (c Client) ListMonitoringConfigurations(ctx context.Context, extensionName 
 		return nil, api.RuntimeError{Resource: monitoringConfigurationsResource, Identifier: extensionName, Reason: urlCreationErrMsg, Wrapped: err}
 	}
 
-	return c.listAll(ctx, extensionName, path, monitoringConfigurationsResource, monitoringConfigurationsPageSize)
+	queryParams := url.Values{"page-size": {strconv.Itoa(monitoringConfigurationsPageSize)}}
+	if filter != "" {
+		queryParams.Add("filter", filter)
+	}
+	return c.listAll(ctx, extensionName, path, queryParams, monitoringConfigurationsResource)
 }
 
 // listAll is a helper method to list paged resources.
 // It takes care of paging through results until all pages have been retrieved and returns a combined PagedListResponse.
-func (c Client) listAll(ctx context.Context, extensionName string, path string, resourceName string, pageSize int) (api.PagedListResponse, error) {
+func (c Client) listAll(ctx context.Context, extensionName string, path string, queryParams url.Values, resourceName string) (api.PagedListResponse, error) {
 	var pagedListResponse api.PagedListResponse
 	var nextPageKey string
 
@@ -134,7 +139,7 @@ func (c Client) listAll(ctx context.Context, extensionName string, path string, 
 		if nextPageKey != "" {
 			ro.QueryParams = url.Values{"next-page-key": {nextPageKey}}
 		} else {
-			ro.QueryParams = url.Values{"page-size": {strconv.Itoa(pageSize)}}
+			ro.QueryParams = queryParams
 		}
 
 		httpResp, err := c.restClient.GET(ctx, path, ro)
