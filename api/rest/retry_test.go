@@ -15,7 +15,11 @@
 package rest_test
 
 import (
+	"errors"
+	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,5 +41,27 @@ func TestShouldRetry(t *testing.T) {
 	t.Run("Should be true if status is not 403 or 2xx", func(t *testing.T) {
 		got := rest.ShouldRetry(http.StatusNotFound)
 		assert.True(t, got)
+	})
+}
+
+func TestRetryOnUnexpectedEOFIfIdempotent(t *testing.T) {
+	wrappedEOF := &url.Error{Op: "Get", URL: "http://localhost", Err: io.ErrUnexpectedEOF}
+
+	for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace, http.MethodPut, http.MethodDelete, http.MethodPatch} {
+		t.Run(method+" is retried on wrapped io.ErrUnexpectedEOF", func(t *testing.T) {
+			req := httptest.NewRequest(method, "/", nil)
+			assert.True(t, rest.RetryOnUnexpectedEOF(req, wrappedEOF))
+		})
+	}
+
+	t.Run("POST is not retried", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		assert.False(t, rest.RetryOnUnexpectedEOF(req, wrappedEOF))
+	})
+
+	t.Run("other errors are not retried", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		assert.False(t, rest.RetryOnUnexpectedEOF(req, io.EOF))
+		assert.False(t, rest.RetryOnUnexpectedEOF(req, errors.New("some error")))
 	})
 }

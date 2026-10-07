@@ -709,3 +709,112 @@ func TestClient_RequestOptionsCustomShouldRetryFunc(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, 2, apiHits)
 }
+
+// failingTransport fails the first `failures` round trips with `err` and succeeds afterwards.
+type failingTransport struct {
+	failures int
+	err      error
+	attempts int
+}
+
+func (t *failingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	t.attempts++
+	if t.attempts <= t.failures {
+		return nil, t.err
+	}
+	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(http.NoBody), Request: req}, nil
+}
+
+func TestClient_WithRetryOnError(t *testing.T) {
+	baseURL, _ := url.Parse("http://localhost")
+
+	t.Run("retries until success", func(t *testing.T) {
+		transport := &failingTransport{failures: 2, err: io.ErrUnexpectedEOF}
+		client := NewClient(baseURL, &http.Client{Transport: transport}, WithRetryOptions(&RetryOptions{
+			MaxRetries:             2,
+			ShouldRetryOnErrorFunc: RetryOnUnexpectedEOF,
+		}))
+
+		resp, err := client.GET(t.Context(), "", RequestOptions{})
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, 3, transport.attempts)
+	})
+
+	t.Run("stops after MaxRetries and returns the error", func(t *testing.T) {
+		transport := &failingTransport{failures: 5, err: io.ErrUnexpectedEOF}
+		client := NewClient(baseURL, &http.Client{Transport: transport}, WithRetryOptions(&RetryOptions{
+			MaxRetries:             2,
+			ShouldRetryOnErrorFunc: RetryOnUnexpectedEOF,
+		}))
+
+		_, err := client.GET(t.Context(), "", RequestOptions{})
+
+		assert.ErrorIs(t, err, io.ErrUnexpectedEOF)
+		assert.Equal(t, 3, transport.attempts)
+	})
+
+	t.Run("does not retry POST", func(t *testing.T) {
+		transport := &failingTransport{failures: 1, err: io.ErrUnexpectedEOF}
+		client := NewClient(baseURL, &http.Client{Transport: transport}, WithRetryOptions(&RetryOptions{
+			MaxRetries:             2,
+			ShouldRetryOnErrorFunc: RetryOnUnexpectedEOF,
+		}))
+
+		_, err := client.POST(t.Context(), "", nil, RequestOptions{})
+
+		assert.ErrorIs(t, err, io.ErrUnexpectedEOF)
+		assert.Equal(t, 1, transport.attempts)
+	})
+
+	t.Run("passes request and error to the retry func", func(t *testing.T) {
+		transport := &failingTransport{failures: 1, err: io.ErrUnexpectedEOF}
+		var gotMethod string
+		var gotErr error
+		client := NewClient(baseURL, &http.Client{Transport: transport}, WithRetryOptions(&RetryOptions{
+			MaxRetries: 1,
+			ShouldRetryOnErrorFunc: func(req *http.Request, err error) bool {
+				gotMethod, gotErr = req.Method, err
+				return true
+			},
+		}))
+
+		_, err := client.PUT(t.Context(), "", nil, RequestOptions{})
+
+		require.NoError(t, err)
+		assert.Equal(t, http.MethodPut, gotMethod)
+		assert.ErrorIs(t, gotErr, io.ErrUnexpectedEOF)
+	})
+
+	t.Run("does not retry if context is cancelled", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		transport := &failingTransport{failures: 1, err: io.ErrUnexpectedEOF}
+		client := NewClient(baseURL, &http.Client{Transport: transport}, WithRetryOptions(&RetryOptions{
+			MaxRetries:             1,
+			ShouldRetryOnErrorFunc: func(*http.Request, error) bool { return true },
+		}))
+
+		_, err := client.GET(ctx, "", RequestOptions{})
+
+		assert.Error(t, err)
+		assert.LessOrEqual(t, transport.attempts, 1)
+	})
+
+	t.Run("request option overrides client retry func", func(t *testing.T) {
+		transport := &failingTransport{failures: 1, err: io.ErrUnexpectedEOF}
+		client := NewClient(baseURL, &http.Client{Transport: transport}, WithRetryOptions(&RetryOptions{
+			MaxRetries:             1,
+			ShouldRetryOnErrorFunc: func(*http.Request, error) bool { return false },
+		}))
+
+		resp, err := client.POST(t.Context(), "", nil, RequestOptions{
+			CustomShouldRetryOnErrorFunc: func(*http.Request, error) bool { return true },
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, 2, transport.attempts)
+	})
+}
