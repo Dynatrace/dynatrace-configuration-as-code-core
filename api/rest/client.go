@@ -46,6 +46,10 @@ type RequestOptions struct {
 
 	CustomShouldRetryFunc RetryFunc
 
+	// CustomShouldRetryOnErrorFunc optionally overrides the ShouldRetryOnErrorFunc of
+	// the RetryOptions specified for the client.
+	CustomShouldRetryOnErrorFunc ErrorRetryFunc
+
 	// DelayAfterRetry optionally overrides the DelayAfterRetry of
 	// the RetryOptions specified for the client.
 	DelayAfterRetry *time.Duration
@@ -224,10 +228,20 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 		c.httpListener.onRequest(reqID, req)
 	}
 
+	// merge client retry options with request retry options
+	retryOptions := mergeRetryOptions(c.retryOptions, options)
+
 	response, err := c.httpClient.Do(req)
 	if err != nil {
 		if c.httpListener != nil {
 			c.httpListener.onResponse(reqID, nil, err)
+		}
+
+		// don't retry on e.g., context deadline
+		if ctx.Err() == nil && retryCount < retryOptions.MaxRetries && retryOptions.ShouldRetryOnErrorFunc != nil && retryOptions.ShouldRetryOnErrorFunc(req, err) {
+			slog.DebugContext(ctx, "Retrying failed request", slog.String("url", req.URL.String()), slog.String("method", req.Method), slog.Any("error", err), slog.Int64("delayMillis", retryOptions.DelayAfterRetry.Milliseconds()), slog.Int("retryCount", retryCount), slog.Int("maxRetryCount", retryOptions.MaxRetries))
+			time.Sleep(retryOptions.DelayAfterRetry)
+			return c.sendWithRetries(ctx, req, retryCount+1, options)
 		}
 
 		if isConnectionResetErr(err) {
@@ -251,9 +265,6 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 		c.rateLimiter.Update(ctx, response.StatusCode, response.Header)
 	}
 
-	// merge client retry options with request retry options
-	retryOptions := mergeRetryOptions(c.retryOptions, options.CustomShouldRetryFunc, options.DelayAfterRetry, options.MaxRetries)
-
 	if ShouldRetry(response.StatusCode) && retryOptions.ShouldRetryFunc != nil && retryCount < retryOptions.MaxRetries && retryOptions.ShouldRetryFunc(response) {
 		slog.DebugContext(ctx, "Retrying failed request", slog.String("url", req.URL.String()), slog.Int("status", response.StatusCode), slog.Int64("delayMillis", retryOptions.DelayAfterRetry.Milliseconds()), slog.Int("retryCount", retryCount), slog.Int("maxRetryCount", retryOptions.MaxRetries))
 		time.Sleep(retryOptions.DelayAfterRetry)
@@ -264,19 +275,22 @@ func (c *Client) sendWithRetries(ctx context.Context, req *http.Request, retryCo
 
 // mergeRetryOptions merges the client-set retry options with the options specified for a specific request.
 // The options for the request are preferred over the ones for the client
-func mergeRetryOptions(clientOptions *RetryOptions, retryFunc RetryFunc, delay *time.Duration, maxRetries *int) RetryOptions {
+func mergeRetryOptions(clientOptions *RetryOptions, requestOptions RequestOptions) RetryOptions {
 	mergedOptions := RetryOptions{}
 	if clientOptions != nil {
 		mergedOptions = *clientOptions
 	}
-	if retryFunc != nil {
-		mergedOptions.ShouldRetryFunc = retryFunc
+	if requestOptions.CustomShouldRetryFunc != nil {
+		mergedOptions.ShouldRetryFunc = requestOptions.CustomShouldRetryFunc
 	}
-	if delay != nil {
-		mergedOptions.DelayAfterRetry = *delay
+	if requestOptions.CustomShouldRetryOnErrorFunc != nil {
+		mergedOptions.ShouldRetryOnErrorFunc = requestOptions.CustomShouldRetryOnErrorFunc
 	}
-	if maxRetries != nil {
-		mergedOptions.MaxRetries = *maxRetries
+	if requestOptions.DelayAfterRetry != nil {
+		mergedOptions.DelayAfterRetry = *requestOptions.DelayAfterRetry
+	}
+	if requestOptions.MaxRetries != nil {
+		mergedOptions.MaxRetries = *requestOptions.MaxRetries
 	}
 	return mergedOptions
 }

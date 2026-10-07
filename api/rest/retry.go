@@ -15,17 +15,24 @@
 package rest
 
 import (
+	"errors"
+	"io"
 	"net/http"
 	"time"
 )
 
 type RetryFunc func(resp *http.Response) bool
 
+// ErrorRetryFunc decides whether a request that failed without a response should be retried.
+type ErrorRetryFunc func(req *http.Request, err error) bool
+
 // RetryOptions represents a component for retrying failed HTTP requests.
 type RetryOptions struct {
 	DelayAfterRetry time.Duration
 	MaxRetries      int
 	ShouldRetryFunc RetryFunc
+	// ShouldRetryOnErrorFunc is called if a request failed without a response.
+	ShouldRetryOnErrorFunc ErrorRetryFunc
 }
 
 // RetryIfNotSuccess is a basic retry function which will retry on any non 2xx status code.
@@ -41,6 +48,11 @@ func RetryIfTooManyRequestsOrServiceUnavailable(resp *http.Response) bool {
 // RetryOnFailureExcept404 returns true for all failed responses except those with status not found.
 func RetryOnFailureExcept404(resp *http.Response) bool {
 	return RetryIfNotSuccess(resp) && (resp.StatusCode != http.StatusNotFound)
+}
+
+// RetryOnUnexpectedEOF returns true if a non POST request failed with io.ErrUnexpectedEOF.
+func RetryOnUnexpectedEOF(req *http.Request, err error) bool {
+	return req.Method != http.MethodPost && errors.Is(err, io.ErrUnexpectedEOF)
 }
 
 // isStatusSuccess returns true if it is a 2xx status code
