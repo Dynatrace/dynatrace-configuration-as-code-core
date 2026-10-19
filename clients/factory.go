@@ -30,7 +30,6 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/openpipeline"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/segments"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/slo"
 )
@@ -222,15 +221,6 @@ func (f factory) SLOClient(ctx context.Context) (*slo.Client, error) {
 		return nil, err
 	}
 	return slo.NewClient(restClient), nil
-}
-
-// OpenPipelineClient creates and returns a new instance of openpipeline.Client for interacting with the openPipeline API.
-func (f factory) OpenPipelineClient(ctx context.Context) (*openpipeline.Client, error) {
-	restClient, err := f.CreatePlatformClient(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return openpipeline.NewClient(restClient), nil
 }
 
 // CreatePlatformClient creates a REST client configured for accessing platform APIs.

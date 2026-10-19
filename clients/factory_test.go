@@ -29,7 +29,6 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
-	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/openpipeline"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/segments"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/slo"
 )
@@ -74,11 +73,6 @@ func TestClientCreation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &documents.Client{}, clientInstance)
-
-	clientInstance, err = f.OpenPipelineClient(t.Context())
-	assert.NoError(t, err)
-	assert.NotNil(t, clientInstance)
-	assert.IsType(t, &openpipeline.Client{}, clientInstance)
 
 	clientInstance, err = f.AccountClient(t.Context())
 	assert.NoError(t, err)
@@ -127,10 +121,6 @@ func TestClientMissingPlatformURL(t *testing.T) {
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrPlatformURLMissing)
 
-	clientInstance, err = f.OpenPipelineClient(t.Context())
-	assert.Nil(t, clientInstance)
-	assert.ErrorIs(t, err, ErrPlatformURLMissing)
-
 	clientInstance, err = f.AccountClient(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
@@ -175,10 +165,6 @@ func TestClientMissingOAuthCredentials(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
 	clientInstance, err = f.DocumentClient(t.Context())
-	assert.Nil(t, clientInstance)
-	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
-
-	clientInstance, err = f.OpenPipelineClient(t.Context())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
@@ -232,10 +218,6 @@ func TestClientPlatformURLParsingError(t *testing.T) {
 	assert.ErrorContains(t, err, failedToParseURL)
 
 	clientInstance, err = f.DocumentClient(t.Context())
-	assert.Nil(t, clientInstance)
-	assert.ErrorContains(t, err, failedToParseURL)
-
-	clientInstance, err = f.OpenPipelineClient(t.Context())
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
 
@@ -294,11 +276,6 @@ func TestClientMissingAccountURL(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &documents.Client{}, clientInstance)
-
-	clientInstance, err = f.OpenPipelineClient(t.Context())
-	assert.NoError(t, err)
-	assert.NotNil(t, clientInstance)
-	assert.IsType(t, &openpipeline.Client{}, clientInstance)
 
 	clientInstance, err = f.AccountClient(t.Context())
 	assert.Nil(t, clientInstance)
@@ -360,11 +337,6 @@ func TestClientAccountURLParsingError(t *testing.T) {
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &documents.Client{}, clientInstance)
 
-	clientInstance, err = f.OpenPipelineClient(t.Context())
-	assert.NoError(t, err)
-	assert.NotNil(t, clientInstance)
-	assert.IsType(t, &openpipeline.Client{}, clientInstance)
-
 	clientInstance, err = f.AccountClient(t.Context())
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
@@ -423,11 +395,6 @@ func TestClientMissingClassicURL(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &documents.Client{}, clientInstance)
-
-	clientInstance, err = f.OpenPipelineClient(t.Context())
-	assert.NoError(t, err)
-	assert.NotNil(t, clientInstance)
-	assert.IsType(t, &openpipeline.Client{}, clientInstance)
 
 	clientInstance, err = f.AccountClient(t.Context())
 	assert.NoError(t, err)
@@ -489,11 +456,6 @@ func TestClientMissingAccessToken(t *testing.T) {
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &documents.Client{}, clientInstance)
 
-	clientInstance, err = f.OpenPipelineClient(t.Context())
-	assert.NoError(t, err)
-	assert.NotNil(t, clientInstance)
-	assert.IsType(t, &openpipeline.Client{}, clientInstance)
-
 	clientInstance, err = f.AccountClient(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
@@ -554,11 +516,6 @@ func TestClientClassicURLParsingError(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &documents.Client{}, clientInstance)
-
-	clientInstance, err = f.OpenPipelineClient(t.Context())
-	assert.NoError(t, err)
-	assert.NotNil(t, clientInstance)
-	assert.IsType(t, &openpipeline.Client{}, clientInstance)
 
 	clientInstance, err = f.AccountClient(t.Context())
 	assert.NoError(t, err)
