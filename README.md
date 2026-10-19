@@ -14,16 +14,15 @@ tailored to simplify the development of Configuration as Code tools like Monaco,
 
   | API Client               | Implemented |
   |--------------------------|-------------|
-  | Classic config APIs      | ❌           |
-  | Settings 2.0             | ❌           |
-  | Settings 2.0 permissions | ✅           |
-  | Automation               | ✅           |
-  | Grail buckets            | ✅           |
-  | Documents                | ✅           |
-  | OpenPipeline             | ✅           |
-  | Segments                 | ✅           |
-  | SLO's                    | ✅           |
-  | Account management       | ✅           |
+  | Classic config APIs      | ❌          |
+  | Settings 2.0             | ❌          |
+  | Settings 2.0 permissions | ✅          |
+  | Automation               | ✅          |
+  | Grail buckets            | ✅          |
+  | Documents                | ✅          |
+  | Segments                 | ✅          |
+  | SLOs                     | ✅          |
+  | Account management       | ✅          |
 
 ### Usage
 To instantiate a client, it's recommended to create an instance via the provided `clients.Factory()` function.
