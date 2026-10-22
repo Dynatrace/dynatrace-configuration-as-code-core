@@ -205,13 +205,11 @@ func processListResponse(httpResponse *http.Response) (nextPageKey string, resp 
 	}
 
 	resp = api.ListResponse{
-		Response: api.Response{
-			StatusCode: httpResponse.StatusCode,
-			Header:     httpResponse.Header,
-			Data:       nil,
-			Request:    api.NewRequestInfoFromRequest(httpResponse.Request),
-		},
-		Objects: data,
+		StatusCode: httpResponse.StatusCode,
+		Header:     httpResponse.Header,
+		Data:       nil,
+		Request:    api.NewRequestInfoFromRequest(httpResponse.Request),
+		Objects:    data,
 	}
 
 	return s.NextPage, resp, nil

@@ -100,13 +100,11 @@ func processListResponse(httpResponse *http.Response) (string, api.ListResponse,
 
 	return directSharesResponse.NextPage,
 		api.ListResponse{
-			Response: api.Response{
-				StatusCode: httpResponse.StatusCode,
-				Header:     httpResponse.Header,
-				Data:       nil,
-				Request:    api.NewRequestInfoFromRequest(httpResponse.Request),
-			},
-			Objects: objects,
+			StatusCode: httpResponse.StatusCode,
+			Header:     httpResponse.Header,
+			Data:       nil,
+			Request:    api.NewRequestInfoFromRequest(httpResponse.Request),
+			Objects:    objects,
 		},
 		nil
 }
@@ -202,13 +200,11 @@ func processRecipientsListResponse(httpResponse *http.Response) (string, api.Lis
 
 	return recipientsResponse.NextPage,
 		api.ListResponse{
-			Response: api.Response{
-				StatusCode: httpResponse.StatusCode,
-				Header:     httpResponse.Header,
-				Data:       nil,
-				Request:    api.NewRequestInfoFromRequest(httpResponse.Request),
-			},
-			Objects: objects,
+			StatusCode: httpResponse.StatusCode,
+			Header:     httpResponse.Header,
+			Data:       nil,
+			Request:    api.NewRequestInfoFromRequest(httpResponse.Request),
+			Objects:    objects,
 		},
 		nil
 }

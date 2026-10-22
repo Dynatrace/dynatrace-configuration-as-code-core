@@ -287,13 +287,11 @@ func (a Client) listPage(ctx context.Context, resourceType ResourceType, wfAdmin
 
 	return listNextResult{
 		api.ListResponse{
-			Response: api.Response{
-				StatusCode: resp.StatusCode,
-				Data:       res.Data,
-				Request: rest.RequestInfo{
-					Method: resp.Request.Method,
-					URL:    resp.Request.URL.String(),
-				},
+			StatusCode: resp.StatusCode,
+			Data:       res.Data,
+			Request: rest.RequestInfo{
+				Method: resp.Request.Method,
+				URL:    resp.Request.URL.String(),
 			},
 			Objects: b,
 		},

@@ -56,9 +56,7 @@ func TestListResponse_DecodeJSON(t *testing.T) {
 	t.Run("ValidJSON", func(t *testing.T) {
 		data := []byte(`{"results": [ { "key": "one" }, { "key": "two" } ] }`)
 		response := api.ListResponse{
-			Response: api.Response{
-				Data: data,
-			},
+			Data: data,
 		}
 		type objType map[string][]map[string]string
 
@@ -73,9 +71,7 @@ func TestListResponse_DecodeJSON(t *testing.T) {
 	t.Run("InvalidJSON", func(t *testing.T) {
 		data := []byte(`invalid-json`)
 		response := api.ListResponse{
-			Response: api.Response{
-				Data: data,
-			},
+			Data: data,
 		}
 		type objType map[string][]map[string]string
 
