@@ -162,11 +162,9 @@ func (c Client) List(ctx context.Context, filter string) (ListResponse, error) {
 
 		for _, doc := range result.Documents {
 			retVal.Responses = append(retVal.Responses, Response{
-				Response: api.Response{
-					Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
-					StatusCode: resp.StatusCode,
-				},
-				Metadata: doc,
+				Request:    rest.RequestInfo{Method: resp.Request.Method, URL: resp.Request.URL.String()},
+				StatusCode: resp.StatusCode,
+				Metadata:   doc,
 			})
 		}
 

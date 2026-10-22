@@ -26,8 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func toPtr[T any](v T) *T { return &v }
-
 func TestWriteDocument(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -54,9 +52,9 @@ func TestWriteDocument(t *testing.T) {
 				Name:          "doc",
 				ID:            "the-id",
 				IsPrivate:     false,
-				Description:   toPtr("a description"),
+				Description:   new("a description"),
 				Labels:        []string{"alpha", "beta"},
-				IsReshareable: toPtr(true),
+				IsReshareable: new(true),
 			},
 			content: []byte("file-content"),
 			wantValues: map[string][]string{
@@ -72,7 +70,7 @@ func TestWriteDocument(t *testing.T) {
 		},
 		{
 			name: "non-nil empty labels clears via a single empty field",
-			meta: Metadata{Type: Dashboard, Name: "n", Labels: []string{}, IsReshareable: toPtr(false)},
+			meta: Metadata{Type: Dashboard, Name: "n", Labels: []string{}, IsReshareable: new(false)},
 			wantValues: map[string][]string{
 				"labels":        {""},
 				"isReshareable": {"false"},
