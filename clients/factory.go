@@ -29,6 +29,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/accounts"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/automation"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/buckets"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/credentialvault"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/segments"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/slo"
@@ -185,6 +186,15 @@ func (f factory) AutomationClient(ctx context.Context) (*automation.Client, erro
 		return nil, err
 	}
 	return automation.NewClient(restClient), nil
+}
+
+// CredentialVaultClient creates and returns a new instance of credentialvault.Client for interacting with the credential vault API.
+func (f factory) CredentialVaultClient(ctx context.Context) (*credentialvault.Client, error) {
+	restClient, err := f.CreatePlatformClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return credentialvault.NewClient(restClient), nil
 }
 
 // BucketClient creates and returns a new instance of buckets.Client for interacting with the bucket API.
