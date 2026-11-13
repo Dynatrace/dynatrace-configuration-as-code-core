@@ -54,9 +54,12 @@ var (
 type DocumentType = string
 
 const (
-	Dashboard DocumentType = "dashboard"
-	Notebook  DocumentType = "notebook"
-	Launchpad DocumentType = "launchpad"
+	Dashboard          DocumentType = "dashboard"
+	Notebook           DocumentType = "notebook"
+	Launchpad          DocumentType = "launchpad"
+	OnionLogsDashboard DocumentType = "onion-logs-dashboard"
+	AIAgentDefinition  DocumentType = "ai-agent-definition"
+	AIAgentResource    DocumentType = "ai-agent-resource"
 )
 
 // Client is the HTTP client to be used for interacting with the Document API

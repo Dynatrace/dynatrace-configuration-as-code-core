@@ -26,6 +26,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestWriteDocument_AllDocumentTypes(t *testing.T) {
+	for _, docType := range []DocumentType{Dashboard, Notebook, Launchpad, OnionLogsDashboard, AIAgentDefinition, AIAgentResource} {
+		t.Run(docType, func(t *testing.T) {
+			body := &bytes.Buffer{}
+			_, boundary, err := writeDocument(body, Metadata{Type: docType, Name: "my-doc"}, []byte("{}"))
+			require.NoError(t, err)
+
+			form, err := multipart.NewReader(body, boundary).ReadForm(1 << 20)
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = form.RemoveAll() })
+
+			assert.Equal(t, []string{docType}, form.Value["type"])
+		})
+	}
+}
+
 func TestWriteDocument(t *testing.T) {
 	tests := []struct {
 		name        string
