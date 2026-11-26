@@ -17,6 +17,7 @@ package credentialvault_test
 import (
 	"io"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -81,12 +82,83 @@ func TestList(t *testing.T) {
 
 		client := credentialvault.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.List(t.Context())
+		resp, err := client.List(t.Context(), credentialvault.ListOptions{})
 
 		assert.NoError(t, err)
 		assert.NotEmpty(t, resp)
 		assert.Len(t, resp, 2, "for each call one listResponse should be present")
 		assert.Len(t, resp.All(), 2, "two credential vault objects in total should be downloaded")
+	})
+
+	t.Run("sends all filters as query parameters", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, url.Values{
+						"type":        {"TOKEN"},
+						"name":        {`"my name"`},
+						"user":        {"my-user"},
+						"scope":       {"my-scope"},
+						pageSizeParam: {"500"},
+					}, req.URL.Query())
+					return testutils.Response{ResponseCode: http.StatusOK, ResponseBody: `{"credentials": []}`}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := credentialvault.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		_, err := client.List(t.Context(), credentialvault.ListOptions{Type: "TOKEN", Name: `"my name"`, User: "my-user", Scope: "my-scope"})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("omits empty filters from query parameters", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, url.Values{
+						"scope":       {"my-scope"},
+						pageSizeParam: {"500"},
+					}, req.URL.Query())
+					return testutils.Response{ResponseCode: http.StatusOK, ResponseBody: `{"credentials": []}`}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := credentialvault.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		_, err := client.List(t.Context(), credentialvault.ListOptions{Scope: "my-scope"})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("sends only page key on subsequent pages when filtering", func(t *testing.T) {
+		responses := []testutils.ResponseDef{
+			{
+				GET: func(t *testing.T, _ *http.Request) testutils.Response {
+					return testutils.Response{ResponseCode: http.StatusOK, ResponseBody: `{"nextPageKey": "key_for_next_page", "credentials": []}`}
+				},
+			},
+			{
+				GET: func(t *testing.T, req *http.Request) testutils.Response {
+					assert.Equal(t, url.Values{nextPageKeyParam: {"key_for_next_page"}}, req.URL.Query())
+					return testutils.Response{ResponseCode: http.StatusOK, ResponseBody: `{"credentials": []}`}
+				},
+			},
+		}
+		server := testutils.NewHTTPTestServer(t, responses)
+		defer server.Close()
+
+		client := credentialvault.NewClient(rest.NewClient(server.URL(), server.Client()))
+
+		_, err := client.List(t.Context(), credentialvault.ListOptions{Type: "TOKEN"})
+
+		assert.NoError(t, err)
 	})
 
 	t.Run("errors if can't execute all calls successfully", func(t *testing.T) {
@@ -115,7 +187,7 @@ func TestList(t *testing.T) {
 
 		client := credentialvault.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.List(t.Context())
+		resp, err := client.List(t.Context(), credentialvault.ListOptions{})
 
 		assert.Empty(t, resp)
 		var apiErr api.APIError
@@ -129,7 +201,7 @@ func TestList(t *testing.T) {
 
 		client := credentialvault.NewClient(rest.NewClient(server.URL(), server.FaultyClient()))
 
-		resp, err := client.List(t.Context())
+		resp, err := client.List(t.Context(), credentialvault.ListOptions{})
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.ClientError{})
@@ -148,7 +220,7 @@ func TestList(t *testing.T) {
 
 		client := credentialvault.NewClient(rest.NewClient(server.URL(), server.Client()))
 
-		resp, err := client.List(t.Context())
+		resp, err := client.List(t.Context(), credentialvault.ListOptions{})
 
 		assert.Empty(t, resp)
 		assert.ErrorAs(t, err, &api.RuntimeError{})

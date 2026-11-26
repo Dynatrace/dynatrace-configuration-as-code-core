@@ -47,8 +47,29 @@ func NewClient(client *rest.Client) *Client {
 	return &Client{restClient: client}
 }
 
-// List returns all credential vault entries.
-func (c Client) List(ctx context.Context) (api.PagedListResponse, error) {
+// ListOptions filters the entries returned by List. Empty fields are not sent.
+type ListOptions struct {
+	// Type of the credential
+	Type string
+	// Name matches case-insensitively; enclose it in quotation marks to match the whole phrase.
+	Name string
+	// User restricts the result to credentials owned by that user or shared with everyone.
+	User  string
+	Scope string
+}
+
+func (o ListOptions) queryParameters() url.Values {
+	parameters := url.Values{}
+	for key, value := range map[string]string{"type": o.Type, "name": o.Name, "user": o.User, "scope": o.Scope} {
+		if value != "" {
+			parameters.Set(key, value)
+		}
+	}
+	return parameters
+}
+
+// List returns all credential vault entries matching the given options.
+func (c Client) List(ctx context.Context, options ListOptions) (api.PagedListResponse, error) {
 	var pagedListResponse api.PagedListResponse
 
 	nextPageKey := ""
@@ -56,7 +77,7 @@ func (c Client) List(ctx context.Context) (api.PagedListResponse, error) {
 		var listResponse api.ListResponse
 		var err error
 
-		nextPageKey, listResponse, err = c.listPage(ctx, nextPageKey)
+		nextPageKey, listResponse, err = c.listPage(ctx, nextPageKey, options)
 		if err != nil {
 			return nil, err
 		}
@@ -70,12 +91,13 @@ func (c Client) List(ctx context.Context) (api.PagedListResponse, error) {
 	return pagedListResponse, nil
 }
 
-func (c Client) listPage(ctx context.Context, pageKey string) (string, api.ListResponse, error) {
+func (c Client) listPage(ctx context.Context, pageKey string, options ListOptions) (string, api.ListResponse, error) {
 	var ro rest.RequestOptions
 	if pageKey != "" {
 		ro.QueryParams = url.Values{"page-key": {pageKey}}
 	} else {
-		ro.QueryParams = url.Values{"page-size": {strconv.Itoa(pageSize)}}
+		ro.QueryParams = options.queryParameters()
+		ro.QueryParams.Set("page-size", strconv.Itoa(pageSize))
 	}
 
 	httpResponse, err := c.restClient.GET(ctx, resourcePath, ro)
