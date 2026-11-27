@@ -33,6 +33,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/segments"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/slo"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/synthetic"
 )
 
 // ErrOAuthCredentialsMissing indicates that no OAuth2 client credentials were provided.
@@ -231,6 +232,15 @@ func (f factory) SLOClient(ctx context.Context) (*slo.Client, error) {
 		return nil, err
 	}
 	return slo.NewClient(restClient), nil
+}
+
+// SyntheticClient creates and returns a new instance of synthetic.Client for interacting with the platform Synthetic API.
+func (f factory) SyntheticClient(ctx context.Context) (*synthetic.Client, error) {
+	restClient, err := f.CreatePlatformClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return synthetic.NewClient(restClient), nil
 }
 
 // CreatePlatformClient creates a REST client configured for accessing platform APIs.

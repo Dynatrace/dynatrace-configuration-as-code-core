@@ -31,6 +31,7 @@ import (
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/documents"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/segments"
 	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/slo"
+	"github.com/dynatrace/dynatrace-configuration-as-code-core/clients/synthetic"
 )
 
 const failedToParseURL = "failed to parse URL"
@@ -63,6 +64,11 @@ func TestClientCreation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &slo.Client{}, clientInstance)
+
+	clientInstance, err = f.SyntheticClient(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &synthetic.Client{}, clientInstance)
 
 	clientInstance, err = f.AutomationClient(t.Context())
 	assert.NoError(t, err)
@@ -113,6 +119,10 @@ func TestClientMissingPlatformURL(t *testing.T) {
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrPlatformURLMissing)
 
+	clientInstance, err = f.SyntheticClient(t.Context())
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrPlatformURLMissing)
+
 	clientInstance, err = f.AutomationClient(t.Context())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrPlatformURLMissing)
@@ -157,6 +167,10 @@ func TestClientMissingOAuthCredentials(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
 	clientInstance, err = f.SLOClient(t.Context())
+	assert.Nil(t, clientInstance)
+	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
+
+	clientInstance, err = f.SyntheticClient(t.Context())
 	assert.Nil(t, clientInstance)
 	assert.ErrorIs(t, err, ErrNoPlatformCredentialsProvided)
 
@@ -213,6 +227,10 @@ func TestClientPlatformURLParsingError(t *testing.T) {
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
 
+	clientInstance, err = f.SyntheticClient(t.Context())
+	assert.Nil(t, clientInstance)
+	assert.ErrorContains(t, err, failedToParseURL)
+
 	clientInstance, err = f.AutomationClient(t.Context())
 	assert.Nil(t, clientInstance)
 	assert.ErrorContains(t, err, failedToParseURL)
@@ -266,6 +284,11 @@ func TestClientMissingAccountURL(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &slo.Client{}, clientInstance)
+
+	clientInstance, err = f.SyntheticClient(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &synthetic.Client{}, clientInstance)
 
 	clientInstance, err = f.AutomationClient(t.Context())
 	assert.NoError(t, err)
@@ -327,6 +350,11 @@ func TestClientAccountURLParsingError(t *testing.T) {
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &slo.Client{}, clientInstance)
 
+	clientInstance, err = f.SyntheticClient(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &synthetic.Client{}, clientInstance)
+
 	clientInstance, err = f.AutomationClient(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
@@ -385,6 +413,11 @@ func TestClientMissingClassicURL(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &slo.Client{}, clientInstance)
+
+	clientInstance, err = f.SyntheticClient(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &synthetic.Client{}, clientInstance)
 
 	clientInstance, err = f.AutomationClient(t.Context())
 	assert.NoError(t, err)
@@ -446,6 +479,11 @@ func TestClientMissingAccessToken(t *testing.T) {
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &slo.Client{}, clientInstance)
 
+	clientInstance, err = f.SyntheticClient(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &synthetic.Client{}, clientInstance)
+
 	clientInstance, err = f.AutomationClient(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
@@ -506,6 +544,11 @@ func TestClientClassicURLParsingError(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, clientInstance)
 	assert.IsType(t, &slo.Client{}, clientInstance)
+
+	clientInstance, err = f.SyntheticClient(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, clientInstance)
+	assert.IsType(t, &synthetic.Client{}, clientInstance)
 
 	clientInstance, err = f.AutomationClient(t.Context())
 	assert.NoError(t, err)
